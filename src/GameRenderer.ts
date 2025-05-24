@@ -179,7 +179,7 @@ export class GameRenderer {
           resolve(); // Continue even if image fails to load
         };
         
-        img.src = `src/imgs/${filename}`;
+        img.src = `/imgs/${filename}`;
       });
       
       loadPromises.push(promise);
