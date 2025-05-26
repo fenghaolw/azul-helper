@@ -60,18 +60,18 @@ export class GameRenderer {
 
   // Centralized layout configuration - single source of truth
   private layout: LayoutConfig = {
-    canvas: { width: 1200, height: 800 },
+    canvas: { width: 1200, height: 650 }, // Moderately reduced height while avoiding overlaps
     title: { x: 600, y: 25 }, // canvas.width / 2
     factories: {
       startX: 50,
       startY: 80,
-      size: 120,
+      size: 120, // Increased to give more space around tiles within coaster borders
       spacing: 20,
       perRow: 0 // Will be calculated based on number of factories
     },
     center: {
       x: 50,
-      y: 420,
+      y: 370, // Increased spacing from factories for better visual separation
       width: 400,
       height: 120
     },
@@ -79,9 +79,9 @@ export class GameRenderer {
       startX: 500,
       startY: 80,
       width: 300,
-      height: 400,
+      height: 280, // Reduced to eliminate empty space
       spacingX: 50,
-      spacingY: 50,
+      spacingY: 40, // Slightly reduced spacing between rows
       patternLines: {
         startY: 40, // Relative to board
         height: 30,
@@ -94,22 +94,25 @@ export class GameRenderer {
         spacing: 2
       },
       floor: {
-        startY: 340, // Relative to board (height - 60)
+        startY: 230, // Much closer to pattern lines/wall area
         height: 30
       }
     },
-    gameInfo: { x: 50, y: 560 }
+    gameInfo: { x: 850, y: 400 } // Positioned on right side for better space utilization
   };
 
-  // Fallback Material Design inspired tile colors (in case images fail to load)
+  // Traditional Azul/Portuguese azulejo inspired tile colors
   private tileColors = {
-    [Tile.Red]: '#f44336',     // Material Red 500
-    [Tile.Blue]: '#2196f3',    // Material Blue 500
-    [Tile.Yellow]: '#ffeb3b',  // Material Yellow 500
-    [Tile.Black]: '#424242',   // Material Grey 800
-    [Tile.White]: '#fafafa',   // Material Grey 50
-    [Tile.FirstPlayer]: '#9c27b0' // Material Purple 500
+    [Tile.Red]: '#c0392b',     // Deep red like Portuguese terra cotta
+    [Tile.Blue]: '#2c3e50',    // Deep navy blue like traditional azulejo
+    [Tile.Yellow]: '#f39c12',  // Rich golden yellow
+    [Tile.Black]: '#1a1a1a',   // Deep black
+    [Tile.White]: '#ecf0f1',   // Creamy white like ceramic
+    [Tile.FirstPlayer]: '#ffffff' // Pure white for first player token
   };
+
+  // Standard tile size used across all game areas for consistency
+  private readonly STANDARD_TILE_SIZE = 25;
 
   constructor(canvas: HTMLCanvasElement, gameState: GameState) {
     this.canvas = canvas;
@@ -160,7 +163,7 @@ export class GameRenderer {
       [Tile.Yellow]: 'tile-yellow.svg',
       [Tile.Black]: 'tile-black.svg',
       [Tile.White]: 'tile-turquoise.svg', // Using turquoise for white/light blue tiles
-      [Tile.FirstPlayer]: 'tile-yellow.svg' // Using yellow as base for first player token
+      [Tile.FirstPlayer]: 'tile-overlay-dark.svg' // Using dark overlay for first player token
     };
 
     const loadPromises: Promise<void>[] = [];
@@ -215,8 +218,42 @@ export class GameRenderer {
       x: this.layout.center.x,
       y: this.layout.center.y,
       width: this.layout.center.width,
-      height: this.layout.center.height
+      height: this.calculateCenterHeight()
     };
+  }
+
+  private calculateCenterHeight(): number {
+    // Calculate how many rows of tiles we need
+    const regularTiles = this.gameState.center.filter(t => t !== Tile.FirstPlayer);
+    const tilesByColor = new Map<Tile, Tile[]>();
+    
+    // Group tiles by their color
+    regularTiles.forEach(tile => {
+      if (!tilesByColor.has(tile)) {
+        tilesByColor.set(tile, []);
+      }
+      tilesByColor.get(tile)!.push(tile);
+    });
+    
+    // Count unique colors that have tiles
+    const colorOrder = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    const numRows = colorOrder.filter(color => tilesByColor.has(color)).length;
+    
+    if (numRows === 0) {
+      // If no regular tiles, use minimum height
+      return this.layout.center.height;
+    }
+    
+    // Calculate required height using standard tile size for consistency
+    const tileSize = this.STANDARD_TILE_SIZE;
+    const rowSpacing = 8;
+    const topPadding = 15; // Increased padding to prevent overlap with decorative border
+    const bottomPadding = 15; // Increased padding to prevent overlap with decorative border
+    
+    const requiredHeight = topPadding + (numRows - 1) * (tileSize + rowSpacing) + tileSize + bottomPadding;
+    
+    // Use at least the original minimum height
+    return Math.max(requiredHeight, this.layout.center.height);
   }
 
   private getPlayerBoardBounds(playerIndex: number) {
@@ -289,36 +326,334 @@ export class GameRenderer {
   }
 
   private drawBackground(): void {
-    // Material Design background
-    this.ctx.fillStyle = '#f5f5f5'; // Material Design Grey 100
+    // Portuguese azulejo inspired background
+    const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+    gradient.addColorStop(0, '#f8f9fa'); // Creamy white
+    gradient.addColorStop(0.5, '#e9ecef'); // Light grey
+    gradient.addColorStop(1, '#dee2e6'); // Slightly darker grey
+    
+    this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Add subtle dot pattern
-    this.ctx.globalAlpha = 0.05;
-    for (let x = 0; x < this.canvas.width; x += 24) {
-      for (let y = 0; y < this.canvas.height; y += 24) {
-        this.ctx.fillStyle = '#9E9E9E';
+    // Add traditional azulejo pattern
+    this.drawAzulejoPattern();
+  }
+
+  private drawAzulejoPattern(): void {
+    // Draw subtle decorative azulejo-inspired pattern
+    this.ctx.globalAlpha = 0.08;
+    this.ctx.strokeStyle = '#2c3e50'; // Traditional azulejo blue
+    this.ctx.lineWidth = 1;
+    
+    const patternSize = 40;
+    
+    for (let x = 0; x < this.canvas.width; x += patternSize) {
+      for (let y = 0; y < this.canvas.height; y += patternSize) {
+        // Draw decorative cross pattern
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 1, 0, 2 * Math.PI);
-        this.ctx.fill();
+        // Vertical line
+        this.ctx.moveTo(x + patternSize/2, y + 10);
+        this.ctx.lineTo(x + patternSize/2, y + patternSize - 10);
+        // Horizontal line
+        this.ctx.moveTo(x + 10, y + patternSize/2);
+        this.ctx.lineTo(x + patternSize - 10, y + patternSize/2);
+        // Small decorative corners
+        this.ctx.moveTo(x + 15, y + 15);
+        this.ctx.lineTo(x + 25, y + 15);
+        this.ctx.lineTo(x + 25, y + 25);
+        this.ctx.moveTo(x + patternSize - 15, y + 15);
+        this.ctx.lineTo(x + patternSize - 25, y + 15);
+        this.ctx.lineTo(x + patternSize - 25, y + 25);
+        this.ctx.moveTo(x + 15, y + patternSize - 15);
+        this.ctx.lineTo(x + 25, y + patternSize - 15);
+        this.ctx.lineTo(x + 25, y + patternSize - 25);
+        this.ctx.moveTo(x + patternSize - 15, y + patternSize - 15);
+        this.ctx.lineTo(x + patternSize - 25, y + patternSize - 15);
+        this.ctx.lineTo(x + patternSize - 25, y + patternSize - 25);
+        this.ctx.stroke();
       }
     }
+    
     this.ctx.globalAlpha = 1.0;
+  }
+
+  private drawCeramicCoaster(x: number, y: number, size: number, isSelected: boolean, isHovered: boolean): void {
+    // Draw ceramic coaster-style factory display inspired by Portuguese pottery
+    
+    // Coaster shadow
+    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.shadowBlur = 6;
+    this.ctx.shadowOffsetX = 2;
+    this.ctx.shadowOffsetY = 2;
+    
+    // Make the coaster larger to accommodate tiles - use 85% of the size
+    const coasterRadius = (size * 0.85) / 2;
+    
+    // Main ceramic body
+    this.ctx.fillStyle = '#f8f9fa'; // Ceramic white
+    this.ctx.beginPath();
+    this.ctx.arc(x + size/2, y + size/2, coasterRadius, 0, 2 * Math.PI);
+    this.ctx.fill();
+    
+    // Reset shadow
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+    
+    // Decorative rim
+    this.ctx.strokeStyle = '#2c3e50'; // Traditional blue
+    this.ctx.lineWidth = 3;
+    this.ctx.beginPath();
+    this.ctx.arc(x + size/2, y + size/2, coasterRadius, 0, 2 * Math.PI);
+    this.ctx.stroke();
+    
+    // Inner decorative ring
+    this.ctx.strokeStyle = '#d4af37'; // Gold accent
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.arc(x + size/2, y + size/2, coasterRadius - 4, 0, 2 * Math.PI);
+    this.ctx.stroke();
+    
+    // Selection/hover state with enhanced visual feedback
+    if (isSelected || isHovered) {
+      if (isHovered && !isSelected) {
+        // Enhanced hover effect with subtle glow
+        this.ctx.shadowColor = 'rgba(212, 175, 55, 0.4)'; // Golden glow
+        this.ctx.shadowBlur = 8;
+        this.ctx.strokeStyle = '#d4af37'; // Gold for hover
+        this.ctx.lineWidth = 3;
+      } else {
+        this.ctx.strokeStyle = isSelected ? '#d4af37' : '#85929e';
+        this.ctx.lineWidth = isSelected ? 4 : 2;
+      }
+      this.ctx.beginPath();
+      this.ctx.arc(x + size/2, y + size/2, coasterRadius + 2, 0, 2 * Math.PI);
+      this.ctx.stroke();
+      
+      // Reset shadow
+      this.ctx.shadowColor = 'transparent';
+      this.ctx.shadowBlur = 0;
+    }
+    
+    // Traditional azulejo-style decorative pattern in the center (smaller to not interfere with tiles)
+    const centerX = x + size/2;
+    const centerY = y + size/2;
+    const patternRadius = size/8; // Smaller pattern
+    
+    this.ctx.strokeStyle = '#2c3e50';
+    this.ctx.lineWidth = 1;
+    this.ctx.globalAlpha = 0.3; // Make pattern more subtle
+    this.ctx.beginPath();
+    // Draw small cross pattern
+    this.ctx.moveTo(centerX - patternRadius, centerY);
+    this.ctx.lineTo(centerX + patternRadius, centerY);
+    this.ctx.moveTo(centerX, centerY - patternRadius);
+    this.ctx.lineTo(centerX, centerY + patternRadius);
+    // Small decorative corners
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI) / 2;
+      const cornerX = centerX + Math.cos(angle) * patternRadius * 0.7;
+      const cornerY = centerY + Math.sin(angle) * patternRadius * 0.7;
+      this.ctx.moveTo(cornerX - 2, cornerY);
+      this.ctx.lineTo(cornerX + 2, cornerY);
+      this.ctx.moveTo(cornerX, cornerY - 2);
+      this.ctx.lineTo(cornerX, cornerY + 2);
+    }
+    this.ctx.stroke();
+    this.ctx.globalAlpha = 1.0; // Reset opacity
+  }
+
+  private drawOrnateCenterTable(bounds: any, isSelected: boolean, isHovered: boolean): void {
+    // Draw ornate center table inspired by Portuguese azulejo patterns
+    
+    // Table shadow
+    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.shadowBlur = 10;
+    this.ctx.shadowOffsetX = 4;
+    this.ctx.shadowOffsetY = 4;
+    
+    // Main table surface with ceramic-like gradient
+    const gradient = this.ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.height);
+    if (isSelected) {
+      gradient.addColorStop(0, '#ecf0f1');
+      gradient.addColorStop(0.5, '#d5dbdb');
+      gradient.addColorStop(1, '#bdc3c7');
+    } else if (isHovered) {
+      gradient.addColorStop(0, '#f8f9fa');
+      gradient.addColorStop(0.5, '#e9ecef');
+      gradient.addColorStop(1, '#dee2e6');
+    } else {
+      gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(0.5, '#f8f9fa');
+      gradient.addColorStop(1, '#e9ecef');
+    }
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    
+    // Reset shadow
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+    
+    // Ornate border with Portuguese tile pattern
+    this.ctx.strokeStyle = '#2c3e50';
+    this.ctx.lineWidth = 3;
+    this.ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    
+    // Inner decorative border
+    this.ctx.strokeStyle = '#d4af37'; // Gold accent
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(bounds.x + 4, bounds.y + 4, bounds.width - 8, bounds.height - 8);
+    
+    // Traditional azulejo corner decorations
+    const cornerSize = 20;
+    const corners = [
+      { x: bounds.x + 8, y: bounds.y + 8 }, // Top-left
+      { x: bounds.x + bounds.width - cornerSize - 8, y: bounds.y + 8 }, // Top-right
+      { x: bounds.x + 8, y: bounds.y + bounds.height - cornerSize - 8 }, // Bottom-left
+      { x: bounds.x + bounds.width - cornerSize - 8, y: bounds.y + bounds.height - cornerSize - 8 } // Bottom-right
+    ];
+    
+    this.ctx.strokeStyle = '#2c3e50';
+    this.ctx.lineWidth = 1;
+    
+    corners.forEach(corner => {
+      // Draw traditional azulejo corner pattern
+      this.ctx.beginPath();
+      // Diagonal lines
+      this.ctx.moveTo(corner.x, corner.y + cornerSize/2);
+      this.ctx.lineTo(corner.x + cornerSize/2, corner.y);
+      this.ctx.moveTo(corner.x + cornerSize/2, corner.y + cornerSize);
+      this.ctx.lineTo(corner.x + cornerSize, corner.y + cornerSize/2);
+      // Small decorative elements
+      this.ctx.moveTo(corner.x + 5, corner.y + 5);
+      this.ctx.lineTo(corner.x + 10, corner.y + 5);
+      this.ctx.moveTo(corner.x + 5, corner.y + 5);
+      this.ctx.lineTo(corner.x + 5, corner.y + 10);
+      this.ctx.stroke();
+    });
+    
+    // Selection/hover highlight with enhanced visual feedback
+    if (isSelected || isHovered) {
+      if (isHovered && !isSelected) {
+        // Enhanced hover effect with subtle glow
+        this.ctx.shadowColor = 'rgba(212, 175, 55, 0.3)'; // Golden glow
+        this.ctx.shadowBlur = 6;
+        this.ctx.strokeStyle = '#d4af37'; // Gold for hover
+        this.ctx.lineWidth = 3;
+      } else {
+        this.ctx.strokeStyle = isSelected ? '#d4af37' : '#85929e';
+        this.ctx.lineWidth = isSelected ? 4 : 2;
+      }
+      this.ctx.strokeRect(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4);
+      
+      // Reset shadow
+      this.ctx.shadowColor = 'transparent';
+      this.ctx.shadowBlur = 0;
+    }
+  }
+
+  private drawAzulejoPlayerBoard(x: number, y: number, width: number, height: number, isCurrentPlayer: boolean): void {
+    // Draw Portuguese azulejo-inspired player board
+    
+    // Board shadow
+    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    this.ctx.shadowBlur = 6;
+    this.ctx.shadowOffsetX = 3;
+    this.ctx.shadowOffsetY = 3;
+    
+    // Main board background with ceramic gradient
+    const gradient = this.ctx.createLinearGradient(x, y, x, y + height);
+    if (isCurrentPlayer) {
+      gradient.addColorStop(0, '#f8f9fa');
+      gradient.addColorStop(0.5, '#e8f6f3');
+      gradient.addColorStop(1, '#d5e8df');
+    } else {
+      gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(0.5, '#f8f9fa');
+      gradient.addColorStop(1, '#ecf0f1');
+    }
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(x, y, width, height);
+    
+    // Reset shadow
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+    
+    // Traditional blue border
+    this.ctx.strokeStyle = '#2c3e50';
+    this.ctx.lineWidth = isCurrentPlayer ? 4 : 3;
+    this.ctx.strokeRect(x, y, width, height);
+    
+    // Gold accent border for current player
+    if (isCurrentPlayer) {
+      this.ctx.strokeStyle = '#d4af37';
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(x + 3, y + 3, width - 6, height - 6);
+    }
+    
+    // Inner decorative border
+    this.ctx.strokeStyle = '#85929e';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(x + 6, y + 6, width - 12, height - 12);
+    
+    // Small corner decorations
+    const cornerSize = 12;
+    const corners = [
+      { x: x + 10, y: y + 10 },
+      { x: x + width - cornerSize - 10, y: y + 10 },
+      { x: x + 10, y: y + height - cornerSize - 10 },
+      { x: x + width - cornerSize - 10, y: y + height - cornerSize - 10 }
+    ];
+    
+    this.ctx.strokeStyle = '#2c3e50';
+    this.ctx.lineWidth = 1;
+    
+    corners.forEach(corner => {
+      this.ctx.beginPath();
+      // Small decorative cross
+      this.ctx.moveTo(corner.x + cornerSize/2 - 3, corner.y + cornerSize/2);
+      this.ctx.lineTo(corner.x + cornerSize/2 + 3, corner.y + cornerSize/2);
+      this.ctx.moveTo(corner.x + cornerSize/2, corner.y + cornerSize/2 - 3);
+      this.ctx.lineTo(corner.x + cornerSize/2, corner.y + cornerSize/2 + 3);
+      this.ctx.stroke();
+    });
   }
 
   private drawTitle(): void {
     const centerX = this.layout.title.x;
     const titleY = this.layout.title.y;
     
-    // Main title - Material Design H4
-    this.ctx.fillStyle = '#212121'; // Material Design Grey 900
-    this.ctx.font = '400 32px "Roboto", sans-serif';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('Azul', centerX, titleY);
+    // Decorative border around title
+    this.ctx.strokeStyle = '#2c3e50';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.moveTo(centerX - 120, titleY + 10);
+    this.ctx.lineTo(centerX - 60, titleY + 10);
+    this.ctx.moveTo(centerX + 60, titleY + 10);
+    this.ctx.lineTo(centerX + 120, titleY + 10);
+    this.ctx.stroke();
     
-    // Subtitle - Material Design Body2
-    this.ctx.fillStyle = '#757575'; // Material Design Grey 600
-    this.ctx.font = '400 14px "Roboto", sans-serif';
+    // Main title with Portuguese influence
+    this.ctx.fillStyle = '#2c3e50'; // Traditional azulejo blue
+    this.ctx.font = 'bold 36px "Georgia", serif'; // More traditional serif font
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('AZUL', centerX, titleY);
+    
+    // Add gold accent to title
+    this.ctx.strokeStyle = '#d4af37'; // Gold
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeText('AZUL', centerX, titleY);
+    
+    // Subtitle with Portuguese inspiration
+    this.ctx.fillStyle = '#5d6d7e'; 
+    this.ctx.font = 'italic 14px "Georgia", serif';
     this.ctx.fillText('Strategic tile-laying board game', centerX, titleY + 24);
   }
 
@@ -330,16 +665,22 @@ export class GameRenderer {
   }
 
   private getFactoryTilePositions(tiles: Tile[], factoryX: number, factoryY: number, factorySize: number): Array<{ tile: Tile; x: number; y: number; index: number }> {
-    // Show each tile individually in a 2x2 grid
-    const tileSize = (factorySize - 30) / 2;
-    const tileSpacing = 10;
+    // Show each tile individually in a 2x2 grid using standard tile size
+    const tileSize = this.STANDARD_TILE_SIZE;
+    const tileSpacing = 6; // Spacing between tiles
     const positions = [];
+    
+    // Calculate the grid dimensions to center it
+    const gridWidth = 2 * tileSize + tileSpacing;
+    const gridHeight = 2 * tileSize + tileSpacing;
+    const startX = factoryX + (factorySize - gridWidth) / 2;
+    const startY = factoryY + (factorySize - gridHeight) / 2;
     
     for (let i = 0; i < Math.min(tiles.length, 4); i++) {
       const tileRow = Math.floor(i / 2);
       const tileCol = i % 2;
-      const tileX = factoryX + 15 + tileCol * (tileSize + tileSpacing);
-      const tileY = factoryY + 15 + tileRow * (tileSize + tileSpacing);
+      const tileX = startX + tileCol * (tileSize + tileSpacing);
+      const tileY = startY + tileRow * (tileSize + tileSpacing);
       
       positions.push({
         tile: tiles[i],
@@ -355,62 +696,34 @@ export class GameRenderer {
   private drawFactory(x: number, y: number, size: number, tiles: Tile[], factoryIndex: number): void {
     const isSelected = this.selectedFactory === factoryIndex;
     const isHovered = this.hoveredFactory === factoryIndex;
-    const radius = 12;
     
-    // Factory shadow
-    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    this.ctx.shadowBlur = 8;
-    this.ctx.shadowOffsetX = 3;
-    this.ctx.shadowOffsetY = 3;
-    
-    // Factory background with gradient
-    const gradient = this.ctx.createRadialGradient(x + size/2, y + size/2, 0, x + size/2, y + size/2, size/2);
-    if (isSelected) {
-      gradient.addColorStop(0, '#74b9ff');
-      gradient.addColorStop(1, '#0984e3');
-    } else if (isHovered) {
-      gradient.addColorStop(0, '#b2bec3');
-      gradient.addColorStop(1, '#636e72');
-    } else {
-      gradient.addColorStop(0, '#ddd');
-      gradient.addColorStop(1, '#95a5a6');
-    }
-    
-    this.ctx.fillStyle = gradient;
-    this.drawRoundedRect(x, y, size, size, radius);
-    this.ctx.fill();
-    
-    // Reset shadow
-    this.ctx.shadowColor = 'transparent';
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowOffsetX = 0;
-    this.ctx.shadowOffsetY = 0;
-    
-    // Factory border with depth
-    this.ctx.strokeStyle = isSelected ? '#0984e3' : 'rgba(0, 0, 0, 0.3)';
-    this.ctx.lineWidth = isSelected ? 3 : 2;
-    this.drawRoundedRect(x, y, size, size, radius);
-    this.ctx.stroke();
-    
-    // Inner highlight
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(x + 2, y + 2, size - 4, size - 4, radius - 2);
-    this.ctx.stroke();
+    // Draw ceramic coaster-style factory display
+    this.drawCeramicCoaster(x, y, size, isSelected, isHovered);
 
     // Get tile positions using the same logic as hit detection
     const tilePositions = this.getFactoryTilePositions(tiles, x, y, size);
-    const tileSize = (size - 30) / 2;
+    const tileSize = this.STANDARD_TILE_SIZE;
     
     // Draw tiles
     for (const { tile, x: tileX, y: tileY } of tilePositions) {
-      // Highlight if this tile type is selected or hovered
+      // Enhanced highlight for selected/hovered tiles
       const isTileSelected = this.selectedTile === tile && this.selectedFactory === factoryIndex;
       const isTileHovered = this.hoveredTile === tile && this.hoveredFactory === factoryIndex;
       
       if (isTileSelected || isTileHovered) {
-        this.ctx.fillStyle = isTileSelected ? '#f1c40f' : '#e8f6f3';
-        this.ctx.fillRect(tileX - 3, tileY - 3, tileSize + 6, tileSize + 6);
+        if (isTileHovered && !isTileSelected) {
+          // Enhanced hover with subtle glow
+          this.ctx.shadowColor = 'rgba(212, 175, 55, 0.6)';
+          this.ctx.shadowBlur = 8;
+          this.ctx.fillStyle = '#fff8dc'; // Warm cream highlight
+        } else {
+          this.ctx.fillStyle = '#f1c40f'; // Bright yellow for selection
+        }
+        this.ctx.fillRect(tileX - 4, tileY - 4, tileSize + 8, tileSize + 8);
+        
+        // Reset shadow
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
       }
       
       this.drawTile(tileX, tileY, tileSize, tile);
@@ -421,84 +734,51 @@ export class GameRenderer {
 
   private drawCenter(): void {
     const bounds = this.getCenterBounds();
-    const radius = 15;
-
     const isSelected = this.selectedFactory === -1;
     const isHovered = this.hoveredFactory === -1;
     
-    // Center shadow
-    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    this.ctx.shadowBlur = 8;
-    this.ctx.shadowOffsetX = 3;
-    this.ctx.shadowOffsetY = 3;
-    
-    // Center background with elegant gradient
-    const gradient = this.ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.height);
-    if (isSelected) {
-      gradient.addColorStop(0, '#74b9ff');
-      gradient.addColorStop(1, '#0984e3');
-    } else if (isHovered) {
-      gradient.addColorStop(0, '#dfe6e9');
-      gradient.addColorStop(1, '#b2bec3');
-    } else {
-      gradient.addColorStop(0, '#f8f9fa');
-      gradient.addColorStop(1, '#e9ecef');
-    }
-    
-    this.ctx.fillStyle = gradient;
-    this.drawRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-    this.ctx.fill();
-    
-    // Reset shadow
-    this.ctx.shadowColor = 'transparent';
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowOffsetX = 0;
-    this.ctx.shadowOffsetY = 0;
-    
-    // Center border
-    this.ctx.strokeStyle = isSelected ? '#0984e3' : 'rgba(0, 0, 0, 0.2)';
-    this.ctx.lineWidth = isSelected ? 3 : 2;
-    this.drawRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-    this.ctx.stroke();
-    
-    // Inner highlight
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(bounds.x + 2, bounds.y + 2, bounds.width - 4, bounds.height - 4, radius - 2);
-    this.ctx.stroke();
+    // Draw ornate center table inspired by Portuguese tile work
+    this.drawOrnateCenterTable(bounds, isSelected, isHovered);
 
     // Get tile positions using the same logic as hit detection
     const tilePositions = this.getCenterTilePositions();
     
     // Draw regular tiles
     for (const { tile, x, y } of tilePositions) {
-      // Highlight if this tile type is selected or hovered
+      // Enhanced highlight for selected/hovered tiles
       const isTileSelected = this.selectedTile === tile && this.selectedFactory === -1;
       const isTileHovered = this.hoveredTile === tile && this.hoveredFactory === -1;
       
       if (isTileSelected || isTileHovered) {
-        this.ctx.fillStyle = isTileSelected ? '#f1c40f' : '#e8f6f3';
-        this.ctx.fillRect(x - 3, y - 3, 30 + 6, 30 + 6);
+        if (isTileHovered && !isTileSelected) {
+          // Enhanced hover with subtle glow
+          this.ctx.shadowColor = 'rgba(212, 175, 55, 0.6)';
+          this.ctx.shadowBlur = 8;
+          this.ctx.fillStyle = '#fff8dc'; // Warm cream highlight
+        } else {
+          this.ctx.fillStyle = '#f1c40f'; // Bright yellow for selection
+        }
+        this.ctx.fillRect(x - 4, y - 4, this.STANDARD_TILE_SIZE + 8, this.STANDARD_TILE_SIZE + 8);
+        
+        // Reset shadow
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
       }
       
-      this.drawTile(x, y, 30, tile);
+      this.drawTile(x, y, this.STANDARD_TILE_SIZE, tile);
     }
     
     // Draw FirstPlayer token separately if present
     if (this.gameState.center.includes(Tile.FirstPlayer)) {
-      const tokenX = bounds.x + bounds.width - 40;
-      const tokenY = bounds.y + 10;
+      const tokenX = bounds.x + bounds.width - this.STANDARD_TILE_SIZE - 15; // Match increased padding
+      const tokenY = bounds.y + 15; // Match increased padding
       
-      // Add a special highlight for first player token
-      this.ctx.fillStyle = 'rgba(156, 39, 176, 0.2)'; // Purple highlight
-      this.ctx.fillRect(tokenX - 5, tokenY - 5, 40, 40);
-      
-      this.drawTile(tokenX, tokenY, 30, Tile.FirstPlayer);
+      this.drawTile(tokenX, tokenY, this.STANDARD_TILE_SIZE, Tile.FirstPlayer);
     }
 
-    // Center label with elegant styling
-    this.ctx.fillStyle = '#212121'; // Material Design Grey 900
-    this.ctx.font = '500 16px "Roboto", sans-serif';
+    // Center label with azulejo styling
+    this.ctx.fillStyle = '#2c3e50';
+    this.ctx.font = 'bold 16px "Georgia", serif';
     this.ctx.textAlign = 'left';
     this.ctx.strokeStyle = '#ffffff';
     this.ctx.lineWidth = 3;
@@ -508,8 +788,8 @@ export class GameRenderer {
     // Add helpful subtitle if there are tiles
     const regularTiles = this.gameState.center.filter(t => t !== Tile.FirstPlayer);
     if (regularTiles.length > 0) {
-      this.ctx.fillStyle = '#757575'; // Material Design Grey 600
-      this.ctx.font = '400 12px "Roboto", sans-serif';
+      this.ctx.fillStyle = '#5d6d7e';
+      this.ctx.font = 'italic 12px "Georgia", serif';
       this.ctx.fillText('(organized by color)', bounds.x, bounds.y + 8);
     }
   }
@@ -524,18 +804,12 @@ export class GameRenderer {
   }
 
   private drawPlayerBoard(x: number, y: number, width: number, height: number, board: PlayerBoard, playerIndex: number): void {
-    // Board background
-    this.ctx.fillStyle = playerIndex === this.gameState.currentPlayer ? '#e8f8f5' : '#f8f9fa';
-    this.ctx.fillRect(x, y, width, height);
-    
-    // Board border
-    this.ctx.strokeStyle = playerIndex === this.gameState.currentPlayer ? '#27ae60' : '#bdc3c7';
-    this.ctx.lineWidth = playerIndex === this.gameState.currentPlayer ? 3 : 2;
-    this.ctx.strokeRect(x, y, width, height);
+    // Draw azulejo-style player board
+    this.drawAzulejoPlayerBoard(x, y, width, height, playerIndex === this.gameState.currentPlayer);
 
-    // Player label and score
-    this.ctx.fillStyle = '#212121'; // Material Design Grey 900
-    this.ctx.font = '500 16px "Roboto", sans-serif';
+    // Player label and score with azulejo styling
+    this.ctx.fillStyle = '#2c3e50';
+    this.ctx.font = 'bold 16px "Georgia", serif';
     this.ctx.textAlign = 'left';
     this.ctx.fillText(`Player ${playerIndex + 1}`, x + 10, y + 25);
     this.ctx.fillText(`Score: ${board.score}`, x + 150, y + 25);
@@ -556,17 +830,29 @@ export class GameRenderer {
   }
 
   private drawPatternLine(x: number, y: number, lineIndex: number, tiles: Tile[], playerIndex: number): void {
-    const tileSize = this.layout.playerBoards.patternLines.tileSize;
+    const tileSize = this.STANDARD_TILE_SIZE;
     const maxTiles = lineIndex + 1;
     
-    // Line background
+    // Line background with enhanced hover effect
     const isHovered = this.hoveredLine === lineIndex && this.gameState.currentPlayer === playerIndex;
-    this.ctx.fillStyle = isHovered ? '#d5dbdb' : '#ecf0f1';
+    
+    if (isHovered) {
+      // Enhanced hover effect with golden glow
+      this.ctx.shadowColor = 'rgba(212, 175, 55, 0.4)';
+      this.ctx.shadowBlur = 6;
+      this.ctx.fillStyle = '#f4f1e8'; // Warm cream color for hover
+    } else {
+      this.ctx.fillStyle = '#ecf0f1';
+    }
     this.ctx.fillRect(x, y, maxTiles * (tileSize + 2), tileSize);
     
-    // Line border
-    this.ctx.strokeStyle = '#bdc3c7';
-    this.ctx.lineWidth = 1;
+    // Reset shadow
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    
+    // Line border with enhanced hover styling
+    this.ctx.strokeStyle = isHovered ? '#d4af37' : '#bdc3c7';
+    this.ctx.lineWidth = isHovered ? 2 : 1;
     this.ctx.strokeRect(x, y, maxTiles * (tileSize + 2), tileSize);
 
     // Draw tiles
@@ -588,7 +874,7 @@ export class GameRenderer {
   }
 
   private drawWall(x: number, y: number, wall: Tile[][]): void {
-    const tileSize = this.layout.playerBoards.wall.tileSize;
+    const tileSize = this.STANDARD_TILE_SIZE;
     const spacing = this.layout.playerBoards.wall.spacing;
     const wallPattern = [
       [Tile.Blue, Tile.Yellow, Tile.Red, Tile.Black, Tile.White],
@@ -601,7 +887,8 @@ export class GameRenderer {
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 5; col++) {
         const tileX = x + col * (tileSize + spacing);
-        const tileY = y + row * (tileSize + this.layout.playerBoards.patternLines.spacing + 2);
+        // Use the same vertical spacing as pattern lines for proper alignment
+        const tileY = y + row * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing);
         const expectedTile = wallPattern[row][col];
         const hasTile = wall[row].includes(expectedTile);
 
@@ -618,21 +905,46 @@ export class GameRenderer {
   private drawFloor(x: number, y: number, width: number, floor: Tile[], playerIndex: number): void {
     const floorHeight = 30;
     
-    // Floor background
+    // Floor background with enhanced azulejo styling and hover effect
     const isHovered = this.hoveredLine === -1 && this.gameState.currentPlayer === playerIndex;
-    this.ctx.fillStyle = isHovered ? '#fadbd8' : '#f8d7da';
+    
+    if (isHovered) {
+      // Enhanced hover effect with warm glow
+      this.ctx.shadowColor = 'rgba(192, 57, 43, 0.4)'; // Red glow
+      this.ctx.shadowBlur = 6;
+    }
+    
+    const gradient = this.ctx.createLinearGradient(x, y, x + width, y);
+    if (isHovered) {
+      gradient.addColorStop(0, '#f8cecc'); // Brighter warm colors for hover
+      gradient.addColorStop(1, '#f1948a');
+    } else {
+      gradient.addColorStop(0, '#f8d7da');
+      gradient.addColorStop(1, '#fadbd8');
+    }
+    
+    this.ctx.fillStyle = gradient;
     this.ctx.fillRect(x, y, width, floorHeight);
     
-    // Floor border
-    this.ctx.strokeStyle = '#e74c3c';
-    this.ctx.lineWidth = 2;
+    // Reset shadow
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    
+    // Enhanced ornate floor border
+    this.ctx.strokeStyle = isHovered ? '#e74c3c' : '#c0392b'; // Brighter red for hover
+    this.ctx.lineWidth = isHovered ? 3 : 2;
     this.ctx.strokeRect(x, y, width, floorHeight);
+    
+    // Inner decorative line
+    this.ctx.strokeStyle = '#d4af37'; // Gold accent
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(x + 2, y + 2, width - 4, floorHeight - 4);
 
-    // Floor label
-    this.ctx.fillStyle = '#e74c3c';
-    this.ctx.font = '400 12px "Roboto", sans-serif';
+    // Floor label with azulejo styling
+    this.ctx.fillStyle = '#c0392b';
+    this.ctx.font = 'bold 12px "Georgia", serif';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('Floor', x + 5, y + 15);
+    this.ctx.fillText('Floor', x + 5, y + 18);
 
     // Draw floor tiles
     const tileSize = 20;
@@ -704,17 +1016,17 @@ export class GameRenderer {
     
     // Add small "1" text for FirstPlayer tile only
     if (tile === Tile.FirstPlayer) {
-      // Add a semi-transparent dark circle behind the "1"
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-      this.ctx.beginPath();
-      this.ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, 2 * Math.PI);
-      this.ctx.fill();
-      
-      // Add the "1" text
+      // Add the "1" text with white color and text outline for better visibility
       this.ctx.fillStyle = '#ffffff';
-      this.ctx.font = `700 ${Math.round(size * 0.4)}px "Roboto", sans-serif`;
+      this.ctx.strokeStyle = '#000000';
+      this.ctx.lineWidth = 2;
+      this.ctx.font = `700 ${Math.round(size * 0.5)}px "Roboto", sans-serif`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
+      
+      // Draw text outline first
+      this.ctx.strokeText('1', x + size / 2, y + size / 2);
+      // Then draw filled text
       this.ctx.fillText('1', x + size / 2, y + size / 2);
     }
   }
@@ -776,8 +1088,9 @@ export class GameRenderer {
     const infoX = this.layout.gameInfo.x;
     const infoY = this.layout.gameInfo.y;
 
-    this.ctx.fillStyle = '#212121'; // Material Design Grey 900
-    this.ctx.font = '500 18px "Roboto", sans-serif';
+    // Game info with azulejo styling
+    this.ctx.fillStyle = '#2c3e50';
+    this.ctx.font = 'bold 18px "Georgia", serif';
     this.ctx.textAlign = 'left';
     this.ctx.fillText(`Round ${this.gameState.round}`, infoX, infoY);
     
@@ -796,22 +1109,22 @@ export class GameRenderer {
     // Selection info
     if (this.selectedFactory !== -2 && this.selectedTile) {
       const factoryText = this.selectedFactory === -1 ? 'Center' : `Factory ${this.selectedFactory + 1}`;
-      this.ctx.fillStyle = '#212121'; // Material Design Grey 900
-      this.ctx.font = '500 16px "Roboto", sans-serif';
+      this.ctx.fillStyle = '#2c3e50';
+      this.ctx.font = 'bold 16px "Georgia", serif';
       
       // Draw a small tile indicator
       const tileX = infoX;
       const tileY = infoY + 70;
-      this.drawTile(tileX, tileY, 20, this.selectedTile);
+      this.drawTile(tileX, tileY, this.STANDARD_TILE_SIZE, this.selectedTile);
       
       this.ctx.fillText(`Selected: ${this.selectedTile.charAt(0).toUpperCase() + this.selectedTile.slice(1)} tiles from ${factoryText}`, infoX + 30, infoY + 85);
-      this.ctx.font = '400 14px "Roboto", sans-serif';
-      this.ctx.fillStyle = '#757575'; // Material Design Grey 600
+      this.ctx.font = 'italic 14px "Georgia", serif';
+      this.ctx.fillStyle = '#5d6d7e';
       this.ctx.fillText('Click a pattern line or floor to place tiles', infoX, infoY + 105);
     } else if (this.hoveredTile && this.hoveredFactory !== -2) {
       const factoryText = this.hoveredFactory === -1 ? 'Center' : `Factory ${this.hoveredFactory + 1}`;
-      this.ctx.fillStyle = '#757575'; // Material Design Grey 600
-      this.ctx.font = '400 14px "Roboto", sans-serif';
+      this.ctx.fillStyle = '#5d6d7e';
+      this.ctx.font = 'italic 14px "Georgia", serif';
       this.ctx.fillText(`Hover: ${this.hoveredTile.charAt(0).toUpperCase() + this.hoveredTile.slice(1)} tiles in ${factoryText}`, infoX, infoY + 75);
       this.ctx.fillText('Click to select these tiles', infoX, infoY + 95);
     }
@@ -820,26 +1133,36 @@ export class GameRenderer {
   private drawAvailableMoves(): void {
     if (this.selectedFactory === -2 || !this.selectedTile) return;
 
-    // Highlight valid destinations
+    // Highlight valid destinations with azulejo styling
     const currentBoard = this.gameState.playerBoards[this.gameState.currentPlayer];
     
     for (let i = 0; i < 5; i++) {
       if (currentBoard.canPlaceTile(this.selectedTile, i)) {
-        // Highlight pattern line
+        // Highlight pattern line with gold
         const lineBounds = this.getPatternLineBounds(this.gameState.currentPlayer, i);
         
-        this.ctx.strokeStyle = '#27ae60';
-        this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(lineBounds.x - 2, lineBounds.y - 2, lineBounds.width + 4, lineBounds.height + 4);
+        this.ctx.strokeStyle = '#d4af37'; // Gold
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(lineBounds.x - 3, lineBounds.y - 3, lineBounds.width + 6, lineBounds.height + 6);
+        
+        // Inner highlight
+        this.ctx.strokeStyle = '#f1c40f'; // Bright yellow
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(lineBounds.x - 1, lineBounds.y - 1, lineBounds.width + 2, lineBounds.height + 2);
       }
     }
 
-    // Always highlight floor as valid
+    // Always highlight floor as valid with Portuguese red
     const floorBounds = this.getFloorBounds(this.gameState.currentPlayer);
     
-    this.ctx.strokeStyle = '#e74c3c';
-    this.ctx.lineWidth = 3;
-    this.ctx.strokeRect(floorBounds.x - 2, floorBounds.y - 2, floorBounds.width + 4, floorBounds.height + 4);
+    this.ctx.strokeStyle = '#c0392b'; // Deep red
+    this.ctx.lineWidth = 4;
+    this.ctx.strokeRect(floorBounds.x - 3, floorBounds.y - 3, floorBounds.width + 6, floorBounds.height + 6);
+    
+    // Inner highlight
+    this.ctx.strokeStyle = '#e74c3c'; // Bright red
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(floorBounds.x - 1, floorBounds.y - 1, floorBounds.width + 2, floorBounds.height + 2);
   }
 
   private handleClick(event: MouseEvent): void {
@@ -903,21 +1226,22 @@ export class GameRenderer {
       tilesByColor.get(tile)!.push(tile);
     });
     
-    const tileSize = 30;
+    const tileSize = this.STANDARD_TILE_SIZE;
     const spacing = 5;
     const rowSpacing = 8;
     const positions = [];
     
-    let currentY = bounds.y + 10;
+    // Use increased padding to match calculateCenterHeight()
+    let currentY = bounds.y + 15;
     let globalIndex = 0;
     
     // Color order for consistent display
     const colorOrder = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
     
-    for (const color of colorOrder) {
-      if (tilesByColor.has(color)) {
-        const tilesOfColor = tilesByColor.get(color)!;
-        let currentX = bounds.x + 10;
+          for (const color of colorOrder) {
+        if (tilesByColor.has(color)) {
+          const tilesOfColor = tilesByColor.get(color)!;
+          let currentX = bounds.x + 15; // Increased padding to match vertical padding
         
         // Place all tiles of this color in the current row
         for (let i = 0; i < tilesOfColor.length; i++) {
@@ -940,18 +1264,25 @@ export class GameRenderer {
   }
 
   private getTileAt(x: number, y: number): { factory: number; tile: Tile | null } {
-    // Check center tiles using the same positioning logic
-    const centerBounds = this.getCenterBounds();
+    // Check center tiles using the same positioning logic - check tile positions directly
+    const tilePositions = this.getCenterTilePositions();
     
-    if (x >= centerBounds.x && x <= centerBounds.x + centerBounds.width && 
-        y >= centerBounds.y && y <= centerBounds.y + centerBounds.height) {
-      const tilePositions = this.getCenterTilePositions();
+    for (const { tile, x: tileX, y: tileY } of tilePositions) {
+      if (x >= tileX && x <= tileX + this.STANDARD_TILE_SIZE && 
+          y >= tileY && y <= tileY + this.STANDARD_TILE_SIZE) {
+        return { factory: -1, tile };
+      }
+    }
+    
+    // Also check FirstPlayer token if present (drawn separately)
+    if (this.gameState.center.includes(Tile.FirstPlayer)) {
+      const centerBounds = this.getCenterBounds();
+      const tokenX = centerBounds.x + centerBounds.width - this.STANDARD_TILE_SIZE - 15; // Match increased padding
+      const tokenY = centerBounds.y + 15; // Match increased padding
       
-      for (const { tile, x: tileX, y: tileY } of tilePositions) {
-        if (x >= tileX && x <= tileX + 30 && 
-            y >= tileY && y <= tileY + 30) {
-          return { factory: -1, tile };
-        }
+      if (x >= tokenX && x <= tokenX + this.STANDARD_TILE_SIZE && 
+          y >= tokenY && y <= tokenY + this.STANDARD_TILE_SIZE) {
+        return { factory: -1, tile: Tile.FirstPlayer };
       }
     }
 
@@ -965,7 +1296,7 @@ export class GameRenderer {
         // Use the same positioning logic as drawing
         const tiles = this.gameState.factories[i];
         const tilePositions = this.getFactoryTilePositions(tiles, factoryBounds.x, factoryBounds.y, factoryBounds.width);
-        const tileSize = (factoryBounds.width - 30) / 2;
+        const tileSize = this.STANDARD_TILE_SIZE; // Use same size as drawing logic
         
         for (const { tile, x: tileX, y: tileY } of tilePositions) {
           if (x >= tileX && x <= tileX + tileSize && 
