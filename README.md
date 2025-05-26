@@ -6,8 +6,8 @@ A web implementation of the popular board game Azul featuring an advanced AI opp
 
 - 🎮 **Complete Azul Implementation**: Full game rules and mechanics
 - 🤖 **Advanced AI Opponent**: Minimax with alpha-beta pruning and iterative deepening
-- 🎨 **Beautiful UI**: Modern, responsive design with intuitive controls
-- ⚡ **Real-time Gameplay**: Smooth canvas-based rendering
+- 🎨 **Beautiful UI**: Portuguese azulejo-inspired design with ceramic coaster aesthetics
+- ⚡ **Real-time Gameplay**: Smooth canvas-based rendering with high-DPI support
 - 📊 **AI Statistics**: See how many game states the AI evaluates
 - 🎛️ **Adjustable Difficulty**: From 0.5 seconds to 5 seconds thinking time
 
@@ -31,6 +31,24 @@ Azul is a tile-laying game where players compete to decorate their palace walls 
 - **Column Bonus**: 7 points for each completed vertical column  
 - **Color Bonus**: 10 points for each complete set of 5 tiles of one color
 - **Floor Penalties**: -1, -1, -2, -2, -2, -3, -3 points for floor tiles
+
+## UI Features
+
+The game features a beautiful Portuguese azulejo-inspired design:
+
+### Visual Elements
+- **Ceramic Coaster Factories**: Elegant circular factory displays with decorative borders
+- **Ornate Center Table**: Traditional azulejo patterns and decorative corners
+- **Player Boards**: Clean layout with proper spacing and alignment
+- **Tile Design**: High-quality SVG tiles with rounded corners and shadows
+- **Interactive Elements**: Hover effects and visual feedback for all actions
+
+### Design Details
+- **Color Scheme**: Traditional Portuguese tile colors
+- **Typography**: Classic serif fonts for titles and modern sans-serif for game info
+- **Patterns**: Subtle azulejo-inspired decorative elements
+- **Spacing**: Carefully balanced layout with proper visual hierarchy
+- **Responsiveness**: High-DPI support for crisp rendering on all displays
 
 ## AI Implementation
 
@@ -59,9 +77,10 @@ The AI uses sophisticated algorithms based on game theory:
 ## Technical Stack
 
 - **TypeScript**: Type-safe implementation with modern ES6+ features
-- **HTML5 Canvas**: Hardware-accelerated 2D graphics rendering
+- **HTML5 Canvas**: Hardware-accelerated 2D graphics rendering with high-DPI support
 - **Vite**: Fast development server and build tool
 - **Modular Architecture**: Clean separation of game logic, AI, and UI
+- **SVG Assets**: High-quality tile images with proper scaling
 
 ## Installation & Running
 
@@ -114,7 +133,7 @@ src/
 ├── PlayerBoard.ts    # Individual player board logic
 ├── GameState.ts      # Main game state and rules
 ├── AI.ts            # Minimax AI implementation
-├── GameRenderer.ts   # Canvas-based UI rendering
+├── GameRenderer.ts   # Canvas-based UI rendering with azulejo styling
 └── main.ts          # Application entry point and UI
 ```
 
@@ -153,6 +172,7 @@ The alpha-beta implementation is **16-400x faster** than basic minimax!
 - **Game Design**: Michael Kiesling (original Azul board game)
 - **AI Algorithm**: Based on [Dom Wilson's article](https://domwil.co.uk/posts/azul-ai/)
 - **Implementation**: Built with modern web technologies
+- **Visual Design**: Inspired by traditional Portuguese azulejo tile work
 
 ## License
 
