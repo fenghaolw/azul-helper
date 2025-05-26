@@ -728,8 +728,6 @@ export class GameRenderer {
       
       this.drawTile(tileX, tileY, tileSize, tile);
     }
-
-
   }
 
   private drawCenter(): void {
@@ -804,29 +802,32 @@ export class GameRenderer {
   }
 
   private drawPlayerBoard(x: number, y: number, width: number, height: number, board: PlayerBoard, playerIndex: number): void {
-    // Draw azulejo-style player board
-    this.drawAzulejoPlayerBoard(x, y, width, height, playerIndex === this.gameState.currentPlayer);
+    const isCurrentPlayer = this.gameState.currentPlayer === playerIndex;
+    this.drawAzulejoPlayerBoard(x, y, width, height, isCurrentPlayer);
 
-    // Player label and score with azulejo styling
-    this.ctx.fillStyle = '#2c3e50';
-    this.ctx.font = 'bold 16px "Georgia", serif';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText(`Player ${playerIndex + 1}`, x + 10, y + 25);
-    this.ctx.fillText(`Score: ${board.score}`, x + 150, y + 25);
+    const patternLinesStartX = x + 20;
+    const patternLinesLayout = this.layout.playerBoards.patternLines;
 
-    // Draw pattern lines (left side)
     for (let i = 0; i < 5; i++) {
-      const lineBounds = this.getPatternLineBounds(playerIndex, i);
-      this.drawPatternLine(lineBounds.x, lineBounds.y, i, board.lines[i], playerIndex);
+      this.drawPatternLine(
+        patternLinesStartX,
+        y + patternLinesLayout.startY + i * (patternLinesLayout.height + patternLinesLayout.spacing),
+        i,
+        board.lines[i],
+        playerIndex
+      );
     }
 
-    // Draw wall (right side)
     const wallBounds = this.getWallBounds(playerIndex);
-    this.drawWall(wallBounds.x, wallBounds.y, board.wall);
+    this.drawWall(wallBounds.x, wallBounds.y, board.wall); // board.wall is Array<Array<Tile | null>>
 
-    // Draw floor line
     const floorBounds = this.getFloorBounds(playerIndex);
     this.drawFloor(floorBounds.x, floorBounds.y, floorBounds.width, board.floor, playerIndex);
+
+    this.ctx.fillStyle = '#333';
+    this.ctx.font = 'bold 16px "Arial", sans-serif';
+    this.ctx.textAlign = 'left';
+    this.ctx.fillText(`Score: ${board.score}`, x + 20, y + height - 10);
   }
 
   private drawPatternLine(x: number, y: number, lineIndex: number, tiles: Tile[], playerIndex: number): void {
@@ -873,29 +874,21 @@ export class GameRenderer {
     }
   }
 
-  private drawWall(x: number, y: number, wall: Tile[][]): void {
+  private drawWall(x: number, y: number, wall: Array<Array<Tile | null>>): void {
     const tileSize = this.STANDARD_TILE_SIZE;
     const spacing = this.layout.playerBoards.wall.spacing;
-    const wallPattern = [
-      [Tile.Blue, Tile.Yellow, Tile.Red, Tile.Black, Tile.White],
-      [Tile.White, Tile.Blue, Tile.Yellow, Tile.Red, Tile.Black],
-      [Tile.Black, Tile.White, Tile.Blue, Tile.Yellow, Tile.Red],
-      [Tile.Red, Tile.Black, Tile.White, Tile.Blue, Tile.Yellow],
-      [Tile.Yellow, Tile.Red, Tile.Black, Tile.White, Tile.Blue]
-    ];
+    const wallPattern = PlayerBoard.WALL_PATTERN;
 
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 5; col++) {
         const tileX = x + col * (tileSize + spacing);
-        // Use the same vertical spacing as pattern lines for proper alignment
         const tileY = y + row * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing);
         const expectedTile = wallPattern[row][col];
-        const hasTile = wall[row].includes(expectedTile);
+        const actualTileOnWall = wall[row][col];
 
-        if (hasTile) {
-          this.drawTile(tileX, tileY, tileSize, expectedTile);
+        if (actualTileOnWall !== null && actualTileOnWall === expectedTile) {
+          this.drawTile(tileX, tileY, tileSize, actualTileOnWall);
         } else {
-          // Draw placeholder using SVG with transparency
           this.drawPlaceholderTile(tileX, tileY, tileSize, expectedTile);
         }
       }
@@ -1214,11 +1207,9 @@ export class GameRenderer {
   private getCenterTilePositions(): Array<{ tile: Tile; x: number; y: number; index: number }> {
     const bounds = this.getCenterBounds();
     
-    // Group tiles by color (excluding FirstPlayer token)
     const regularTiles = this.gameState.center.filter(t => t !== Tile.FirstPlayer);
     const tilesByColor = new Map<Tile, Tile[]>();
     
-    // Group tiles by their color
     regularTiles.forEach(tile => {
       if (!tilesByColor.has(tile)) {
         tilesByColor.set(tile, []);
@@ -1229,21 +1220,18 @@ export class GameRenderer {
     const tileSize = this.STANDARD_TILE_SIZE;
     const spacing = 5;
     const rowSpacing = 8;
-    const positions = [];
+    const positions: Array<{ tile: Tile; x: number; y: number; index: number }> = [];
     
-    // Use increased padding to match calculateCenterHeight()
     let currentY = bounds.y + 15;
     let globalIndex = 0;
     
-    // Color order for consistent display
     const colorOrder = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
     
-          for (const color of colorOrder) {
-        if (tilesByColor.has(color)) {
-          const tilesOfColor = tilesByColor.get(color)!;
-          let currentX = bounds.x + 15; // Increased padding to match vertical padding
+    for (const color of colorOrder) {
+      if (tilesByColor.has(color)) {
+        const tilesOfColor = tilesByColor.get(color)!;
+        let currentX = bounds.x + 15;
         
-        // Place all tiles of this color in the current row
         for (let i = 0; i < tilesOfColor.length; i++) {
           positions.push({
             tile: color,
@@ -1251,15 +1239,11 @@ export class GameRenderer {
             y: currentY,
             index: globalIndex++
           });
-          
           currentX += tileSize + spacing;
         }
-        
-        // Move to next row
         currentY += tileSize + rowSpacing;
       }
     }
-    
     return positions;
   }
 
@@ -1311,8 +1295,6 @@ export class GameRenderer {
 
     return { factory: -2, tile: null };
   }
-
-
 
   private getPatternLineAt(x: number, y: number): { player: number; line: number } {
     const numPlayers = this.gameState.playerBoards.length;

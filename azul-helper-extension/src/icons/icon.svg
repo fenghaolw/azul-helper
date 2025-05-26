@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="128" height="128" fill="#2c3e50"/>
+    
+    <!-- Tile pattern -->
+    <g transform="translate(16, 16)">
+        <!-- Red tile -->
+        <rect x="0" y="0" width="32" height="32" fill="#c0392b"/>
+        <!-- Blue tile -->
+        <rect x="40" y="0" width="32" height="32" fill="#2c3e50"/>
+        <!-- Yellow tile -->
+        <rect x="0" y="40" width="32" height="32" fill="#f39c12"/>
+        <!-- Black tile -->
+        <rect x="40" y="40" width="32" height="32" fill="#1a1a1a"/>
+        <!-- White tile -->
+        <rect x="20" y="20" width="32" height="32" fill="#ecf0f1"/>
+    </g>
+</svg> 

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azul Helper</title>
+    <style>
+        body {
+            width: 100%;
+            min-width: 300px;
+            padding: 16px;
+            font-family: 'Georgia', serif;
+            color: #2c3e50;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .move-suggestion {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #d4af37;
+        }
+        .move-details {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #5d6d7e;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .settings {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .slider {
+            flex: 1;
+        }
+        button {
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: background-color 0.2s ease;
+        }
+        button:hover {
+            background: #34495e;
+        }
+        button:active {
+            background: #1a252f;
+        }
+        .error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .tile-preview {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .tile {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .player-boards {
+            margin-top: 12px;
+        }
+        .player-board {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+        .player-board.current-player {
+            border-color: #d4af37;
+            background: #fffbf0;
+            border-width: 2px;
+        }
+        .player-board-header {
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #2c3e50;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .board-section {
+            margin-bottom: 6px;
+        }
+        .board-section-title {
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: #5d6d7e;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .pattern-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .pattern-line {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            min-height: 16px;
+        }
+        .line-number {
+            width: 12px;
+            font-size: 9px;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+        .wall-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 14px);
+            gap: 1px;
+            margin-top: 3px;
+        }
+        .wall-spot {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #bdc3c7;
+            border-radius: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ecf0f1;
+        }
+        .wall-spot.filled {
+            background: #fff;
+            border-color: #95a5a6;
+        }
+        .floor-line {
+            display: flex;
+            gap: 1px;
+            flex-wrap: wrap;
+            align-items: center;
+            min-height: 16px;
+        }
+        .score-display {
+            font-weight: bold;
+            color: #27ae60;
+            font-size: 13px;
+        }
+        .game-state-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .game-state-section h3 {
+            margin: 0 0 6px 0;
+            font-size: 12px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .factory-item, .center-item {
+            margin-bottom: 4px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .factory-label {
+            font-weight: bold;
+            color: #5d6d7e;
+            min-width: 60px;
+        }
+        .empty-indicator {
+            color: #aaa;
+            font-style: italic;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="analyze">Analyze Position & Suggest Move</button>
+        
+        <div class="move-suggestion">
+            <h3>Suggested Move</h3>
+            <div id="suggestion">Analyzing game state...</div>
+            <div class="move-details" id="details"></div>
+            <div class="tile-preview" id="tile-preview"></div>
+            <div class="stats">
+                <span id="nodes">Nodes evaluated: 0</span>
+                <span id="depth">Search depth: 0</span>
+                <span id="time">Time: 0ms</span>
+            </div>
+        </div>
+
+        <div id="game-state"></div>
+
+        <div id="player-boards"></div>
+
+        <div class="settings">
+            <label for="difficulty">AI Difficulty:</label>
+            <input type="range" id="difficulty" class="slider" min="1" max="4" value="2">
+            <span id="difficulty-label">Medium</span>
+        </div>
+        
+        <div id="error" class="error"></div>
+    </div>
+    <script type="module" src="popup.js"></script>
+</body>
+</html> 

@@ -1,6 +1,25 @@
 import { Tile, Move, GameResult, GamePhase } from './types.js';
 import { PlayerBoard } from './PlayerBoard.js';
 
+// Helper function to safely convert string to Tile enum (similar to PlayerBoard.ts but defined locally or imported)
+// For simplicity, we'll assume it's available or defined if not directly part of this snippet.
+// If it's in PlayerBoard.ts and exported, it could be: import { stringToTile } from './PlayerBoard.js';
+function stringToTile(tileString: string): Tile | null {
+    const s = tileString.toLowerCase();
+    // Direct comparison with enum values (which are strings themselves)
+    if (s === Tile.Red) return Tile.Red;
+    if (s === Tile.Blue) return Tile.Blue;
+    if (s === Tile.Yellow) return Tile.Yellow;
+    if (s === Tile.Black) return Tile.Black;
+    if (s === Tile.White) return Tile.White; // Tile.White is 'white'
+    if (s === Tile.FirstPlayer) return Tile.FirstPlayer; // Tile.FirstPlayer is 'firstPlayer'
+    // The BGA data for floor uses "firstplayer" (all lowercase for the token)
+    // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
+
+    console.warn(`[GameState] Unknown tile string for enum conversion: "${tileString}"`);
+    return null;
+}
+
 export class GameState {
   tilebag: Array<Tile> = [];
   factories: Array<Array<Tile>> = [];
@@ -16,7 +35,78 @@ export class GameState {
 
   constructor(numPlayers: number = 2) {
     this.numPlayers = Math.max(2, Math.min(4, numPlayers));
-    this.newGame();
+    // newGame() is not called here anymore, will be called by loadFromBga or if a new game is explicitly started.
+  }
+
+  // Load game state from BGA-like data structure
+  loadFromBga(bgaData: {
+    factories: string[][];
+    center: string[];
+    playerBoards: { lines: string[][]; wall: string[][]; floor: string[]; score: number }[];
+    currentPlayer: number;
+    round: number; // BGA might not provide round, default or calculate if necessary
+  }): void {
+    this.numPlayers = bgaData.playerBoards.length;
+    this.round = bgaData.round !== undefined ? bgaData.round : 1; // Default round to 1 if not provided
+    this.currentPlayer = bgaData.currentPlayer;
+    this.phase = GamePhase.TileSelection; // Assuming BGA state is always during tile selection phase for AI
+    this.gameOver = false; // Reset game over status
+    this.firstPlayerIndex = 0; // Reset, will be determined by first player token
+
+    // Initialize factories
+    this.factories = bgaData.factories.map(factory =>
+      factory.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[]
+    );
+
+    // Initialize center, carefully handling FirstPlayer token
+    this.center = bgaData.center
+        .map(sTile => stringToTile(sTile))
+        .filter(t => t !== null) as Tile[];
+
+    // Initialize player boards
+    if (this.playerBoards.length !== this.numPlayers) {
+        this.playerBoards = [];
+        for (let i = 0; i < this.numPlayers; i++) {
+            this.playerBoards.push(new PlayerBoard());
+        }
+    }
+
+    let firstPlayerTokenFoundOnBoard = false;
+    for (let i = 0; i < this.numPlayers; i++) {
+      this.playerBoards[i].loadState(bgaData.playerBoards[i]);
+      // Check if this player has the first player token on their floor
+      if (this.playerBoards[i].floor.includes(Tile.FirstPlayer)) {
+        this.firstPlayerIndex = i;
+        firstPlayerTokenFoundOnBoard = true;
+        // Remove from center if it was also there (BGA might be inconsistent)
+        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+      }
+    }
+
+    // If first player token wasn't on a board, check if it's in the center
+    if (!firstPlayerTokenFoundOnBoard && !this.center.includes(Tile.FirstPlayer)) {
+        // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
+        // This logic might need adjustment based on exact BGA state representation when center is emptied.
+        // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
+        // If center still has tiles but no token, it implies it was taken.
+        // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
+        // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
+        // The firstPlayerIndex would then be determined by who *takes* it from the center.
+    } else if (this.center.includes(Tile.FirstPlayer) && firstPlayerTokenFoundOnBoard) {
+        // If on a board AND in center, prioritize board, remove from center.
+        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+    }
+    
+    // If no player has the token yet and it's not in the center, this implies it hasn't been picked up.
+    // The `firstPlayerIndex` will be set when a player takes it from the center via `playMove`.
+    // If it IS in the center, no player is `firstPlayerIndex` yet for *next* round until it's taken.
+    // If it IS on a player's board, that player is `firstPlayerIndex` for *next* round.
+    
+    // Ensure a valid currentPlayer (e.g. if BGA sends an out-of-bounds index)
+    this.currentPlayer = Math.max(0, Math.min(this.numPlayers - 1, this.currentPlayer));
+
+    this.getMoves(); // Crucially, generate moves for the loaded state.
+    console.log('GameState loaded from BGA data:', this);
   }
 
   // Initialize a new game
@@ -483,7 +573,7 @@ export class GameState {
     
     for (const row of board.wall) {
       for (const tile of row) {
-        if (regularTiles.includes(tile)) {
+        if (tile !== null && regularTiles.includes(tile)) {
           colorCounts.set(tile, (colorCounts.get(tile) || 0) + 1);
         }
       }
