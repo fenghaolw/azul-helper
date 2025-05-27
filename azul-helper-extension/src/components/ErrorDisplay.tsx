@@ -13,9 +13,7 @@ export default function ErrorDisplay() {
         </div>
         <h4 className="font-semibold text-red-800">Error</h4>
       </div>
-      <div className="text-red-700 text-sm">
-        {error.value}
-      </div>
+      <div className="text-red-700 text-sm">{error.value}</div>
     </div>
   );
-} 
+}

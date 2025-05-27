@@ -2,9 +2,9 @@ import { difficulty } from './App';
 
 const difficultyLabels: { [key: number]: string } = {
   1: 'Easy',
-  2: 'Medium', 
+  2: 'Medium',
   3: 'Hard',
-  4: 'Expert'
+  4: 'Expert',
 };
 
 export default function Settings() {
@@ -38,4 +38,4 @@ export default function Settings() {
       </div>
     </div>
   );
-} 
+}

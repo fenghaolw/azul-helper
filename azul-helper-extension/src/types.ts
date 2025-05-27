@@ -44,4 +44,4 @@ export interface DifficultySettings {
     time: number;
     label: string;
   };
-} 
+}

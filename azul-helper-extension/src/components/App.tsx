@@ -40,13 +40,13 @@ export default function App() {
   const extractAndDisplayGameState = async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
+
       if (!tab.id) {
         throw new Error('No active tab found');
       }
 
       const response = await chrome.tabs.sendMessage(tab.id, { action: 'getGameState' });
-      
+
       if (!response || !response.gameState) {
         error.value = 'Could not extract game state from the page';
         return;
@@ -55,7 +55,6 @@ export default function App() {
       console.log('Received gameState:', JSON.parse(JSON.stringify(response.gameState)));
       gameState.value = response.gameState;
       error.value = '';
-
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An unknown error occurred';
       gameState.value = null;
@@ -74,19 +73,21 @@ export default function App() {
 
       const timeLimit = getDifficultyTimeLimit(difficulty.value);
 
-      chrome.runtime.sendMessage({
-        action: 'analyzePosition',
-        gameState: gameState.value,
-        timeLimit
-      }, (response: AnalysisResponse) => {
-        isAnalyzing.value = false;
-        analysisResult.value = response;
-        
-        if (response.error) {
-          error.value = response.error;
-        }
-      });
+      chrome.runtime.sendMessage(
+        {
+          action: 'analyzePosition',
+          gameState: gameState.value,
+          timeLimit,
+        },
+        (response: AnalysisResponse) => {
+          isAnalyzing.value = false;
+          analysisResult.value = response;
 
+          if (response.error) {
+            error.value = response.error;
+          }
+        }
+      );
     } catch (err) {
       isAnalyzing.value = false;
       error.value = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -95,10 +96,10 @@ export default function App() {
 
   const getDifficultyTimeLimit = (level: number): number => {
     const settings: { [key: number]: number } = {
-      1: 500,   // Easy
-      2: 1000,  // Medium
-      3: 2000,  // Hard
-      4: 5000   // Expert
+      1: 500, // Easy
+      2: 1000, // Medium
+      3: 2000, // Hard
+      4: 5000, // Expert
     };
     return settings[level] || 1000;
   };
@@ -109,7 +110,7 @@ export default function App() {
       <div className="mb-3 sm:mb-4 lg:mb-5">
         <AnalyzeButton onAnalyze={runAIAnalysis} />
       </div>
-      
+
       {/* Responsive grid layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
         {/* Column 1 */}
@@ -119,7 +120,7 @@ export default function App() {
             <GameState />
           </div>
         </div>
-        
+
         {/* Column 2 */}
         <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5">
           <PlayerBoards />
@@ -127,18 +128,18 @@ export default function App() {
             <Settings />
           </div>
         </div>
-        
+
         {/* Column 3 - Only visible on extra wide panels */}
         <div className="hidden xl:flex flex-col gap-3 sm:gap-4 lg:gap-5">
           <GameState />
           <Settings />
         </div>
       </div>
-      
+
       {/* Error display spans full width at bottom */}
       <div className="mt-3 sm:mt-4 lg:mt-5">
         <ErrorDisplay />
       </div>
     </div>
   );
-} 
+}
