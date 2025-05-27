@@ -1,6 +1,6 @@
 /// <reference types="chrome"/>
 
-import { GameState } from '../../src/GameState.js';
+import { BGAGameState } from '../../src/GameState.js';
 import { AzulAI } from '../../src/AI.js';
 
 interface BGAState {
@@ -37,7 +37,7 @@ interface AnalysisResponse {
 
 async function analyzePosition(bgaState: BGAState, timeLimit: number): Promise<AnalysisResponse> {
   try {
-    const gameState = new GameState(bgaState.playerBoards.length);
+    const gameState = new BGAGameState(bgaState.playerBoards.length);
 
     gameState.loadFromBga(bgaState);
 

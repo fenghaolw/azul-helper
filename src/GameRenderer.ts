@@ -1,4 +1,4 @@
-import { GameState } from './GameState.js';
+import { BaseGameState } from './GameState.js';
 import { PlayerBoard } from './PlayerBoard.js';
 import { Tile, Move } from './types.js';
 
@@ -47,7 +47,7 @@ interface LayoutConfig {
 export class GameRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private gameState: GameState;
+  private gameState: BaseGameState;
   private selectedFactory: number = -2; // -2 = none, -1 = center, 0+ = factory
   private selectedTile: Tile | null = null;
   private hoveredLine: number = -2; // -2 = none, -1 = floor, 0-4 = pattern lines
@@ -114,7 +114,7 @@ export class GameRenderer {
   // Standard tile size used across all game areas for consistency
   private readonly STANDARD_TILE_SIZE = 25;
 
-  constructor(canvas: HTMLCanvasElement, gameState: GameState) {
+  constructor(canvas: HTMLCanvasElement, gameState: BaseGameState) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.gameState = gameState;
@@ -1342,7 +1342,7 @@ export class GameRenderer {
   }
 
   // Update game state
-  public updateGameState(gameState: GameState): void {
+  public updateGameState(gameState: BaseGameState): void {
     this.gameState = gameState;
     this.selectedFactory = -2;
     this.selectedTile = null;

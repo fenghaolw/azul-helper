@@ -1,9 +1,9 @@
-import { GameState } from './GameState.js';
+import { WebAppGameState } from './GameState.js';
 import { GameRenderer } from './GameRenderer.js';
 import { AzulAI } from './AI.js';
 
 class AzulApp {
-  private gameState: GameState;
+  private gameState: WebAppGameState;
   private renderer: GameRenderer;
   private ai: AzulAI | null = null;
   private canvas: HTMLCanvasElement;
@@ -18,7 +18,7 @@ class AzulApp {
 
   constructor() {
     this.setupUI();
-    this.gameState = new GameState(2);
+    this.gameState = new WebAppGameState(2);
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     this.renderer = new GameRenderer(this.canvas, this.gameState);
     
@@ -729,7 +729,7 @@ class AzulApp {
   }
 
   private newGame(): void {
-    this.gameState = new GameState(2);
+    this.gameState = new WebAppGameState(2);
     this.renderer.updateGameState(this.gameState);
     
     if (this.ai) {

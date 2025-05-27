@@ -19,7 +19,7 @@ interface GameState {
 }
 
 // Function to extract game state from the DOM
-function extractGameState(): GameState | null {
+function extractGameState(): any | null {
   try {
     const factoriesData: string[][] = [];
     let centerData: string[] = [];

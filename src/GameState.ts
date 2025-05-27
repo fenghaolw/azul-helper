@@ -1,9 +1,7 @@
 import { Tile, Move, GameResult, GamePhase } from './types.js';
 import { PlayerBoard } from './PlayerBoard.js';
 
-// Helper function to safely convert string to Tile enum (similar to PlayerBoard.ts but defined locally or imported)
-// For simplicity, we'll assume it's available or defined if not directly part of this snippet.
-// If it's in PlayerBoard.ts and exported, it could be: import { stringToTile } from './PlayerBoard.js';
+// Helper function to safely convert string to Tile enum
 function stringToTile(tileString: string): Tile | null {
     const s = tileString.toLowerCase();
     // Direct comparison with enum values (which are strings themselves)
@@ -20,7 +18,10 @@ function stringToTile(tileString: string): Tile | null {
     return null;
 }
 
-export class GameState {
+/**
+ * Base GameState class containing core game logic shared between web app and extension
+ */
+export abstract class BaseGameState {
   tilebag: Array<Tile> = [];
   factories: Array<Array<Tile>> = [];
   center: Array<Tile> = [];
@@ -35,7 +36,6 @@ export class GameState {
 
   constructor(numPlayers: number = 2) {
     this.numPlayers = Math.max(2, Math.min(4, numPlayers));
-    // newGame() is not called here anymore, will be called by loadFromBga or if a new game is explicitly started.
   }
 
   // Load game state from BGA-like data structure
@@ -367,9 +367,12 @@ export class GameState {
 
     // Start new round
     this.round++;
-    this.newRound();
+    this.onNewRound();
     return false;
   }
+
+  // Abstract method for handling new round - implemented differently by subclasses
+  protected abstract onNewRound(): void;
 
   // End the game
   endGame(): boolean {
@@ -417,37 +420,18 @@ export class GameState {
   }
 
   // Create a deep copy of the game state for AI simulation
-  clone(): GameState {
-    const cloned = new GameState(this.numPlayers);
-    
-    cloned.tilebag = [...this.tilebag];
-    cloned.center = [...this.center];
-    cloned.currentPlayer = this.currentPlayer;
-    cloned.round = this.round;
-    cloned.phase = this.phase;
-    cloned.gameOver = this.gameOver;
-    cloned.firstPlayerIndex = this.firstPlayerIndex;
-    
-    // Deep copy factories
-    cloned.factories = this.factories.map(factory => [...factory]);
-    
-    // Deep copy player boards
-    cloned.playerBoards = this.playerBoards.map(board => board.clone());
-    
-    // Regenerate moves for current state
-    cloned.getMoves();
-    
-    return cloned;
+  clone(): BaseGameState {
+    // This will be overridden by concrete subclasses
+    throw new Error('clone() must be implemented by concrete subclasses');
   }
 
   // Optimized clone that only copies what's needed for a specific move
-  smartClone(_move: Move): GameState {
-    const cloned = this.clone();
-    return cloned;
+  smartClone(_move: Move): BaseGameState {
+    return this.clone();
   }
 
   // Utility function to shuffle array
-  private shuffleArray<T>(array: T[]): void {
+  protected shuffleArray<T>(array: T[]): void {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]];
@@ -875,7 +859,7 @@ export class GameState {
       tempoValue += 0.5; // Slight bonus for having factory options
     }
     
-    // EXPERT STRATEGY 8: Strategic discarding evaluation
+    // EXPERT STRATEGY 8: Evaluate strategic discarding opportunities
     tempoValue += this.evaluateStrategicDiscarding(playerIndex);
     
     return tempoValue;
@@ -1328,4 +1312,221 @@ export class GameState {
     
     return discardingValue;
   }
-} 
+}
+
+/**
+ * GameState for web app - includes full game simulation capabilities
+ */
+export class WebAppGameState extends BaseGameState {
+  
+  // Initialize a new game
+  newGame(): void {
+    this.tilebag = [];
+    this.factories = [];
+    this.center = [];
+    this.playerBoards = [];
+    this.currentPlayer = 0;
+    this.round = 1;
+    this.phase = GamePhase.TileSelection;
+    this.gameOver = false;
+    this.firstPlayerIndex = 0;
+
+    // Create player boards
+    for (let i = 0; i < this.numPlayers; i++) {
+      this.playerBoards.push(new PlayerBoard());
+    }
+
+    this.newRound();
+  }
+
+  // Start a new round
+  newRound(): void {
+    this.phase = GamePhase.TileSelection;
+    this.currentPlayer = this.firstPlayerIndex;
+    
+    // Remove first player token from previous holder's floor
+    for (const board of this.playerBoards) {
+      board.floor = board.floor.filter(tile => tile !== Tile.FirstPlayer);
+    }
+    
+    // Create tile bag (20 tiles of each color)
+    this.tilebag = [];
+    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    for (const tile of regularTiles) {
+      for (let i = 0; i < 20; i++) {
+        this.tilebag.push(tile);
+      }
+    }
+    
+    // Shuffle tilebag
+    this.shuffleArray(this.tilebag);
+    
+    // Create factories (2 * numPlayers + 1)
+    const numFactories = 2 * this.numPlayers + 1;
+    this.factories = [];
+    for (let i = 0; i < numFactories; i++) {
+      this.factories.push([]);
+    }
+    
+    this.createFactories();
+    
+    // Clear center and add first player token
+    this.center = [Tile.FirstPlayer];
+    
+    this.getMoves();
+  }
+
+  // Fill factories with tiles from bag
+  createFactories(): void {
+    for (let f = 0; f < this.factories.length; f++) {
+      this.factories[f] = [];
+      for (let t = 0; t < 4; t++) {
+        if (this.tilebag.length > 0) {
+          const tile = this.tilebag.pop()!;
+          this.factories[f].push(tile);
+        }
+      }
+    }
+  }
+
+  // Implementation of abstract method
+  protected onNewRound(): void {
+    this.newRound();
+  }
+
+  // Create a deep copy of the game state for AI simulation
+  clone(): WebAppGameState {
+    const cloned = new WebAppGameState(this.numPlayers);
+    
+    cloned.tilebag = [...this.tilebag];
+    cloned.center = [...this.center];
+    cloned.currentPlayer = this.currentPlayer;
+    cloned.round = this.round;
+    cloned.phase = this.phase;
+    cloned.gameOver = this.gameOver;
+    cloned.firstPlayerIndex = this.firstPlayerIndex;
+    
+    // Deep copy factories
+    cloned.factories = this.factories.map(factory => [...factory]);
+    
+    // Deep copy player boards
+    cloned.playerBoards = this.playerBoards.map(board => board.clone());
+    
+    // Regenerate moves for current state
+    cloned.getMoves();
+    
+    return cloned;
+  }
+}
+
+/**
+ * GameState for BGA extension - loads state from BGA data for AI analysis
+ */
+export class BGAGameState extends BaseGameState {
+
+  // Load game state from BGA-like data structure
+  loadFromBga(bgaData: {
+    factories: string[][];
+    center: string[];
+    playerBoards: { lines: string[][]; wall: string[][]; floor: string[]; score: number }[];
+    currentPlayer: number;
+    round: number; // BGA might not provide round, default or calculate if necessary
+  }): void {
+    this.numPlayers = bgaData.playerBoards.length;
+    this.round = bgaData.round !== undefined ? bgaData.round : 1; // Default round to 1 if not provided
+    this.currentPlayer = bgaData.currentPlayer;
+    this.phase = GamePhase.TileSelection; // Assuming BGA state is always during tile selection phase for AI
+    this.gameOver = false; // Reset game over status
+    this.firstPlayerIndex = 0; // Reset, will be determined by first player token
+
+    // Initialize factories
+    this.factories = bgaData.factories.map(factory =>
+      factory.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[]
+    );
+
+    // Initialize center, carefully handling FirstPlayer token
+    this.center = bgaData.center
+        .map(sTile => stringToTile(sTile))
+        .filter(t => t !== null) as Tile[];
+
+    // Initialize player boards
+    if (this.playerBoards.length !== this.numPlayers) {
+        this.playerBoards = [];
+        for (let i = 0; i < this.numPlayers; i++) {
+            this.playerBoards.push(new PlayerBoard());
+        }
+    }
+
+    let firstPlayerTokenFoundOnBoard = false;
+    for (let i = 0; i < this.numPlayers; i++) {
+      this.playerBoards[i].loadState(bgaData.playerBoards[i]);
+      // Check if this player has the first player token on their floor
+      if (this.playerBoards[i].floor.includes(Tile.FirstPlayer)) {
+        this.firstPlayerIndex = i;
+        firstPlayerTokenFoundOnBoard = true;
+        // Remove from center if it was also there (BGA might be inconsistent)
+        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+      }
+    }
+
+    // If first player token wasn't on a board, check if it's in the center
+    if (!firstPlayerTokenFoundOnBoard && !this.center.includes(Tile.FirstPlayer)) {
+        // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
+        // This logic might need adjustment based on exact BGA state representation when center is emptied.
+        // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
+        // If center still has tiles but no token, it implies it was taken.
+        // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
+        // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
+        // The firstPlayerIndex would then be determined by who *takes* it from the center.
+    } else if (this.center.includes(Tile.FirstPlayer) && firstPlayerTokenFoundOnBoard) {
+        // If on a board AND in center, prioritize board, remove from center.
+        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+    }
+    
+    // If no player has the token yet and it's not in the center, this implies it hasn't been picked up.
+    // The `firstPlayerIndex` will be set when a player takes it from the center via `playMove`.
+    // If it IS in the center, no player is `firstPlayerIndex` yet for *next* round until it's taken.
+    // If it IS on a player's board, that player is `firstPlayerIndex` for *next* round.
+    
+    // Ensure a valid currentPlayer (e.g. if BGA sends an out-of-bounds index)
+    this.currentPlayer = Math.max(0, Math.min(this.numPlayers - 1, this.currentPlayer));
+
+    this.getMoves(); // Crucially, generate moves for the loaded state.
+    console.log('GameState loaded from BGA data:', this);
+  }
+
+  // Implementation of abstract method - BGA extension doesn't need to handle new rounds
+  protected onNewRound(): void {
+    // BGA extension only analyzes current position, doesn't simulate full rounds
+    // This should not be called in normal BGA extension usage
+    console.warn('BGAGameState.onNewRound() called - this should not happen in normal extension usage');
+  }
+
+  // Create a deep copy of the game state for AI simulation
+  clone(): BGAGameState {
+    const cloned = new BGAGameState(this.numPlayers);
+    
+    cloned.tilebag = [...this.tilebag];
+    cloned.center = [...this.center];
+    cloned.currentPlayer = this.currentPlayer;
+    cloned.round = this.round;
+    cloned.phase = this.phase;
+    cloned.gameOver = this.gameOver;
+    cloned.firstPlayerIndex = this.firstPlayerIndex;
+    
+    // Deep copy factories
+    cloned.factories = this.factories.map(factory => [...factory]);
+    
+    // Deep copy player boards
+    cloned.playerBoards = this.playerBoards.map(board => board.clone());
+    
+    // Regenerate moves for current state
+    cloned.getMoves();
+    
+    return cloned;
+  }
+}
+
+// Export the original GameState class name for backward compatibility
+// Web app should use WebAppGameState, extension should use BGAGameState
+export const GameState = WebAppGameState; 

@@ -1,4 +1,4 @@
-import { GameState } from './GameState.js';
+import { BaseGameState } from './GameState.js';
 import { Move, SearchResult, Tile } from './types.js';
 
 export class AzulAI {
@@ -12,7 +12,7 @@ export class AzulAI {
   }
 
   // Get the best move using iterative deepening with alpha-beta pruning
-  getBestMove(gameState: GameState): SearchResult {
+  getBestMove(gameState: BaseGameState): SearchResult {
     const startTime = Date.now();
     this.nodesEvaluated = 0;
 
@@ -85,7 +85,7 @@ export class AzulAI {
 
   // Alpha-beta search with move ordering
   private alphaBetaSearch(
-    gameState: GameState, 
+    gameState: BaseGameState, 
     depth: number, 
     alpha: number, 
     beta: number, 
@@ -208,7 +208,7 @@ export class AzulAI {
   }
 
   // Get move with simple heuristic (for testing/comparison)
-  getSimpleMove(gameState: GameState): Move {
+  getSimpleMove(gameState: BaseGameState): Move {
     if (gameState.availableMoves.length === 0) {
       throw new Error('No available moves');
     }
@@ -266,7 +266,7 @@ export class AzulAI {
   }
 
   // Expert Strategy Enhanced: Heuristic scoring for move ordering (better moves searched first)
-  private getMoveOrderingScore(gameState: GameState, move: Move): number {
+  private getMoveOrderingScore(gameState: BaseGameState, move: Move): number {
     let score = 0;
     const playerBoard = gameState.playerBoards[this.playerIndex];
     // const numPlayers = gameState.numPlayers; // Available if needed for scaling
@@ -447,7 +447,7 @@ export class AzulAI {
   // Make sure helper methods from previous iteration are present if used by the new getMoveOrderingScore
   // From previous iteration, AI.ts had its own getGamePhase, countAvailableTilesInSource, countTotalTilesInPlay
 
-  private getGamePhase(gameState: GameState): 'early' | 'mid' | 'late' | 'endgame' {
+  private getGamePhase(gameState: BaseGameState): 'early' | 'mid' | 'late' | 'endgame' {
     // This is a simplified version for AI.ts, GameState.ts has the more detailed one.
     // We use this for the move ordering heuristic.
     const endGameTriggered = gameState.playerBoards.some(board =>
@@ -467,19 +467,19 @@ export class AzulAI {
     return 'late';
   }
 
-  private countAvailableTilesInSource(gameState: GameState, factoryIndex: number, tile: any): number {
+  private countAvailableTilesInSource(gameState: BaseGameState, factoryIndex: number, tile: any): number {
     if (factoryIndex === -1) { // Center
-      return gameState.center.filter(t => t === tile).length;
+      return gameState.center.filter((t: any) => t === tile).length;
     } else if (factoryIndex >= 0 && factoryIndex < gameState.factories.length) { // Specific factory
-      return gameState.factories[factoryIndex].filter(t => t === tile).length;
+      return gameState.factories[factoryIndex].filter((t: any) => t === tile).length;
     }
     return 0; 
   }
 
-  private countTotalTilesInPlay(gameState: GameState, tile: any): number {
+  private countTotalTilesInPlay(gameState: BaseGameState, tile: any): number {
     let total = 0;
-    gameState.factories.forEach(factory => total += factory.filter(t => t === tile).length);
-    total += gameState.center.filter(t => t === tile).length;
+    gameState.factories.forEach((factory: any) => total += factory.filter((t: any) => t === tile).length);
+    total += gameState.center.filter((t: any) => t === tile).length;
     return total;
   }
 } 
