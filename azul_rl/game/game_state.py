@@ -59,6 +59,7 @@ class GameState:
         # Tile management
         self.bag: List[Tile] = []
         self.discard_pile: List[Tile] = []
+        self.discarded_tiles: List[Tile] = []  # Tiles discarded when floor lines are full
 
         # Random seed for reproducibility
         if seed is not None:
@@ -72,6 +73,7 @@ class GameState:
         self.bag = Tile.create_standard_tiles()
         random.shuffle(self.bag)
         self.discard_pile = []
+        self.discarded_tiles = []
 
     def _start_new_round(self) -> None:
         """Start a new round by filling factories."""
@@ -85,12 +87,8 @@ class GameState:
         # Setup factory area
         self.factory_area.setup_round(self.bag)
 
-        # Determine first player (who has first player marker)
-        for i, player in enumerate(self.players):
-            if player.has_first_player_marker():
-                self.current_player = i
-                player.remove_first_player_marker()
-                break
+        # Note: current_player is already set in _end_round for subsequent rounds
+        # For the first round, it defaults to 0 from __init__
 
     def get_legal_actions(self, player_id: Optional[int] = None) -> List[Action]:
         """Get all legal actions for the current player."""
@@ -98,6 +96,10 @@ class GameState:
             player_id = self.current_player
 
         if self.game_over:
+            return []
+
+        # Validate player_id
+        if player_id < 0 or player_id >= self.num_players:
             return []
 
         player = self.players[player_id]
@@ -156,9 +158,12 @@ class GameState:
 
         # Place tiles on destination
         if action.destination == -1:
-            player.place_tiles_on_floor_line(tiles)
+            discarded = player.place_tiles_on_floor_line(tiles)
         else:
-            player.place_tiles_on_pattern_line(action.destination, tiles)
+            discarded = player.place_tiles_on_pattern_line(action.destination, tiles)
+        
+        # Track discarded tiles
+        self.discarded_tiles.extend(discarded)
 
         # Check if round is over
         if self.factory_area.is_round_over():
@@ -174,6 +179,13 @@ class GameState:
 
     def _end_round(self) -> None:
         """End the current round and perform scoring."""
+        # Determine who will be first player next round (before clearing floor lines)
+        next_first_player = self.current_player  # Default to current player
+        for i, player in enumerate(self.players):
+            if player.has_first_player_marker():
+                next_first_player = i
+                break
+        
         # Score all players
         for player in self.players:
             points, discard_tiles = player.end_round_scoring()
@@ -190,6 +202,7 @@ class GameState:
             self._end_game()
         else:
             self.round_number += 1
+            self.current_player = next_first_player  # Set the first player for next round
             self._start_new_round()
 
     def _end_game(self) -> None:

@@ -44,14 +44,14 @@ class TestStateRepresentation:
             'game_over': (1,),
             'winner': (1,),
             'player_scores': (StateConfig.MAX_PLAYERS,),
-            'pattern_lines': (StateConfig.MAX_PLAYERS, StateConfig.PATTERN_LINES, 7),
+            'pattern_lines': (StateConfig.MAX_PLAYERS, StateConfig.PATTERN_LINES, 8),
             'walls': (StateConfig.MAX_PLAYERS, StateConfig.WALL_SIZE, StateConfig.WALL_SIZE),
             'floor_lines': (StateConfig.MAX_PLAYERS, StateConfig.FLOOR_LINE_SIZE, 7),
             'first_player_markers': (StateConfig.MAX_PLAYERS,),
             'factories': (StateConfig.MAX_FACTORIES, StateConfig.TILES_PER_FACTORY, 6),
             'center_tiles': (StateConfig.MAX_CENTER_TILES, 6),
             'center_first_player_marker': (1,),
-            'tile_supply': (2, StateConfig.NUM_COLORS),
+            'tile_supply': (3, StateConfig.NUM_COLORS),
         }
         
         actual_shapes = state_repr.state_shape
@@ -295,14 +295,14 @@ class TestStateRepresentation:
         expected_size = (
             4 +  # Global state
             StateConfig.MAX_PLAYERS +  # Player scores
-            StateConfig.MAX_PLAYERS * StateConfig.PATTERN_LINES * 7 +  # Pattern lines
+            StateConfig.MAX_PLAYERS * StateConfig.PATTERN_LINES * 8 +  # Pattern lines
             StateConfig.MAX_PLAYERS * StateConfig.WALL_SIZE * StateConfig.WALL_SIZE +  # Walls
             StateConfig.MAX_PLAYERS * StateConfig.FLOOR_LINE_SIZE * 7 +  # Floor lines (updated)
             StateConfig.MAX_PLAYERS +  # First player markers
             StateConfig.MAX_FACTORIES * StateConfig.TILES_PER_FACTORY * 6 +  # Factories
             StateConfig.MAX_CENTER_TILES * 6 +  # Center tiles
             1 +  # Center first player marker
-            2 * StateConfig.NUM_COLORS  # Tile supply
+            3 * StateConfig.NUM_COLORS  # Tile supply
         )
         
         assert state_repr.flat_state_size == expected_size
@@ -409,7 +409,7 @@ class TestStateRepresentation:
                             color_encoding = encoded_line[2:7]  # Colors are at indices 2-6
                             assert color_encoding[expected_color_idx] == 1, \
                                 f"Player {player_idx}, pattern line {line_idx}: expected color {pattern_line.color} to be encoded"
-                            assert encoded_line[6] == 0, \
+                            assert encoded_line[7] == 0, \
                                 f"Player {player_idx}, pattern line {line_idx}: empty indicator should be 0 when color is present"
                             
                             # Verify tile count encoding
@@ -421,7 +421,7 @@ class TestStateRepresentation:
                             print(f"  ✓ Player {player_idx}, line {line_idx}: {pattern_line.color.value} with {len(pattern_line.tiles)} tiles")
                     else:
                         # Empty line should have empty indicator set
-                        assert encoded_line[6] == 1, \
+                        assert encoded_line[7] == 1, \
                             f"Player {player_idx}, pattern line {line_idx}: empty indicator should be 1 when no color"
                 
                 # Test floor line colors
