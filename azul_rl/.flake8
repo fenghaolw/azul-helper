@@ -1,0 +1,51 @@
+[flake8]
+# Maximum line length
+max-line-length = 88
+
+# Ignore specific error codes
+ignore = 
+    # E203: whitespace before ':' (conflicts with black)
+    E203,
+    # W503: line break before binary operator (conflicts with black)
+    W503,
+    # E501: line too long (handled by black)
+    E501,
+    # D100: Missing docstring in public module
+    D100,
+    # D104: Missing docstring in public package
+    D104,
+    # D105: Missing docstring in magic method
+    D105,
+    # D107: Missing docstring in __init__
+    D107,
+    # D200: One-line docstring should fit on one line
+    D200,
+    # D205: 1 blank line required between summary line and description
+    D205,
+    # D400: First line should end with a period
+    D400,
+    # D401: First line should be in imperative mood
+    D401,
+    # F401: imported but unused (for now)
+    F401,
+    # B007: Loop control variable not used
+    B007,
+    # E402: module level import not at top of file
+    E402,
+    # I100, I101: Import order (handled by isort)
+    I100,
+    I101
+
+# Exclude directories
+exclude = 
+    .git,
+    __pycache__,
+    .pytest_cache,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info
+
+# Maximum complexity (relaxed for now)
+max-complexity = 15 
