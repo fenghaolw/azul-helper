@@ -6,15 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:watch": "vite build --watch",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@preact/preset-vite": "^2.10.1",
+    "@preact/signals": "^2.0.5",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "preact": "^10.26.7",
+    "tailwindcss": "^4.1.7",
     "typescript": "^5.0.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.260",
     "@types/fs-extra": "^11.0.4",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.5.0",
     "fs-extra": "^11.3.0",
     "sharp": "^0.34.2",
     "vite": "^6.3.5"

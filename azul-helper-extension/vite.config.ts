@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import fs from 'fs-extra';
+import preact from '@preact/preset-vite';
 
 export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, 'src/popup.html'),
+        popup: resolve(__dirname, 'src/popup.tsx'),
         content: resolve(__dirname, 'src/content.ts'),
         background: resolve(__dirname, 'src/background.ts')
       },
@@ -27,6 +28,9 @@ export default defineConfig({
     assetsInlineLimit: 0 // Prevent inlining of assets
   },
   plugins: [
+    preact({
+      jsxImportSource: 'preact'
+    }),
     {
       name: 'copy-manifest-and-assets',
       closeBundle: async () => {
@@ -42,14 +46,11 @@ export default defineConfig({
           await fs.copy(iconsDir, resolve(__dirname, 'dist/icons'));
         }
 
-        // Move popup.html to root of dist
-        if (await fs.pathExists(resolve(__dirname, 'dist/src/popup.html'))) {
-          await fs.move(
-            resolve(__dirname, 'dist/src/popup.html'),
-            resolve(__dirname, 'dist/popup.html'),
-            { overwrite: true }
-          );
-        }
+        // Copy popup.html to root of dist
+        await fs.copy(
+          resolve(__dirname, 'src/popup.html'),
+          resolve(__dirname, 'dist/popup.html')
+        );
 
         // Clean up src directory in dist
         await fs.remove(resolve(__dirname, 'dist/src'));
