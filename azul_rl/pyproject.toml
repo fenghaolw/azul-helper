@@ -45,6 +45,17 @@ viz = [
     "pandas>=1.3.0",
 ]
 
+[tool.setuptools]
+packages = ["azul_rl", "azul_rl.game", "azul_rl.agents", "azul_rl.training", "azul_rl.utils", "azul_rl.tests"]
+
+[tool.setuptools.package-dir]
+"azul_rl" = "."
+"azul_rl.game" = "game"
+"azul_rl.agents" = "agents"
+"azul_rl.training" = "training"
+"azul_rl.utils" = "utils"
+"azul_rl.tests" = "tests"
+
 [tool.black]
 line-length = 88
 target-version = ['py38', 'py39', 'py310', 'py311']
