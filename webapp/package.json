@@ -1,8 +1,8 @@
 {
-  "name": "azul-helper",
+  "name": "azul-webapp",
   "version": "1.0.0",
-  "description": "Web application to play Azul board game with AI",
-  "main": "index.js",
+  "description": "Azul board game web application with AI",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -14,4 +14,4 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }
-}
+} 

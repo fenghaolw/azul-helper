@@ -68,7 +68,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@ai': resolve(__dirname, '../src')  // Point to main project's src directory
+      '@ai': resolve(__dirname, '../webapp/src')  // Point to webapp's src directory
     }
   }
 }); 

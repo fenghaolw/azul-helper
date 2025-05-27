@@ -60,45 +60,45 @@ export class GameRenderer {
 
   // Centralized layout configuration - single source of truth
   private layout: LayoutConfig = {
-    canvas: { width: 1200, height: 650 }, // Moderately reduced height while avoiding overlaps
-    title: { x: 600, y: 25 }, // canvas.width / 2
+    canvas: { width: 1400, height: 700 },
+    title: { x: 700, y: 25 },
     factories: {
       startX: 50,
       startY: 80,
-      size: 120, // Increased to give more space around tiles within coaster borders
+      size: 120,
       spacing: 20,
-      perRow: 0 // Will be calculated based on number of factories
+      perRow: 0
     },
     center: {
-      x: 50,
-      y: 370, // Increased spacing from factories for better visual separation
-      width: 400,
+      x: 100,
+      y: 420,
+      width: 320,
       height: 120
     },
     playerBoards: {
       startX: 500,
-      startY: 80,
-      width: 300,
-      height: 280, // Reduced to eliminate empty space
+      startY: 120,
+      width: 350,
+      height: 320,
       spacingX: 50,
-      spacingY: 40, // Slightly reduced spacing between rows
+      spacingY: 50,
       patternLines: {
-        startY: 40, // Relative to board
+        startY: 40,
         height: 30,
         spacing: 5,
         tileSize: 25
       },
       wall: {
-        startX: 150, // Relative to board
+        startX: 170,
         tileSize: 25,
         spacing: 2
       },
       floor: {
-        startY: 230, // Much closer to pattern lines/wall area
+        startY: 255,
         height: 30
       }
     },
-    gameInfo: { x: 850, y: 400 } // Positioned on right side for better space utilization
+    gameInfo: { x: 1150, y: 570 }
   };
 
   // Traditional Azul/Portuguese azulejo inspired tile colors
@@ -274,7 +274,7 @@ export class GameRenderer {
     const tileSize = this.layout.playerBoards.patternLines.tileSize;
     
     return {
-      x: boardBounds.x + 10,
+      x: boardBounds.x + 20,
       y: boardBounds.y + this.layout.playerBoards.patternLines.startY + lineIndex * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing),
       width: maxTiles * (tileSize + 2),
       height: this.layout.playerBoards.patternLines.height
@@ -797,6 +797,13 @@ export class GameRenderer {
     
     for (let i = 0; i < numPlayers; i++) {
       const bounds = this.getPlayerBoardBounds(i);
+      // Draw score above the player board, centered
+      const scoreText = `Score: ${this.gameState.playerBoards[i].score}`;
+      this.ctx.fillStyle = '#333';
+      this.ctx.font = 'bold 18px "Arial", sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(scoreText, bounds.x + bounds.width / 2, bounds.y - 15);
+      // Draw the player board itself
       this.drawPlayerBoard(bounds.x, bounds.y, bounds.width, bounds.height, this.gameState.playerBoards[i], i);
     }
   }
@@ -804,10 +811,8 @@ export class GameRenderer {
   private drawPlayerBoard(x: number, y: number, width: number, height: number, board: PlayerBoard, playerIndex: number): void {
     const isCurrentPlayer = this.gameState.currentPlayer === playerIndex;
     this.drawAzulejoPlayerBoard(x, y, width, height, isCurrentPlayer);
-
     const patternLinesStartX = x + 20;
     const patternLinesLayout = this.layout.playerBoards.patternLines;
-
     for (let i = 0; i < 5; i++) {
       this.drawPatternLine(
         patternLinesStartX,
@@ -817,17 +822,10 @@ export class GameRenderer {
         playerIndex
       );
     }
-
     const wallBounds = this.getWallBounds(playerIndex);
-    this.drawWall(wallBounds.x, wallBounds.y, board.wall); // board.wall is Array<Array<Tile | null>>
-
+    this.drawWall(wallBounds.x, wallBounds.y, board.wall);
     const floorBounds = this.getFloorBounds(playerIndex);
     this.drawFloor(floorBounds.x, floorBounds.y, floorBounds.width, board.floor, playerIndex);
-
-    this.ctx.fillStyle = '#333';
-    this.ctx.font = 'bold 16px "Arial", sans-serif';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText(`Score: ${board.score}`, x + 20, y + height - 10);
   }
 
   private drawPatternLine(x: number, y: number, lineIndex: number, tiles: Tile[], playerIndex: number): void {
@@ -1142,6 +1140,34 @@ export class GameRenderer {
         this.ctx.strokeStyle = '#f1c40f'; // Bright yellow
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(lineBounds.x - 1, lineBounds.y - 1, lineBounds.width + 2, lineBounds.height + 2);
+
+        // Also highlight the corresponding wall position
+        const wallBounds = this.getWallBounds(this.gameState.currentPlayer);
+        const wallPattern = PlayerBoard.WALL_PATTERN;
+        
+        // Find the column where this tile would go in the wall
+        let wallCol = -1;
+        for (let col = 0; col < 5; col++) {
+          if (wallPattern[i][col] === this.selectedTile) {
+            wallCol = col;
+            break;
+          }
+        }
+        
+        if (wallCol !== -1) {
+          const wallTileX = wallBounds.x + wallCol * (wallBounds.tileSize + wallBounds.spacing);
+          const wallTileY = wallBounds.y + i * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing);
+          
+          // Highlight the wall position with a different color to distinguish it
+          this.ctx.strokeStyle = '#27ae60'; // Green for wall position
+          this.ctx.lineWidth = 3;
+          this.ctx.strokeRect(wallTileX - 2, wallTileY - 2, wallBounds.tileSize + 4, wallBounds.tileSize + 4);
+          
+          // Inner highlight
+          this.ctx.strokeStyle = '#2ecc71'; // Bright green
+          this.ctx.lineWidth = 1;
+          this.ctx.strokeRect(wallTileX, wallTileY, wallBounds.tileSize, wallBounds.tileSize);
+        }
       }
     }
 

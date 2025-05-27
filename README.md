@@ -1,15 +1,22 @@
-# Azul - Board Game with AI
+# Azul Helper
 
-A web implementation of the popular board game Azul featuring an advanced AI opponent that uses minimax algorithm with alpha-beta pruning, as described in [Dom Wilson's excellent article](https://domwil.co.uk/posts/azul-ai/).
+A comprehensive Azul board game project featuring both a web application and browser extension with advanced AI capabilities using minimax algorithm with alpha-beta pruning, as described in [Dom Wilson's excellent article](https://domwil.co.uk/posts/azul-ai/).
 
 ## Features
 
+### Web Application
 - 🎮 **Complete Azul Implementation**: Full game rules and mechanics
 - 🤖 **Advanced AI Opponent**: Minimax with alpha-beta pruning and iterative deepening
 - 🎨 **Beautiful UI**: Portuguese azulejo-inspired design with ceramic coaster aesthetics
 - ⚡ **Real-time Gameplay**: Smooth canvas-based rendering with high-DPI support
 - 📊 **AI Statistics**: See how many game states the AI evaluates
 - 🎛️ **Adjustable Difficulty**: From 0.5 seconds to 5 seconds thinking time
+
+### Browser Extension
+- 🌐 **BGA Integration**: Works with Board Game Arena's Azul implementation
+- 🧠 **AI Analysis**: Get move suggestions while playing online
+- 📈 **Position Evaluation**: See how the AI evaluates the current position
+- ⚙️ **Configurable**: Adjust AI thinking time and analysis depth
 
 ## How to Play
 
@@ -87,27 +94,56 @@ The AI uses sophisticated algorithms based on game theory:
 ### Prerequisites
 - Node.js 16+ installed on your system
 
-### Quick Start
+### Web Application
 
-1. **Install dependencies**:
+1. **Navigate to webapp directory**:
+```bash
+cd webapp
+```
+
+2. **Install dependencies**:
 ```bash
 npm install
 ```
 
-2. **Start development server**:
+3. **Start development server**:
 ```bash
 npm run dev
 ```
 
-3. **Open your browser** and navigate to `http://localhost:3000`
+4. **Open your browser** and navigate to `http://localhost:3000`
 
-### Building for Production
+### Browser Extension
 
+1. **Navigate to extension directory**:
+```bash
+cd extension
+```
+
+2. **Install dependencies**:
+```bash
+npm install
+```
+
+3. **Build the extension**:
 ```bash
 npm run build
 ```
 
-The built files will be in the `dist` directory.
+4. **Load the extension in Chrome**:
+   - Open Chrome and go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select `extension/dist`
+
+### Building for Production
+
+```bash
+# Build webapp
+cd webapp && npm run build
+
+# Build extension
+cd extension && npm run build
+```
 
 ## Game Controls
 
@@ -128,13 +164,26 @@ The built files will be in the `dist` directory.
 ## Project Structure
 
 ```
-src/
-├── types.ts          # TypeScript interfaces and enums
-├── PlayerBoard.ts    # Individual player board logic
-├── GameState.ts      # Main game state and rules
-├── AI.ts            # Minimax AI implementation
-├── GameRenderer.ts   # Canvas-based UI rendering with azulejo styling
-└── main.ts          # Application entry point and UI
+├── webapp/                    # Web application
+│   ├── src/
+│   │   ├── types.ts          # TypeScript interfaces and enums
+│   │   ├── PlayerBoard.ts    # Individual player board logic
+│   │   ├── GameState.ts      # Game state with web app and BGA support
+│   │   ├── AI.ts            # Minimax AI implementation
+│   │   ├── GameRenderer.ts   # Canvas-based UI rendering
+│   │   └── main.ts          # Application entry point
+│   ├── index.html           # Main HTML file
+│   └── package.json         # Webapp dependencies
+├── extension/                 # Browser extension
+│   ├── src/
+│   │   ├── background.ts     # Extension background script
+│   │   ├── content.ts        # Content script for BGA
+│   │   ├── popup.tsx         # Extension popup UI
+│   │   └── manifest.json     # Extension manifest
+│   └── package.json         # Extension dependencies
+└── static/                   # Shared static assets
+    ├── imgs/                # Game tile images
+    └── bga.html            # BGA test page
 ```
 
 ## Implementation Details

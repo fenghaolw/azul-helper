@@ -1,7 +1,7 @@
 /// <reference types="chrome"/>
 
-import { BGAGameState } from '../../src/GameState.js';
-import { AzulAI } from '../../src/AI.js';
+import { BGAGameState } from '../../webapp/src/GameState.js';
+import { AzulAI } from '../../webapp/src/AI.js';
 
 interface BGAState {
   factories: string[][];

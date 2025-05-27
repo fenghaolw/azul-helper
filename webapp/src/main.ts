@@ -17,9 +17,9 @@ class AzulApp {
   private aiStats!: HTMLDivElement;
 
   constructor() {
-    this.setupUI();
+    this.canvas = this.setupUI();
     this.gameState = new WebAppGameState(2);
-    this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
+    this.gameState.newGame(); // Initialize the game state
     this.renderer = new GameRenderer(this.canvas, this.gameState);
     
     // Enable AI by default at Expert difficulty
@@ -36,7 +36,7 @@ class AzulApp {
     this.aiToggleBtn.style.background = '#d32f2f'; // Material Design error color
   }
 
-  private setupUI(): void {
+  private setupUI(): HTMLCanvasElement {
     // Add Material Design fonts
     const materialFonts = document.createElement('link');
     materialFonts.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Material+Symbols+Outlined&display=swap';
@@ -470,6 +470,8 @@ class AzulApp {
       font-family: 'Roboto', 'Arial', sans-serif;
       background: ${colors.background};
     `;
+
+    return canvas;
   }
 
   // Helper method to create Material Design buttons
