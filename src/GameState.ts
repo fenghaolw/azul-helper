@@ -475,14 +475,20 @@ export class GameState {
       bestOpponentEval = Math.max(bestOpponentEval, opponentEval);
     }
 
-    // 5. Add defensive considerations (block opponent progress)
+    // Enhanced defensive considerations
     const defensiveValue = this.evaluateDefensiveOpportunities(playerIndex);
     
-    const evaluation = playerEval - bestOpponentEval + defensiveValue;
+    // Tactical evaluation (tile scarcity, forcing moves, etc.)
+    const tacticalValue = this.evaluateTacticalOpportunities(playerIndex);
+    
+    // Tempo evaluation (first player advantage, timing)
+    const tempoValue = this.evaluateTempoAdvantage(playerIndex);
+    
+    const evaluation = playerEval - bestOpponentEval + defensiveValue + tacticalValue + tempoValue;
     
     // Debug logging for AI evaluation
     if (Math.random() < 0.05) { // Log 5% of evaluations
-      console.log(`AI eval: Player ${playerIndex + 1}: ${playerEval.toFixed(1)} vs Opponent: ${bestOpponentEval.toFixed(1)} + Defense: ${defensiveValue.toFixed(1)} = ${evaluation.toFixed(1)}`);
+      console.log(`AI eval: Player ${playerIndex + 1}: ${playerEval.toFixed(1)} vs Opponent: ${bestOpponentEval.toFixed(1)} + Defense: ${defensiveValue.toFixed(1)} + Tactical: ${tacticalValue.toFixed(1)} + Tempo: ${tempoValue.toFixed(1)} = ${evaluation.toFixed(1)}`);
     }
 
     return evaluation;
@@ -529,79 +535,130 @@ export class GameState {
     return evaluation;
   }
 
-  // Evaluate strategic progress toward end-game bonuses
+  // Evaluate strategic progress toward end-game bonuses (Expert Strategy Implementation)
   private evaluateStrategicProgress(board: PlayerBoard): number {
     let strategicValue = 0;
+    const tileSupply = this.analyzeTileSupply();
+    const gamePhase = this.getGamePhase();
     
-    // 4. Row completion progress (2 points each when complete)
+    // EXPERT STRATEGY 1 & 7: Prioritize top 3 rows, avoid 5th row late game
     for (let row = 0; row < 5; row++) {
       const tilesInRow = board.wall[row].length;
+      const missingTiles = this.getMissingTilesForRow(board, row);
+      const isFeasible = this.isObjectiveFeasible(missingTiles, tileSupply);
+      
+      // Expert Strategy: Row priority weighting
+      let rowPriorityMultiplier = 1.0;
+      if (row <= 2) {
+        rowPriorityMultiplier = 1.5; // Higher priority for top 3 rows
+      } else if (row === 4 && gamePhase === 'late') {
+        rowPriorityMultiplier = 0.3; // Avoid 5th row in late game
+      } else if (row === 4 && gamePhase === 'endgame') {
+        rowPriorityMultiplier = 0.1; // Strongly avoid 5th row in endgame
+      }
+      
       if (tilesInRow === 5) {
-        strategicValue += 2; // Full bonus for completed row
-      } else if (tilesInRow === 4) {
-        strategicValue += 1.5; // High value for near-complete row
-      } else if (tilesInRow === 3) {
-        strategicValue += 0.8; // Good progress
-      } else if (tilesInRow === 2) {
-        strategicValue += 0.3; // Some progress
+        strategicValue += 2 * rowPriorityMultiplier; // Full bonus for completed row
+      } else if (tilesInRow === 4 && isFeasible) {
+        strategicValue += 1.5 * rowPriorityMultiplier; // High value for near-complete row (if possible)
+      } else if (tilesInRow === 4 && !isFeasible) {
+        strategicValue -= 1 * rowPriorityMultiplier; // Penalty for impossible near-complete row
+      } else if (tilesInRow === 3 && isFeasible) {
+        strategicValue += 0.8 * rowPriorityMultiplier; // Good progress (if possible)
+      } else if (tilesInRow === 3 && !isFeasible) {
+        strategicValue -= 0.5 * rowPriorityMultiplier; // Penalty for impossible progress
+      } else if (tilesInRow === 2 && isFeasible) {
+        strategicValue += 0.3 * rowPriorityMultiplier; // Some progress (if possible)
       }
     }
 
-    // 5. Column completion progress (7 points each when complete)
+    // EXPERT STRATEGY 3: Focus on column completion, prioritize central columns
     for (let col = 0; col < 5; col++) {
       let tilesInColumn = 0;
+      const missingTiles: Tile[] = [];
+      
       for (let row = 0; row < 5; row++) {
-        if (board.wall[row].includes(PlayerBoard.getWallTile(row, col))) {
+        const expectedTile = PlayerBoard.getWallTile(row, col);
+        if (board.wall[row].includes(expectedTile)) {
           tilesInColumn++;
+        } else {
+          missingTiles.push(expectedTile);
         }
       }
       
+      const isFeasible = this.isObjectiveFeasible(missingTiles, tileSupply);
+      
+      // Expert Strategy: Central column priority (columns 1, 2, 3 are more valuable)
+      let columnPriorityMultiplier = 1.0;
+      if (col >= 1 && col <= 3) {
+        columnPriorityMultiplier = 1.4; // Higher priority for central columns
+      }
+      
       if (tilesInColumn === 5) {
-        strategicValue += 7; // Full bonus for completed column
-      } else if (tilesInColumn === 4) {
-        strategicValue += 5; // Very high value for near-complete column
-      } else if (tilesInColumn === 3) {
-        strategicValue += 3; // Good progress
-      } else if (tilesInColumn === 2) {
-        strategicValue += 1; // Some progress
+        strategicValue += 7 * columnPriorityMultiplier; // Full bonus for completed column
+      } else if (tilesInColumn === 4 && isFeasible) {
+        strategicValue += 5 * columnPriorityMultiplier; // Very high value for near-complete column (if possible)
+      } else if (tilesInColumn === 4 && !isFeasible) {
+        strategicValue -= 2 * columnPriorityMultiplier; // Penalty for impossible near-complete column
+      } else if (tilesInColumn === 3 && isFeasible) {
+        strategicValue += 3 * columnPriorityMultiplier; // Good progress (if possible)
+      } else if (tilesInColumn === 3 && !isFeasible) {
+        strategicValue -= 1 * columnPriorityMultiplier; // Penalty for impossible progress
+      } else if (tilesInColumn === 2 && isFeasible) {
+        strategicValue += 1 * columnPriorityMultiplier; // Some progress (if possible)
       }
     }
 
-    // 6. Color completion progress (10 points each when complete)
-    const colorCounts = new Map<Tile, number>();
+    // EXPERT STRATEGY 6: Be cautious with color bonuses - reduce priority significantly
+    const colorCounts = this.getColorCounts(board);
     const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
-    
-    for (const row of board.wall) {
-      for (const tile of row) {
-        if (tile !== null && regularTiles.includes(tile)) {
-          colorCounts.set(tile, (colorCounts.get(tile) || 0) + 1);
-        }
-      }
-    }
 
-    for (const [_tile, count] of colorCounts.entries()) {
+    for (const tile of regularTiles) {
+      const count = colorCounts.get(tile) || 0;
+      const supply = tileSupply.get(tile);
+      const needed = 5 - count;
+      const isFeasible = supply ? supply.totalRemaining >= needed : false;
+      
+      // Expert Strategy: Significantly reduce color bonus priority (risky and unreliable)
+      const colorCautionMultiplier = 0.4; // Much lower priority than expert advice suggests
+      
       if (count === 5) {
-        strategicValue += 10; // Full bonus for completed color
-      } else if (count === 4) {
-        strategicValue += 7; // Very high value for near-complete color
-      } else if (count === 3) {
-        strategicValue += 4; // Good progress
+        strategicValue += 10 * colorCautionMultiplier; // Full bonus for completed color (reduced)
+      } else if (count === 4 && isFeasible) {
+        strategicValue += 2; // Reduced value - only pursue if very close and feasible
+      } else if (count === 4 && !isFeasible) {
+        strategicValue -= 5; // Heavy penalty for impossible near-complete color
+      } else if (count === 3 && isFeasible) {
+        strategicValue += 1; // Minimal value - don't actively pursue
+      } else if (count === 3 && !isFeasible) {
+        strategicValue -= 2; // Penalty for impossible progress
       } else if (count === 2) {
-        strategicValue += 1.5; // Some progress
+        // Don't value early color progress at all - too risky
+        strategicValue += 0;
       }
     }
 
-    // 7. Line completion potential (encourage filling useful lines)
+    // 7. Line completion potential (encourage filling useful lines) - with feasibility check
     for (let i = 0; i < 5; i++) {
       const line = board.lines[i];
       const required = i + 1;
       const filled = line.length;
       
       if (filled > 0 && filled < required) {
-        // Value based on how close to completion and strategic importance
-        const completionRatio = filled / required;
-        const lineValue = (i + 1) * 0.5; // Higher lines worth more
-        strategicValue += completionRatio * lineValue;
+        const neededTile = line[0];
+        const needed = required - filled;
+        const supply = tileSupply.get(neededTile);
+        const isFeasible = supply ? supply.totalRemaining >= needed : false;
+        
+        if (isFeasible) {
+          // Value based on how close to completion and strategic importance
+          const completionRatio = filled / required;
+          const lineValue = (i + 1) * 0.5; // Higher lines worth more
+          strategicValue += completionRatio * lineValue;
+        } else {
+          // Penalty for impossible lines
+          strategicValue -= (filled * 0.5); // Penalty proportional to wasted effort
+        }
       }
     }
 
@@ -610,42 +667,221 @@ export class GameState {
 
   // Get multiplier based on game phase - strategic bonuses matter more later in game
   private getGamePhaseMultiplier(): number {
-    // Count total tiles placed across all players
-    let totalTilesPlaced = 0;
-    for (const board of this.playerBoards) {
-      for (const row of board.wall) {
-        totalTilesPlaced += row.length;
+    const gamePhase = this.getGamePhase();
+    
+    // Adaptive multiplier based on realistic game progression
+    switch (gamePhase) {
+      case 'early':
+        return 0.3; // Focus on immediate scoring and positioning (0-2 tiles per player)
+      case 'mid':
+        return 0.8; // Start considering strategic bonuses (3-7 tiles per player)
+      case 'late':
+        return 1.8; // Heavily weight strategic bonuses (8+ tiles per player)
+      case 'endgame':
+        return 3.0; // Maximum strategic focus when end game is triggered
+      default:
+        return 1.0;
+    }
+  }
+
+  // EXPERT STRATEGY 5: Enhanced defensive opportunities (monitor and block opponents)
+  private evaluateDefensiveOpportunities(playerIndex: number): number {
+    let defensiveValue = 0;
+    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    const tileSupply = this.analyzeTileSupply();
+    const gamePhase = this.getGamePhase();
+    
+    // Expert Strategy: Increase defensive focus based on game phase
+    let defensiveMultiplier = 1.0;
+    if (gamePhase === 'late' || gamePhase === 'endgame') {
+      defensiveMultiplier = 1.5; // More aggressive blocking late game
+    }
+    
+    // 1. Enhanced blocking of opponent's near-complete objectives
+    for (const opponentBoard of opponentBoards) {
+      // PRIORITY 1: Block near-complete rows (especially top 3 rows)
+      for (let row = 0; row < 5; row++) {
+        if (opponentBoard.wall[row].length === 4) {
+          const missingTile = this.findMissingTileInRow(opponentBoard, row);
+          if (missingTile && this.isTileAvailableInFactories(missingTile)) {
+            const supply = tileSupply.get(missingTile);
+            let blockValue = 3; // Base blocking value
+            
+            // Expert Strategy: Higher priority for blocking top 3 rows
+            if (row <= 2) {
+              blockValue *= 1.5;
+            }
+            
+            if (supply && supply.totalRemaining <= 3) {
+              blockValue *= 2.5; // Critical blocking when tile is very scarce
+            }
+            
+            defensiveValue += blockValue * defensiveMultiplier;
+          }
+        }
+      }
+      
+      // PRIORITY 2: Block near-complete columns (especially central columns)
+      for (let col = 0; col < 5; col++) {
+        let tilesInColumn = 0;
+        for (let row = 0; row < 5; row++) {
+          if (opponentBoard.wall[row].includes(PlayerBoard.getWallTile(row, col))) {
+            tilesInColumn++;
+          }
+        }
+        if (tilesInColumn === 4) {
+          const missingTile = this.findMissingTileInColumn(opponentBoard, col);
+          if (missingTile && this.isTileAvailableInFactories(missingTile)) {
+            const supply = tileSupply.get(missingTile);
+            let blockValue = 5; // Base blocking value for columns
+            
+            // Expert Strategy: Higher priority for blocking central columns
+            if (col >= 1 && col <= 3) {
+              blockValue *= 1.4;
+            }
+            
+            if (supply && supply.totalRemaining <= 3) {
+              blockValue *= 2.5; // Critical blocking when tile is very scarce
+            }
+            
+            defensiveValue += blockValue * defensiveMultiplier;
+          }
+        }
+      }
+      
+      // PRIORITY 3: Block near-complete colors (but lower priority per expert advice)
+      const colorCounts = this.getColorCounts(opponentBoard);
+      for (const [tile, count] of colorCounts.entries()) {
+        if (count === 4 && this.isTileAvailableInFactories(tile)) {
+          const supply = tileSupply.get(tile);
+          // Expert Strategy: Reduced priority for color blocking (colors are risky/rare)
+          let blockValue = 4; // Reduced from 7 - colors are less reliable
+          
+          if (supply && supply.totalRemaining <= 2) {
+            blockValue = 8; // Reduced from 15 - still block if critical but lower priority
+          }
+          
+          defensiveValue += blockValue * defensiveMultiplier;
+        }
+      }
+      
+      // 4. Check for opponent's impossible objectives and reduce their value
+      for (let row = 0; row < 5; row++) {
+        const missingTiles = this.getMissingTilesForRow(opponentBoard, row);
+        if (!this.isObjectiveFeasible(missingTiles, tileSupply)) {
+          // Opponent is pursuing impossible row - less need to block
+          defensiveValue -= 1;
+        }
       }
     }
     
-    // Max tiles per player is 25, so for 2 players max is 50
-    const maxTiles = this.numPlayers * 25;
-    const gameProgress = totalTilesPlaced / maxTiles;
-    
-    // Early game (0-30%): Focus more on immediate scoring (0.5x strategic)
-    // Mid game (30-70%): Balanced approach (1.0x strategic)  
-    // Late game (70%+): Heavily weight strategic bonuses (2.0x strategic)
-    if (gameProgress < 0.3) {
-      return 0.5;
-    } else if (gameProgress < 0.7) {
-      return 1.0;
-    } else {
-      return 2.0;
+    // 2. Evaluate forcing opponents to take floor penalties
+    const availableTiles = this.getAvailableTileTypes();
+    for (const opponentBoard of opponentBoards) {
+      for (const tile of availableTiles) {
+        if (this.wouldForceTileToFloor(opponentBoard, tile)) {
+          defensiveValue += 2; // Bonus for forcing opponent penalties
+        }
+      }
     }
-  }
-
-  // Evaluate defensive opportunities (denying opponent strategic progress)
-  private evaluateDefensiveOpportunities(_playerIndex: number): number {
-    // This is a placeholder for now - could be enhanced to evaluate
-    // moves that prevent opponents from completing rows/columns/colors
-    // For example, taking tiles the opponent needs, or blocking factory access
     
-    // Simple defensive heuristic: slight bonus for taking from center
-    // (reduces opponent's first player token opportunities)
-    const centerTiles = this.center.filter(t => t !== Tile.FirstPlayer).length;
-    return centerTiles * 0.1;
+    // 3. Tile scarcity considerations (now includes total supply analysis)
+    defensiveValue += this.evaluateTileScarcity(playerIndex);
+    
+    return defensiveValue;
+  }
+  
+  // Evaluate tactical opportunities (tile scarcity, forcing moves, etc.)
+  private evaluateTacticalOpportunities(playerIndex: number): number {
+    let tacticalValue = 0;
+    const playerBoard = this.playerBoards[playerIndex];
+    
+    // 1. Evaluate tile efficiency (taking exactly what you need)
+    for (const move of this.availableMoves) {
+      if (move.lineIndex >= 0) {
+        const line = playerBoard.lines[move.lineIndex];
+        const needed = (move.lineIndex + 1) - line.length;
+        const available = this.countTilesInSource(move.factoryIndex, move.tile);
+        
+        // Bonus for taking exactly what you need (no waste)
+        if (available === needed) {
+          tacticalValue += 1.5;
+        }
+        // Penalty for significant waste
+        else if (available > needed + 2) {
+          tacticalValue -= 0.5;
+        }
+      }
+    }
+    
+    // 2. Evaluate "hate drafting" opportunities
+    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    for (const opponentBoard of opponentBoards) {
+      for (const move of this.availableMoves) {
+        if (this.isHighValueTileForOpponent(opponentBoard, move.tile)) {
+          tacticalValue += 1; // Bonus for denying valuable tiles to opponents
+        }
+      }
+    }
+    
+    // 3. End-game timing considerations
+    if (this.isNearEndGame()) {
+      // Prioritize completing your own objectives over blocking
+      tacticalValue *= 0.7;
+    }
+    
+    return tacticalValue;
+  }
+  
+  // EXPERT STRATEGY 4 & 8: Enhanced tempo advantage with strategic first player token value
+  private evaluateTempoAdvantage(playerIndex: number): number {
+    let tempoValue = 0;
+    const gamePhase = this.getGamePhase();
+    
+    // EXPERT STRATEGY 4: Enhanced first player token evaluation
+    if (this.center.includes(Tile.FirstPlayer)) {
+      const isPlayerBehind = this.isPlayerBehind(playerIndex);
+      let tokenValue = 1; // Base value
+      
+      // Higher value in early rounds (expert advice)
+      if (gamePhase === 'early') {
+        tokenValue = 3; // Very valuable early game
+      } else if (gamePhase === 'mid') {
+        tokenValue = 2; // Good value mid game
+      } else {
+        tokenValue = 1; // Standard value late game
+      }
+      
+      // Adjust based on position
+      if (isPlayerBehind) {
+        tokenValue += 1; // Extra value when behind
+      }
+      
+      tempoValue += tokenValue;
+    }
+    
+    // 2. Round timing considerations
+    const tilesRemaining = this.getTotalTilesRemaining();
+    if (tilesRemaining <= 5) {
+      // Near end of round - prioritize completing lines
+      tempoValue += this.evaluateLineCompletionUrgency(playerIndex);
+    }
+    
+    // 3. Factory control (taking from factories vs center)
+    const factoryMoves = this.availableMoves.filter(m => m.factoryIndex >= 0).length;
+    const centerMoves = this.availableMoves.filter(m => m.factoryIndex === -1).length;
+    
+    if (factoryMoves > centerMoves) {
+      tempoValue += 0.5; // Slight bonus for having factory options
+    }
+    
+    // EXPERT STRATEGY 8: Strategic discarding evaluation
+    tempoValue += this.evaluateStrategicDiscarding(playerIndex);
+    
+    return tempoValue;
   }
 
+  // EXPERT STRATEGY 2: Enhanced adjacency bonus calculation with central column preference
   private calculateTileScore(board: PlayerBoard, row: number, col: number): number {
     let score = 1;
 
@@ -686,6 +922,410 @@ export class GameState {
     if (horizontalCount > 1) score += (horizontalCount - 1);
     if (verticalCount > 1) score += (verticalCount - 1);
 
+    // Expert Strategy: Bonus for central column placement (better adjacency potential)
+    if (col >= 1 && col <= 3) {
+      score += 0.5; // Small bonus for central placement
+    }
+
     return score;
+  }
+
+  // Helper methods for enhanced AI evaluation
+  
+  private findMissingTileInRow(board: PlayerBoard, row: number): Tile | null {
+    const wallPattern = PlayerBoard.WALL_PATTERN[row];
+    for (let col = 0; col < 5; col++) {
+      const expectedTile = wallPattern[col];
+      if (!board.wall[row].includes(expectedTile)) {
+        return expectedTile;
+      }
+    }
+    return null;
+  }
+  
+  private findMissingTileInColumn(board: PlayerBoard, col: number): Tile | null {
+    for (let row = 0; row < 5; row++) {
+      const expectedTile = PlayerBoard.getWallTile(row, col);
+      if (!board.wall[row].includes(expectedTile)) {
+        return expectedTile;
+      }
+    }
+    return null;
+  }
+  
+  private isTileAvailableInFactories(tile: Tile): boolean {
+    // Check factories
+    for (const factory of this.factories) {
+      if (factory.includes(tile)) return true;
+    }
+    // Check center
+    return this.center.includes(tile);
+  }
+  
+  private getColorCounts(board: PlayerBoard): Map<Tile, number> {
+    const colorCounts = new Map<Tile, number>();
+    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    
+    for (const row of board.wall) {
+      for (const tile of row) {
+        if (tile !== null && regularTiles.includes(tile)) {
+          colorCounts.set(tile, (colorCounts.get(tile) || 0) + 1);
+        }
+      }
+    }
+    return colorCounts;
+  }
+  
+  private getAvailableTileTypes(): Tile[] {
+    const tileSet = new Set<Tile>();
+    
+    // Add tiles from factories
+    for (const factory of this.factories) {
+      for (const tile of factory) {
+        if (tile !== Tile.FirstPlayer) {
+          tileSet.add(tile);
+        }
+      }
+    }
+    
+    // Add tiles from center
+    for (const tile of this.center) {
+      if (tile !== Tile.FirstPlayer) {
+        tileSet.add(tile);
+      }
+    }
+    
+    return Array.from(tileSet);
+  }
+  
+  private wouldForceTileToFloor(board: PlayerBoard, tile: Tile): boolean {
+    // Check if the tile can be placed in any pattern line
+    for (let i = 0; i < 5; i++) {
+      const line = board.lines[i];
+      
+      // Can place if line is empty or contains same tile and has space
+      if (line.length === 0 || (line[0] === tile && line.length < i + 1)) {
+        // Also check if wall position is available
+        const wallCol = PlayerBoard.WALL_PATTERN[i].indexOf(tile);
+        if (wallCol !== -1 && !board.wall[i].includes(tile)) {
+          return false; // Can be placed, won't go to floor
+        }
+      }
+    }
+    return true; // Would be forced to floor
+  }
+  
+  private evaluateTileScarcity(playerIndex: number): number {
+    let scarcityValue = 0;
+    const playerBoard = this.playerBoards[playerIndex];
+    
+    // Get comprehensive tile supply analysis
+    const tileSupply = this.analyzeTileSupply();
+    
+    // Evaluate scarcity for tiles we need
+    for (let i = 0; i < 5; i++) {
+      const line = playerBoard.lines[i];
+      if (line.length > 0 && line.length < i + 1) {
+        const neededTile = line[0];
+        const needed = (i + 1) - line.length;
+        const supply = tileSupply.get(neededTile);
+        
+        if (!supply) continue;
+        
+        // Critical: Check if there are enough tiles remaining to complete this line
+        if (supply.totalRemaining < needed) {
+          scarcityValue -= 5; // Heavy penalty for impossible lines
+        } else if (supply.availableThisRound < needed && supply.totalRemaining < needed + 2) {
+          scarcityValue += 3; // High value for critically scarce tiles
+        } else if (supply.availableThisRound <= 2) {
+          scarcityValue += 2; // High value for immediately scarce tiles
+        } else if (supply.availableThisRound <= 4) {
+          scarcityValue += 1; // Medium value for moderately scarce tiles
+        }
+        
+        // Bonus for securing tiles when total supply is getting low
+        if (supply.totalRemaining <= 5) {
+          scarcityValue += 2; // Urgent to secure when few remain in game
+        }
+      }
+    }
+    
+    return scarcityValue;
+  }
+  
+  private countTilesInSource(factoryIndex: number, tile: Tile): number {
+    if (factoryIndex === -1) {
+      // Count in center
+      return this.center.filter(t => t === tile).length;
+    } else {
+      // Count in specific factory
+      return this.factories[factoryIndex].filter(t => t === tile).length;
+    }
+  }
+  
+  private isHighValueTileForOpponent(opponentBoard: PlayerBoard, tile: Tile): boolean {
+    // Check if this tile would help opponent complete lines or strategic goals
+    for (let i = 0; i < 5; i++) {
+      const line = opponentBoard.lines[i];
+      
+      // High value if it would complete a line
+      if (line.length > 0 && line[0] === tile && line.length === i) {
+        return true;
+      }
+      
+      // High value if it would start a valuable line
+      if (line.length === 0) {
+        const wallCol = PlayerBoard.WALL_PATTERN[i].indexOf(tile);
+        if (wallCol !== -1 && !opponentBoard.wall[i].includes(tile)) {
+          // Check if this would help complete row/column/color
+          if (this.wouldHelpCompleteObjective(opponentBoard, i, wallCol, tile)) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  private wouldHelpCompleteObjective(board: PlayerBoard, row: number, col: number, tile: Tile): boolean {
+    // Check if placing this tile would significantly advance row/column/color completion
+    
+    // Row completion check
+    if (board.wall[row].length >= 3) return true;
+    
+    // Column completion check
+    let columnCount = 0;
+    for (let r = 0; r < 5; r++) {
+      if (board.wall[r].includes(PlayerBoard.getWallTile(r, col))) {
+        columnCount++;
+      }
+    }
+    if (columnCount >= 3) return true;
+    
+    // Color completion check
+    const colorCounts = this.getColorCounts(board);
+    const currentCount = colorCounts.get(tile) || 0;
+    if (currentCount >= 3) return true;
+    
+    return false;
+  }
+  
+  private isNearEndGame(): boolean {
+    // Check if any player has completed a row (triggers end game)
+    for (const board of this.playerBoards) {
+      for (const row of board.wall) {
+        if (row.length === 5) return true;
+      }
+    }
+    
+    // Check if tile bag is getting low
+    return this.tilebag.length < 20;
+  }
+  
+  private isPlayerBehind(playerIndex: number): boolean {
+    const playerScore = this.playerBoards[playerIndex].score;
+    const maxOpponentScore = Math.max(...this.playerBoards
+      .filter((_, i) => i !== playerIndex)
+      .map(board => board.score));
+    
+    return playerScore < maxOpponentScore - 5; // Behind by more than 5 points
+  }
+  
+  private getTotalTilesRemaining(): number {
+    let total = 0;
+    for (const factory of this.factories) {
+      total += factory.length;
+    }
+    total += this.center.filter(t => t !== Tile.FirstPlayer).length;
+    return total;
+  }
+  
+  private evaluateLineCompletionUrgency(playerIndex: number): number {
+    let urgencyValue = 0;
+    const playerBoard = this.playerBoards[playerIndex];
+    
+    for (let i = 0; i < 5; i++) {
+      const line = playerBoard.lines[i];
+      const needed = (i + 1) - line.length;
+      
+      if (line.length > 0 && needed <= 2) {
+        // Urgent to complete lines that are close to completion
+        urgencyValue += (3 - needed); // More urgent as fewer tiles needed
+      }
+    }
+    
+    return urgencyValue;
+  }
+
+  // Comprehensive tile supply analysis - tracks total game supply vs usage
+  private analyzeTileSupply(): Map<Tile, { totalRemaining: number; availableThisRound: number; usedByOpponents: number; usedByPlayer: number }> {
+    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    const supply = new Map();
+    
+    for (const tile of regularTiles) {
+      // Start with total game supply (20 of each color)
+      let totalRemaining = 20;
+      let usedByPlayer = 0;
+      let usedByOpponents = 0;
+      
+      // Count tiles used by all players (on walls and in pattern lines)
+      for (let playerIndex = 0; playerIndex < this.playerBoards.length; playerIndex++) {
+        const board = this.playerBoards[playerIndex];
+        let playerUsage = 0;
+        
+        // Count tiles on wall
+        for (const row of board.wall) {
+          for (const wallTile of row) {
+            if (wallTile === tile) {
+              playerUsage++;
+              totalRemaining--;
+            }
+          }
+        }
+        
+        // Count tiles in pattern lines
+        for (const line of board.lines) {
+          for (const lineTile of line) {
+            if (lineTile === tile) {
+              playerUsage++;
+              totalRemaining--;
+            }
+          }
+        }
+        
+        // Count tiles on floor (they're discarded)
+        for (const floorTile of board.floor) {
+          if (floorTile === tile) {
+            totalRemaining--;
+          }
+        }
+        
+        // Track usage by player vs opponents
+        if (playerIndex === this.currentPlayer) {
+          usedByPlayer = playerUsage;
+        } else {
+          usedByOpponents += playerUsage;
+        }
+      }
+      
+      // Count tiles in tile bag (not yet drawn)
+      for (const bagTile of this.tilebag) {
+        if (bagTile === tile) {
+          // These are still in the bag, so they're part of totalRemaining
+          // (already counted in the 20 starting tiles)
+        }
+      }
+      
+      // Count tiles available this round (factories + center)
+      let availableThisRound = 0;
+      for (const factory of this.factories) {
+        for (const factoryTile of factory) {
+          if (factoryTile === tile) {
+            availableThisRound++;
+          }
+        }
+      }
+      
+      for (const centerTile of this.center) {
+        if (centerTile === tile) {
+          availableThisRound++;
+        }
+      }
+      
+      supply.set(tile, {
+        totalRemaining,
+        availableThisRound,
+        usedByOpponents,
+        usedByPlayer
+      });
+    }
+    
+    return supply;
+  }
+
+  // Get missing tiles needed to complete a specific row
+  private getMissingTilesForRow(board: PlayerBoard, row: number): Tile[] {
+    const missingTiles: Tile[] = [];
+    const wallPattern = PlayerBoard.WALL_PATTERN[row];
+    
+    for (let col = 0; col < 5; col++) {
+      const expectedTile = wallPattern[col];
+      if (!board.wall[row].includes(expectedTile)) {
+        missingTiles.push(expectedTile);
+      }
+    }
+    
+    return missingTiles;
+  }
+
+  // Check if an objective (row/column/color completion) is feasible given tile supply
+  private isObjectiveFeasible(neededTiles: Tile[], tileSupply: Map<Tile, any>): boolean {
+    // Count how many of each tile type we need
+    const tileCounts = new Map<Tile, number>();
+    
+    for (const tile of neededTiles) {
+      tileCounts.set(tile, (tileCounts.get(tile) || 0) + 1);
+    }
+    
+    // Check if we have enough of each tile type remaining in the game
+    for (const [tile, needed] of tileCounts.entries()) {
+      const supply = tileSupply.get(tile);
+      if (!supply || supply.totalRemaining < needed) {
+        return false; // Not enough tiles remaining
+      }
+    }
+    
+    return true; // All needed tiles are available
+  }
+
+  // Get current game phase for expert strategy decisions
+  private getGamePhase(): 'early' | 'mid' | 'late' | 'endgame' {
+    // Check if end game is triggered (any completed row)
+    const endGameTriggered = this.isNearEndGame();
+    if (endGameTriggered) return 'endgame';
+    
+    // Count total tiles placed across all players
+    let totalTilesPlaced = 0;
+    for (const board of this.playerBoards) {
+      for (const row of board.wall) {
+        totalTilesPlaced += row.filter(tile => tile !== null).length;
+      }
+    }
+    
+    // Realistic game progression based on typical Azul games
+    // Most games end around 8-15 tiles per player (not 25)
+    const avgTilesPerPlayer = totalTilesPlaced / this.numPlayers;
+    
+    // More realistic thresholds based on actual Azul gameplay
+    if (avgTilesPerPlayer < 3) return 'early';      // 0-2 tiles per player
+    if (avgTilesPerPlayer < 8) return 'mid';        // 3-7 tiles per player  
+    return 'late';                                  // 8+ tiles per player (approaching endgame)
+  }
+
+  // EXPERT STRATEGY 8: Evaluate strategic discarding opportunities
+  private evaluateStrategicDiscarding(playerIndex: number): number {
+    let discardingValue = 0;
+    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    
+    // Evaluate moves that force opponents to take more negative points
+    for (const move of this.availableMoves) {
+      if (move.factoryIndex >= 0) {
+        // Taking from factory puts remaining tiles in center
+        const factory = this.factories[move.factoryIndex];
+        const remainingTiles = factory.filter(t => t !== move.tile);
+        
+        // Check if remaining tiles would be problematic for opponents
+        for (const opponentBoard of opponentBoards) {
+          for (const tile of remainingTiles) {
+            if (this.wouldForceTileToFloor(opponentBoard, tile)) {
+              discardingValue += 1.5; // Bonus for forcing opponent floor penalties
+            }
+          }
+        }
+      }
+    }
+    
+    return discardingValue;
   }
 } 
