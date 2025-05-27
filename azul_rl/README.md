@@ -20,12 +20,18 @@ azul_rl/
 │   ├── tile.py            # Tile and color definitions
 │   ├── player_board.py    # Player board, pattern lines, wall
 │   ├── factory.py         # Factory displays and center area
-│   └── game_state.py      # Main game state and logic
+│   ├── game_state.py      # Main game state and logic
+│   └── state_representation.py  # Numerical state representation
 ├── agents/                # RL agents (future development)
 ├── training/              # Training scripts and utilities
 ├── utils/                 # Helper utilities
 ├── tests/                 # Unit tests
-├── example_game.py        # Example usage
+├── examples/              # Example scripts and demonstrations
+│   ├── README.md          # Examples documentation
+│   ├── example_game.py    # Basic game usage example
+│   ├── demo_tile_counting.py     # Tile accessibility demo
+│   └── demo_color_validation.py  # Color encoding validation
+├── docs/                  # Documentation
 ├── requirements.txt       # Dependencies
 └── README.md             # This file
 ```
@@ -89,10 +95,17 @@ if game.game_over:
 
 ```bash
 cd azul_rl
-python example_game.py
+python examples/example_game.py
 ```
 
 This will run a complete game between two random agents and demonstrate the basic functionality.
+
+For more examples and demonstrations, see the `examples/` directory which includes:
+- **Basic game usage** (`example_game.py`)
+- **Tile counting demonstration** (`demo_tile_counting.py`)
+- **Color validation demonstration** (`demo_color_validation.py`)
+
+See `examples/README.md` for detailed documentation of all available examples.
 
 ## Game Rules Summary
 
@@ -110,6 +123,9 @@ Azul is a tile-laying game where players:
 
 ## State Representation
 
+The game provides a comprehensive numerical representation suitable for machine learning:
+
+### Basic State Vector
 The `get_state_vector()` method returns a normalized numerical representation including:
 
 - Game metadata (current player, round, game over status)
@@ -118,6 +134,21 @@ The `get_state_vector()` method returns a normalized numerical representation in
 - Factory states (tile counts by color)
 - Center area state
 - First player marker location
+
+### Complete Numerical Representation
+The `get_numerical_state()` method returns an `AzulStateRepresentation` object with:
+
+- **915-value flattened state vector** suitable for neural networks
+- **All game components** represented as NumPy arrays
+- **Color-accurate encoding** validated across all components
+- **Tile conservation** ensuring no tiles are lost/gained
+- **Multiple access patterns**: flat vectors, structured dictionaries, player-specific views
+- **Normalization strategies** for ML compatibility
+
+For detailed documentation of the state representation, see:
+- `docs/STATE_REPRESENTATION.md` - Complete specification
+- `examples/demo_tile_counting.py` - Tile accessibility demonstration
+- `examples/demo_color_validation.py` - Color encoding validation
 
 ## Action Space
 

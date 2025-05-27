@@ -226,73 +226,22 @@ class GameState:
 
     def get_state_vector(self) -> List[float]:
         """Get a numerical representation of the game state for ML models."""
-        state = []
-
-        # Basic game info
-        state.extend(
-            [
-                self.current_player / self.num_players,
-                self.round_number / 10.0,  # Normalize assuming max ~10 rounds
-                1.0 if self.game_over else 0.0,
-            ]
-        )
-
-        # Player scores (normalized)
-        max_possible_score = 100  # Rough estimate
-        for player in self.players:
-            state.append(player.score / max_possible_score)
-
-        # Current player's board state
-        current_player = self.players[self.current_player]
-
-        # Pattern lines (for each line: capacity, current_count, color_one_hot)
-        for i, line in enumerate(current_player.pattern_lines):
-            state.append(len(line.tiles) / line.capacity)
-            # Color one-hot encoding (5 colors + empty)
-            color_encoding = [0.0] * 6
-            if line.color:
-                color_idx = list(TileColor)[:-1].index(
-                    line.color
-                )  # Exclude FIRST_PLAYER
-                color_encoding[color_idx] = 1.0
-            else:
-                color_encoding[5] = 1.0  # Empty
-            state.extend(color_encoding)
-
-        # Wall state (5x5 grid)
-        for row in range(5):
-            for col in range(5):
-                state.append(1.0 if current_player.wall.filled[row][col] else 0.0)
-
-        # Floor line
-        state.append(len(current_player.floor_line) / 7)  # Normalize by max floor size
-
-        # Factory states
-        for factory in self.factory_area.factories:
-            # Count of each color in factory
-            color_counts = [0] * 5
-            for tile in factory.tiles:
-                if tile.color != TileColor.FIRST_PLAYER:
-                    color_idx = list(TileColor)[:-1].index(tile.color)
-                    color_counts[color_idx] += 1
-            state.extend(
-                [count / 4.0 for count in color_counts]
-            )  # Normalize by max 4 tiles
-
-        # Center area
-        center_counts = [0] * 5
-        for tile in self.factory_area.center.tiles:
-            if tile.color != TileColor.FIRST_PLAYER:
-                color_idx = list(TileColor)[:-1].index(tile.color)
-                center_counts[color_idx] += 1
-        state.extend(
-            [count / 20.0 for count in center_counts]
-        )  # Normalize by reasonable max
-
-        # First player marker in center
-        state.append(1.0 if self.factory_area.center.has_first_player_marker else 0.0)
-
-        return state
+        # Import here to avoid circular imports
+        from .state_representation import AzulStateRepresentation
+        
+        # Create numerical representation and return flattened vector
+        state_repr = AzulStateRepresentation(self)
+        return state_repr.get_flat_state_vector(normalize=True).tolist()
+    
+    def get_numerical_state(self) -> "AzulStateRepresentation":
+        """
+        Get the complete numerical state representation.
+        
+        Returns:
+            AzulStateRepresentation object containing all game state as NumPy arrays
+        """
+        from .state_representation import AzulStateRepresentation
+        return AzulStateRepresentation(self)
 
     def copy(self) -> "GameState":
         """Create a deep copy of the game state."""

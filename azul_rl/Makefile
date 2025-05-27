@@ -75,7 +75,7 @@ clean:
 # Run example
 example:
 	@echo "Running example game..."
-	python3 example_game.py
+	python3 examples/example_game.py
 
 # Quick development setup
 dev-setup: install-dev pre-commit
