@@ -6,8 +6,7 @@
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "build": "tsc && NODE_ENV=development vite build --mode development",
-    "build:prod": "tsc && vite build --mode production",
+    "build": "tsc && vite build",
     "analyze": "ANALYZE=true npm run build",
     "build:watch": "vite build --watch",
     "type-check": "tsc --noEmit",
