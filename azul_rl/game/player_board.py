@@ -132,15 +132,18 @@ class Wall:
 
     def place_tile(self, row: int, color: TileColor) -> int:
         """Place a tile on the wall. Returns points scored."""
-        if not self.can_place_tile(row, color):
+        # Check for valid row index
+        if row < 0 or row >= 5:
             return 0
 
-        # Find the column for this color
         col = None
         for c, wall_color in enumerate(self.WALL_PATTERN[row]):
             if wall_color == color:
                 col = c
                 break
+
+        if col is None:
+            return 0
 
         self.filled[row][col] = True
         return self._calculate_points(row, col)

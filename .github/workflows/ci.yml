@@ -54,7 +54,7 @@ jobs:
     - name: Type checking with mypy
       run: |
         cd azul_rl
-        mypy --ignore-missing-imports .
+        mypy .
 
     - name: Run tests
       run: |
@@ -65,4 +65,4 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         file: ./azul_rl/coverage.xml
-        fail_ci_if_error: false 
+        fail_ci_if_error: false

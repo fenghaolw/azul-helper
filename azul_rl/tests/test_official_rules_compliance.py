@@ -176,7 +176,7 @@ class TestOfficialRulesCompliance:
         assert len(tiles) == 100, "Should have 100 tiles total"
 
         # Count tiles by color
-        color_counts = {}
+        color_counts: dict[TileColor, int] = {}
         for tile in tiles:
             color_counts[tile.color] = color_counts.get(tile.color, 0) + 1
 

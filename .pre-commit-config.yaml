@@ -27,4 +27,4 @@ repos:
     hooks:
       - id: flake8
         files: ^azul_rl/
-        args: [--config=azul_rl/.flake8] 
+        args: [--config=azul_rl/.flake8]

@@ -35,7 +35,7 @@ Azul is a tile-laying game where players compete to decorate their palace walls 
 
 - **Basic Scoring**: 1 point per tile, plus bonuses for adjacent tiles
 - **Row Bonus**: 2 points for each completed horizontal row
-- **Column Bonus**: 7 points for each completed vertical column  
+- **Column Bonus**: 7 points for each completed vertical column
 - **Color Bonus**: 10 points for each complete set of 5 tiles of one color
 - **Floor Penalties**: -1, -1, -2, -2, -2, -3, -3 points for floor tiles
 
@@ -157,7 +157,7 @@ cd extension && npm run build
 ## AI Difficulty Levels
 
 - **Easy (0.5s)**: Good for beginners, searches 2-3 moves deep
-- **Medium (1s)**: Balanced opponent, searches 3-4 moves deep  
+- **Medium (1s)**: Balanced opponent, searches 3-4 moves deep
 - **Hard (2s)**: Challenging play, searches 4-5 moves deep
 - **Expert (5s)**: Very strong opponent, searches 5+ moves deep
 
@@ -229,4 +229,4 @@ This project is for educational purposes. Azul is a trademark of Plan B Games.
 
 ---
 
-Enjoy playing against the AI! 🎲✨ 
+Enjoy playing against the AI! 🎲✨

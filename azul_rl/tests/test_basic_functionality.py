@@ -22,7 +22,7 @@ def test_tile_creation():
     assert len(tiles) == 100, f"Expected 100 tiles, got {len(tiles)}"
 
     # Count each color
-    color_counts = {}
+    color_counts: dict[TileColor, int] = {}
     for tile in tiles:
         color = tile.color
         color_counts[color] = color_counts.get(color, 0) + 1

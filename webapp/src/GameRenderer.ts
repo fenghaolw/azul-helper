@@ -5,17 +5,17 @@ import { Tile, Move } from './types.js';
 interface LayoutConfig {
   canvas: { width: number; height: number };
   title: { x: number; y: number };
-  factories: { 
-    startX: number; 
-    startY: number; 
-    size: number; 
+  factories: {
+    startX: number;
+    startY: number;
+    size: number;
     spacing: number;
     perRow: number;
   };
-  center: { 
-    x: number; 
-    y: number; 
-    width: number; 
+  center: {
+    x: number;
+    y: number;
+    width: number;
     height: number;
   };
   playerBoards: {
@@ -118,16 +118,16 @@ export class GameRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.gameState = gameState;
-    
+
     // Set up high-DPI canvas for crisp rendering
     this.setupHighDPICanvas();
-    
+
     // Initialize layout
     this.layout.factories.perRow = Math.ceil(this.gameState.factories.length / 2);
-    
+
     // Load SVG tile images
     this.loadTileImages();
-    
+
     // Add event listeners
     this.canvas.addEventListener('click', this.handleClick.bind(this));
     this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
@@ -137,29 +137,29 @@ export class GameRenderer {
     const devicePixelRatio = window.devicePixelRatio || 1;
     const logicalWidth = this.layout.canvas.width;
     const logicalHeight = this.layout.canvas.height;
-    
+
     // Set the actual canvas size in memory (scaled up for high-DPI)
     this.canvas.width = logicalWidth * devicePixelRatio;
     this.canvas.height = logicalHeight * devicePixelRatio;
-    
+
     // Set the CSS size to the logical size
     this.canvas.style.width = logicalWidth + 'px';
     this.canvas.style.height = logicalHeight + 'px';
-    
+
     // Scale the drawing context so everything draws at the correct size
     this.ctx.scale(devicePixelRatio, devicePixelRatio);
-    
+
     // Enable better image smoothing
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.imageSmoothingQuality = 'high';
-    
+
     console.log(`Canvas setup: ${logicalWidth}×${logicalHeight} logical, ${this.canvas.width}×${this.canvas.height} actual (${devicePixelRatio}x DPI)`);
   }
 
   private async loadTileImages(): Promise<void> {
     const tileFilenames = {
       [Tile.Red]: 'tile-red.svg',
-      [Tile.Blue]: 'tile-blue.svg', 
+      [Tile.Blue]: 'tile-blue.svg',
       [Tile.Yellow]: 'tile-yellow.svg',
       [Tile.Black]: 'tile-black.svg',
       [Tile.White]: 'tile-turquoise.svg', // Using turquoise for white/light blue tiles
@@ -171,20 +171,20 @@ export class GameRenderer {
     for (const [tile, filename] of Object.entries(tileFilenames)) {
       const promise = new Promise<void>((resolve) => {
         const img = new Image();
-        
+
         img.onload = () => {
           this.tileImages.set(tile as Tile, img);
           resolve();
         };
-        
+
         img.onerror = () => {
           console.warn(`Failed to load tile image: ${filename}`);
           resolve(); // Continue even if image fails to load
         };
-        
+
         img.src = `/imgs/${filename}`;
       });
-      
+
       loadPromises.push(promise);
     }
 
@@ -204,7 +204,7 @@ export class GameRenderer {
     const col = factoryIndex % this.layout.factories.perRow;
     const x = this.layout.factories.startX + col * (this.layout.factories.size + this.layout.factories.spacing);
     const y = this.layout.factories.startY + row * (this.layout.factories.size + this.layout.factories.spacing);
-    
+
     return {
       x,
       y,
@@ -226,7 +226,7 @@ export class GameRenderer {
     // Calculate how many rows of tiles we need
     const regularTiles = this.gameState.center.filter(t => t !== Tile.FirstPlayer);
     const tilesByColor = new Map<Tile, Tile[]>();
-    
+
     // Group tiles by their color
     regularTiles.forEach(tile => {
       if (!tilesByColor.has(tile)) {
@@ -234,24 +234,24 @@ export class GameRenderer {
       }
       tilesByColor.get(tile)!.push(tile);
     });
-    
+
     // Count unique colors that have tiles
     const colorOrder = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
     const numRows = colorOrder.filter(color => tilesByColor.has(color)).length;
-    
+
     if (numRows === 0) {
       // If no regular tiles, use minimum height
       return this.layout.center.height;
     }
-    
+
     // Calculate required height using standard tile size for consistency
     const tileSize = this.STANDARD_TILE_SIZE;
     const rowSpacing = 8;
     const topPadding = 15; // Increased padding to prevent overlap with decorative border
     const bottomPadding = 15; // Increased padding to prevent overlap with decorative border
-    
+
     const requiredHeight = topPadding + (numRows - 1) * (tileSize + rowSpacing) + tileSize + bottomPadding;
-    
+
     // Use at least the original minimum height
     return Math.max(requiredHeight, this.layout.center.height);
   }
@@ -259,7 +259,7 @@ export class GameRenderer {
   private getPlayerBoardBounds(playerIndex: number) {
     const x = this.layout.playerBoards.startX + (playerIndex % 2) * (this.layout.playerBoards.width + this.layout.playerBoards.spacingX);
     const y = this.layout.playerBoards.startY + Math.floor(playerIndex / 2) * (this.layout.playerBoards.height + this.layout.playerBoards.spacingY);
-    
+
     return {
       x,
       y,
@@ -272,7 +272,7 @@ export class GameRenderer {
     const boardBounds = this.getPlayerBoardBounds(playerIndex);
     const maxTiles = lineIndex + 1;
     const tileSize = this.layout.playerBoards.patternLines.tileSize;
-    
+
     return {
       x: boardBounds.x + 20,
       y: boardBounds.y + this.layout.playerBoards.patternLines.startY + lineIndex * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing),
@@ -283,7 +283,7 @@ export class GameRenderer {
 
   private getFloorBounds(playerIndex: number) {
     const boardBounds = this.getPlayerBoardBounds(playerIndex);
-    
+
     return {
       x: boardBounds.x + 10,
       y: boardBounds.y + this.layout.playerBoards.floor.startY,
@@ -294,7 +294,7 @@ export class GameRenderer {
 
   private getWallBounds(playerIndex: number) {
     const boardBounds = this.getPlayerBoardBounds(playerIndex);
-    
+
     return {
       x: boardBounds.x + this.layout.playerBoards.wall.startX,
       y: boardBounds.y + this.layout.playerBoards.patternLines.startY,
@@ -307,10 +307,10 @@ export class GameRenderer {
     // Enable crisp rendering
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.imageSmoothingQuality = 'high';
-    
+
     // Clear canvas with crisp edges
     this.ctx.clearRect(0, 0, this.layout.canvas.width, this.layout.canvas.height);
-    
+
     // Draw Portuguese azulejo-inspired background
     this.drawBackground();
 
@@ -331,10 +331,10 @@ export class GameRenderer {
     gradient.addColorStop(0, '#f8f9fa'); // Creamy white
     gradient.addColorStop(0.5, '#e9ecef'); // Light grey
     gradient.addColorStop(1, '#dee2e6'); // Slightly darker grey
-    
+
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
+
     // Add traditional azulejo pattern
     this.drawAzulejoPattern();
   }
@@ -344,9 +344,9 @@ export class GameRenderer {
     this.ctx.globalAlpha = 0.08;
     this.ctx.strokeStyle = '#2c3e50'; // Traditional azulejo blue
     this.ctx.lineWidth = 1;
-    
+
     const patternSize = 40;
-    
+
     for (let x = 0; x < this.canvas.width; x += patternSize) {
       for (let y = 0; y < this.canvas.height; y += patternSize) {
         // Draw decorative cross pattern
@@ -373,48 +373,48 @@ export class GameRenderer {
         this.ctx.stroke();
       }
     }
-    
+
     this.ctx.globalAlpha = 1.0;
   }
 
   private drawCeramicCoaster(x: number, y: number, size: number, isSelected: boolean, isHovered: boolean): void {
     // Draw ceramic coaster-style factory display inspired by Portuguese pottery
-    
+
     // Coaster shadow
     this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
     this.ctx.shadowBlur = 6;
     this.ctx.shadowOffsetX = 2;
     this.ctx.shadowOffsetY = 2;
-    
+
     // Make the coaster larger to accommodate tiles - use 85% of the size
     const coasterRadius = (size * 0.85) / 2;
-    
+
     // Main ceramic body
     this.ctx.fillStyle = '#f8f9fa'; // Ceramic white
     this.ctx.beginPath();
     this.ctx.arc(x + size/2, y + size/2, coasterRadius, 0, 2 * Math.PI);
     this.ctx.fill();
-    
+
     // Reset shadow
     this.ctx.shadowColor = 'transparent';
     this.ctx.shadowBlur = 0;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
-    
+
     // Decorative rim
     this.ctx.strokeStyle = '#2c3e50'; // Traditional blue
     this.ctx.lineWidth = 3;
     this.ctx.beginPath();
     this.ctx.arc(x + size/2, y + size/2, coasterRadius, 0, 2 * Math.PI);
     this.ctx.stroke();
-    
+
     // Inner decorative ring
     this.ctx.strokeStyle = '#d4af37'; // Gold accent
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
     this.ctx.arc(x + size/2, y + size/2, coasterRadius - 4, 0, 2 * Math.PI);
     this.ctx.stroke();
-    
+
     // Selection/hover state with enhanced visual feedback
     if (isSelected || isHovered) {
       if (isHovered && !isSelected) {
@@ -430,17 +430,17 @@ export class GameRenderer {
       this.ctx.beginPath();
       this.ctx.arc(x + size/2, y + size/2, coasterRadius + 2, 0, 2 * Math.PI);
       this.ctx.stroke();
-      
+
       // Reset shadow
       this.ctx.shadowColor = 'transparent';
       this.ctx.shadowBlur = 0;
     }
-    
+
     // Traditional azulejo-style decorative pattern in the center (smaller to not interfere with tiles)
     const centerX = x + size/2;
     const centerY = y + size/2;
     const patternRadius = size/8; // Smaller pattern
-    
+
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = 1;
     this.ctx.globalAlpha = 0.3; // Make pattern more subtle
@@ -466,13 +466,13 @@ export class GameRenderer {
 
   private drawOrnateCenterTable(bounds: any, isSelected: boolean, isHovered: boolean): void {
     // Draw ornate center table inspired by Portuguese azulejo patterns
-    
+
     // Table shadow
     this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
     this.ctx.shadowBlur = 10;
     this.ctx.shadowOffsetX = 4;
     this.ctx.shadowOffsetY = 4;
-    
+
     // Main table surface with ceramic-like gradient
     const gradient = this.ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.height);
     if (isSelected) {
@@ -488,26 +488,26 @@ export class GameRenderer {
       gradient.addColorStop(0.5, '#f8f9fa');
       gradient.addColorStop(1, '#e9ecef');
     }
-    
+
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-    
+
     // Reset shadow
     this.ctx.shadowColor = 'transparent';
     this.ctx.shadowBlur = 0;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
-    
+
     // Ornate border with Portuguese tile pattern
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = 3;
     this.ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
-    
+
     // Inner decorative border
     this.ctx.strokeStyle = '#d4af37'; // Gold accent
     this.ctx.lineWidth = 2;
     this.ctx.strokeRect(bounds.x + 4, bounds.y + 4, bounds.width - 8, bounds.height - 8);
-    
+
     // Traditional azulejo corner decorations
     const cornerSize = 20;
     const corners = [
@@ -516,10 +516,10 @@ export class GameRenderer {
       { x: bounds.x + 8, y: bounds.y + bounds.height - cornerSize - 8 }, // Bottom-left
       { x: bounds.x + bounds.width - cornerSize - 8, y: bounds.y + bounds.height - cornerSize - 8 } // Bottom-right
     ];
-    
+
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = 1;
-    
+
     corners.forEach(corner => {
       // Draw traditional azulejo corner pattern
       this.ctx.beginPath();
@@ -535,7 +535,7 @@ export class GameRenderer {
       this.ctx.lineTo(corner.x + 5, corner.y + 10);
       this.ctx.stroke();
     });
-    
+
     // Selection/hover highlight with enhanced visual feedback
     if (isSelected || isHovered) {
       if (isHovered && !isSelected) {
@@ -549,7 +549,7 @@ export class GameRenderer {
         this.ctx.lineWidth = isSelected ? 4 : 2;
       }
       this.ctx.strokeRect(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4);
-      
+
       // Reset shadow
       this.ctx.shadowColor = 'transparent';
       this.ctx.shadowBlur = 0;
@@ -558,13 +558,13 @@ export class GameRenderer {
 
   private drawAzulejoPlayerBoard(x: number, y: number, width: number, height: number, isCurrentPlayer: boolean): void {
     // Draw Portuguese azulejo-inspired player board
-    
+
     // Board shadow
     this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
     this.ctx.shadowBlur = 6;
     this.ctx.shadowOffsetX = 3;
     this.ctx.shadowOffsetY = 3;
-    
+
     // Main board background with ceramic gradient
     const gradient = this.ctx.createLinearGradient(x, y, x, y + height);
     if (isCurrentPlayer) {
@@ -576,33 +576,33 @@ export class GameRenderer {
       gradient.addColorStop(0.5, '#f8f9fa');
       gradient.addColorStop(1, '#ecf0f1');
     }
-    
+
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(x, y, width, height);
-    
+
     // Reset shadow
     this.ctx.shadowColor = 'transparent';
     this.ctx.shadowBlur = 0;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
-    
+
     // Traditional blue border
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = isCurrentPlayer ? 4 : 3;
     this.ctx.strokeRect(x, y, width, height);
-    
+
     // Gold accent border for current player
     if (isCurrentPlayer) {
       this.ctx.strokeStyle = '#d4af37';
       this.ctx.lineWidth = 2;
       this.ctx.strokeRect(x + 3, y + 3, width - 6, height - 6);
     }
-    
+
     // Inner decorative border
     this.ctx.strokeStyle = '#85929e';
     this.ctx.lineWidth = 1;
     this.ctx.strokeRect(x + 6, y + 6, width - 12, height - 12);
-    
+
     // Small corner decorations
     const cornerSize = 12;
     const corners = [
@@ -611,10 +611,10 @@ export class GameRenderer {
       { x: x + 10, y: y + height - cornerSize - 10 },
       { x: x + width - cornerSize - 10, y: y + height - cornerSize - 10 }
     ];
-    
+
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = 1;
-    
+
     corners.forEach(corner => {
       this.ctx.beginPath();
       // Small decorative cross
@@ -629,7 +629,7 @@ export class GameRenderer {
   private drawTitle(): void {
     const centerX = this.layout.title.x;
     const titleY = this.layout.title.y;
-    
+
     // Decorative border around title
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = 2;
@@ -639,20 +639,20 @@ export class GameRenderer {
     this.ctx.moveTo(centerX + 60, titleY + 10);
     this.ctx.lineTo(centerX + 120, titleY + 10);
     this.ctx.stroke();
-    
+
     // Main title with Portuguese influence
     this.ctx.fillStyle = '#2c3e50'; // Traditional azulejo blue
     this.ctx.font = 'bold 36px "Georgia", serif'; // More traditional serif font
     this.ctx.textAlign = 'center';
     this.ctx.fillText('AZUL', centerX, titleY);
-    
+
     // Add gold accent to title
     this.ctx.strokeStyle = '#d4af37'; // Gold
     this.ctx.lineWidth = 1;
     this.ctx.strokeText('AZUL', centerX, titleY);
-    
+
     // Subtitle with Portuguese inspiration
-    this.ctx.fillStyle = '#5d6d7e'; 
+    this.ctx.fillStyle = '#5d6d7e';
     this.ctx.font = 'italic 14px "Georgia", serif';
     this.ctx.fillText('Strategic tile-laying board game', centerX, titleY + 24);
   }
@@ -669,19 +669,19 @@ export class GameRenderer {
     const tileSize = this.STANDARD_TILE_SIZE;
     const tileSpacing = 6; // Spacing between tiles
     const positions = [];
-    
+
     // Calculate the grid dimensions to center it
     const gridWidth = 2 * tileSize + tileSpacing;
     const gridHeight = 2 * tileSize + tileSpacing;
     const startX = factoryX + (factorySize - gridWidth) / 2;
     const startY = factoryY + (factorySize - gridHeight) / 2;
-    
+
     for (let i = 0; i < Math.min(tiles.length, 4); i++) {
       const tileRow = Math.floor(i / 2);
       const tileCol = i % 2;
       const tileX = startX + tileCol * (tileSize + tileSpacing);
       const tileY = startY + tileRow * (tileSize + tileSpacing);
-      
+
       positions.push({
         tile: tiles[i],
         x: tileX,
@@ -689,27 +689,27 @@ export class GameRenderer {
         index: i
       });
     }
-    
+
     return positions;
   }
 
   private drawFactory(x: number, y: number, size: number, tiles: Tile[], factoryIndex: number): void {
     const isSelected = this.selectedFactory === factoryIndex;
     const isHovered = this.hoveredFactory === factoryIndex;
-    
+
     // Draw ceramic coaster-style factory display
     this.drawCeramicCoaster(x, y, size, isSelected, isHovered);
 
     // Get tile positions using the same logic as hit detection
     const tilePositions = this.getFactoryTilePositions(tiles, x, y, size);
     const tileSize = this.STANDARD_TILE_SIZE;
-    
+
     // Draw tiles
     for (const { tile, x: tileX, y: tileY } of tilePositions) {
       // Enhanced highlight for selected/hovered tiles
       const isTileSelected = this.selectedTile === tile && this.selectedFactory === factoryIndex;
       const isTileHovered = this.hoveredTile === tile && this.hoveredFactory === factoryIndex;
-      
+
       if (isTileSelected || isTileHovered) {
         if (isTileHovered && !isTileSelected) {
           // Enhanced hover with subtle glow
@@ -720,12 +720,12 @@ export class GameRenderer {
           this.ctx.fillStyle = '#f1c40f'; // Bright yellow for selection
         }
         this.ctx.fillRect(tileX - 4, tileY - 4, tileSize + 8, tileSize + 8);
-        
+
         // Reset shadow
         this.ctx.shadowColor = 'transparent';
         this.ctx.shadowBlur = 0;
       }
-      
+
       this.drawTile(tileX, tileY, tileSize, tile);
     }
   }
@@ -734,19 +734,19 @@ export class GameRenderer {
     const bounds = this.getCenterBounds();
     const isSelected = this.selectedFactory === -1;
     const isHovered = this.hoveredFactory === -1;
-    
+
     // Draw ornate center table inspired by Portuguese tile work
     this.drawOrnateCenterTable(bounds, isSelected, isHovered);
 
     // Get tile positions using the same logic as hit detection
     const tilePositions = this.getCenterTilePositions();
-    
+
     // Draw regular tiles
     for (const { tile, x, y } of tilePositions) {
       // Enhanced highlight for selected/hovered tiles
       const isTileSelected = this.selectedTile === tile && this.selectedFactory === -1;
       const isTileHovered = this.hoveredTile === tile && this.hoveredFactory === -1;
-      
+
       if (isTileSelected || isTileHovered) {
         if (isTileHovered && !isTileSelected) {
           // Enhanced hover with subtle glow
@@ -757,20 +757,20 @@ export class GameRenderer {
           this.ctx.fillStyle = '#f1c40f'; // Bright yellow for selection
         }
         this.ctx.fillRect(x - 4, y - 4, this.STANDARD_TILE_SIZE + 8, this.STANDARD_TILE_SIZE + 8);
-        
+
         // Reset shadow
         this.ctx.shadowColor = 'transparent';
         this.ctx.shadowBlur = 0;
       }
-      
+
       this.drawTile(x, y, this.STANDARD_TILE_SIZE, tile);
     }
-    
+
     // Draw FirstPlayer token separately if present
     if (this.gameState.center.includes(Tile.FirstPlayer)) {
       const tokenX = bounds.x + bounds.width - this.STANDARD_TILE_SIZE - 15; // Match increased padding
       const tokenY = bounds.y + 15; // Match increased padding
-      
+
       this.drawTile(tokenX, tokenY, this.STANDARD_TILE_SIZE, Tile.FirstPlayer);
     }
 
@@ -782,7 +782,7 @@ export class GameRenderer {
     this.ctx.lineWidth = 3;
     this.ctx.strokeText('Table Center', bounds.x, bounds.y - 8);
     this.ctx.fillText('Table Center', bounds.x, bounds.y - 8);
-    
+
     // Add helpful subtitle if there are tiles
     const regularTiles = this.gameState.center.filter(t => t !== Tile.FirstPlayer);
     if (regularTiles.length > 0) {
@@ -794,7 +794,7 @@ export class GameRenderer {
 
   private drawPlayerBoards(): void {
     const numPlayers = this.gameState.playerBoards.length;
-    
+
     for (let i = 0; i < numPlayers; i++) {
       const bounds = this.getPlayerBoardBounds(i);
       // Draw score above the player board, centered
@@ -831,10 +831,10 @@ export class GameRenderer {
   private drawPatternLine(x: number, y: number, lineIndex: number, tiles: Tile[], playerIndex: number): void {
     const tileSize = this.STANDARD_TILE_SIZE;
     const maxTiles = lineIndex + 1;
-    
+
     // Line background with enhanced hover effect
     const isHovered = this.hoveredLine === lineIndex && this.gameState.currentPlayer === playerIndex;
-    
+
     if (isHovered) {
       // Enhanced hover effect with golden glow
       this.ctx.shadowColor = 'rgba(212, 175, 55, 0.4)';
@@ -844,11 +844,11 @@ export class GameRenderer {
       this.ctx.fillStyle = '#ecf0f1';
     }
     this.ctx.fillRect(x, y, maxTiles * (tileSize + 2), tileSize);
-    
+
     // Reset shadow
     this.ctx.shadowColor = 'transparent';
     this.ctx.shadowBlur = 0;
-    
+
     // Line border with enhanced hover styling
     this.ctx.strokeStyle = isHovered ? '#d4af37' : '#bdc3c7';
     this.ctx.lineWidth = isHovered ? 2 : 1;
@@ -895,16 +895,16 @@ export class GameRenderer {
 
   private drawFloor(x: number, y: number, width: number, floor: Tile[], playerIndex: number): void {
     const floorHeight = 30;
-    
+
     // Floor background with enhanced azulejo styling and hover effect
     const isHovered = this.hoveredLine === -1 && this.gameState.currentPlayer === playerIndex;
-    
+
     if (isHovered) {
       // Enhanced hover effect with warm glow
       this.ctx.shadowColor = 'rgba(192, 57, 43, 0.4)'; // Red glow
       this.ctx.shadowBlur = 6;
     }
-    
+
     const gradient = this.ctx.createLinearGradient(x, y, x + width, y);
     if (isHovered) {
       gradient.addColorStop(0, '#f8cecc'); // Brighter warm colors for hover
@@ -913,19 +913,19 @@ export class GameRenderer {
       gradient.addColorStop(0, '#f8d7da');
       gradient.addColorStop(1, '#fadbd8');
     }
-    
+
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(x, y, width, floorHeight);
-    
+
     // Reset shadow
     this.ctx.shadowColor = 'transparent';
     this.ctx.shadowBlur = 0;
-    
+
     // Enhanced ornate floor border
     this.ctx.strokeStyle = isHovered ? '#e74c3c' : '#c0392b'; // Brighter red for hover
     this.ctx.lineWidth = isHovered ? 3 : 2;
     this.ctx.strokeRect(x, y, width, floorHeight);
-    
+
     // Inner decorative line
     this.ctx.strokeStyle = '#d4af37'; // Gold accent
     this.ctx.lineWidth = 1;
@@ -959,52 +959,52 @@ export class GameRenderer {
 
   private drawTile(x: number, y: number, size: number, tile: Tile): void {
     const radius = Math.min(size * 0.15, 8);
-    
+
     // Drop shadow for Material Design elevation
     this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
     this.ctx.shadowBlur = 4;
     this.ctx.shadowOffsetX = 2;
     this.ctx.shadowOffsetY = 2;
-    
+
     // Use SVG image if loaded, otherwise fallback to solid color
     if (this.imagesLoaded && this.tileImages.has(tile)) {
       const img = this.tileImages.get(tile)!;
-      
+
       // Create a clipping region with rounded corners
       this.ctx.save();
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.clip();
-      
+
       // Draw the SVG image
       this.ctx.drawImage(img, x, y, size, size);
-      
+
       this.ctx.restore();
-      
+
       // Add border for definition
       this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
       this.ctx.lineWidth = 1;
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.stroke();
-      
+
     } else {
       // Fallback to solid color if images aren't loaded
       this.ctx.fillStyle = this.tileColors[tile];
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.fill();
-      
+
       // Simple border for definition
       this.ctx.strokeStyle = tile === Tile.White ? '#e0e0e0' : 'rgba(0, 0, 0, 0.1)';
       this.ctx.lineWidth = 1;
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.stroke();
     }
-    
+
     // Reset shadow
     this.ctx.shadowColor = 'transparent';
     this.ctx.shadowBlur = 0;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
-    
+
     // Add small "1" text for FirstPlayer tile only
     if (tile === Tile.FirstPlayer) {
       // Add the "1" text with white color and text outline for better visibility
@@ -1014,7 +1014,7 @@ export class GameRenderer {
       this.ctx.font = `700 ${Math.round(size * 0.5)}px "Roboto", sans-serif`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
-      
+
       // Draw text outline first
       this.ctx.strokeText('1', x + size / 2, y + size / 2);
       // Then draw filled text
@@ -1024,35 +1024,35 @@ export class GameRenderer {
 
   private drawPlaceholderTile(x: number, y: number, size: number, tile: Tile): void {
     const radius = Math.min(size * 0.15, 8);
-    
+
     // Use SVG image with transparency if loaded, otherwise fallback to solid color with transparency
     if (this.imagesLoaded && this.tileImages.has(tile)) {
       const img = this.tileImages.get(tile)!;
-      
+
       // Create a clipping region with rounded corners
       this.ctx.save();
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.clip();
-      
+
       // Draw the SVG image with transparency
       this.ctx.globalAlpha = 0.25; // 25% opacity for placeholder
       this.ctx.drawImage(img, x, y, size, size);
       this.ctx.globalAlpha = 1.0; // Reset opacity
-      
+
       this.ctx.restore();
-      
+
       // Add border for definition
       this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
       this.ctx.lineWidth = 1;
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.stroke();
-      
+
     } else {
       // Fallback to solid color with transparency if images aren't loaded
       this.ctx.fillStyle = this.tileColors[tile] + '40'; // Add transparency
       this.drawRoundedRect(x, y, size, size, radius);
       this.ctx.fill();
-      
+
       // Border for definition
       this.ctx.strokeStyle = '#bdc3c7';
       this.ctx.lineWidth = 1;
@@ -1084,7 +1084,7 @@ export class GameRenderer {
     this.ctx.font = 'bold 18px "Georgia", serif';
     this.ctx.textAlign = 'left';
     this.ctx.fillText(`Round ${this.gameState.round}`, infoX, infoY);
-    
+
     if (!this.gameState.gameOver) {
       this.ctx.fillText(`Current Player: ${this.gameState.currentPlayer + 1}`, infoX, infoY + 25);
       this.ctx.fillText(`Available Moves: ${this.gameState.availableMoves.length}`, infoX, infoY + 50);
@@ -1102,12 +1102,12 @@ export class GameRenderer {
       const factoryText = this.selectedFactory === -1 ? 'Center' : `Factory ${this.selectedFactory + 1}`;
       this.ctx.fillStyle = '#2c3e50';
       this.ctx.font = 'bold 16px "Georgia", serif';
-      
+
       // Draw a small tile indicator
       const tileX = infoX;
       const tileY = infoY + 70;
       this.drawTile(tileX, tileY, this.STANDARD_TILE_SIZE, this.selectedTile);
-      
+
       this.ctx.fillText(`Selected: ${this.selectedTile.charAt(0).toUpperCase() + this.selectedTile.slice(1)} tiles from ${factoryText}`, infoX + 30, infoY + 85);
       this.ctx.font = 'italic 14px "Georgia", serif';
       this.ctx.fillStyle = '#5d6d7e';
@@ -1126,16 +1126,16 @@ export class GameRenderer {
 
     // Highlight valid destinations with azulejo styling
     const currentBoard = this.gameState.playerBoards[this.gameState.currentPlayer];
-    
+
     for (let i = 0; i < 5; i++) {
       if (currentBoard.canPlaceTile(this.selectedTile, i)) {
         // Highlight pattern line with gold
         const lineBounds = this.getPatternLineBounds(this.gameState.currentPlayer, i);
-        
+
         this.ctx.strokeStyle = '#d4af37'; // Gold
         this.ctx.lineWidth = 4;
         this.ctx.strokeRect(lineBounds.x - 3, lineBounds.y - 3, lineBounds.width + 6, lineBounds.height + 6);
-        
+
         // Inner highlight
         this.ctx.strokeStyle = '#f1c40f'; // Bright yellow
         this.ctx.lineWidth = 2;
@@ -1144,7 +1144,7 @@ export class GameRenderer {
         // Also highlight the corresponding wall position
         const wallBounds = this.getWallBounds(this.gameState.currentPlayer);
         const wallPattern = PlayerBoard.WALL_PATTERN;
-        
+
         // Find the column where this tile would go in the wall
         let wallCol = -1;
         for (let col = 0; col < 5; col++) {
@@ -1153,16 +1153,16 @@ export class GameRenderer {
             break;
           }
         }
-        
+
         if (wallCol !== -1) {
           const wallTileX = wallBounds.x + wallCol * (wallBounds.tileSize + wallBounds.spacing);
           const wallTileY = wallBounds.y + i * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing);
-          
+
           // Highlight the wall position with a different color to distinguish it
           this.ctx.strokeStyle = '#27ae60'; // Green for wall position
           this.ctx.lineWidth = 3;
           this.ctx.strokeRect(wallTileX - 2, wallTileY - 2, wallBounds.tileSize + 4, wallBounds.tileSize + 4);
-          
+
           // Inner highlight
           this.ctx.strokeStyle = '#2ecc71'; // Bright green
           this.ctx.lineWidth = 1;
@@ -1173,11 +1173,11 @@ export class GameRenderer {
 
     // Always highlight floor as valid with Portuguese red
     const floorBounds = this.getFloorBounds(this.gameState.currentPlayer);
-    
+
     this.ctx.strokeStyle = '#c0392b'; // Deep red
     this.ctx.lineWidth = 4;
     this.ctx.strokeRect(floorBounds.x - 3, floorBounds.y - 3, floorBounds.width + 6, floorBounds.height + 6);
-    
+
     // Inner highlight
     this.ctx.strokeStyle = '#e74c3c'; // Bright red
     this.ctx.lineWidth = 2;
@@ -1220,44 +1220,44 @@ export class GameRenderer {
     // Update hovered line
     const lineClick = this.getPatternLineAt(x, y);
     this.hoveredLine = lineClick.player === this.gameState.currentPlayer ? lineClick.line : -2;
-    
+
     // Update hovered tile
     const tileClick = this.getTileAt(x, y);
     this.hoveredFactory = tileClick.factory;
     this.hoveredTile = tileClick.tile;
-    
+
     // Update cursor
     this.canvas.style.cursor = this.hoveredLine !== -2 || tileClick.factory !== -2 ? 'pointer' : 'default';
   }
 
   private getCenterTilePositions(): Array<{ tile: Tile; x: number; y: number; index: number }> {
     const bounds = this.getCenterBounds();
-    
+
     const regularTiles = this.gameState.center.filter(t => t !== Tile.FirstPlayer);
     const tilesByColor = new Map<Tile, Tile[]>();
-    
+
     regularTiles.forEach(tile => {
       if (!tilesByColor.has(tile)) {
         tilesByColor.set(tile, []);
       }
       tilesByColor.get(tile)!.push(tile);
     });
-    
+
     const tileSize = this.STANDARD_TILE_SIZE;
     const spacing = 5;
     const rowSpacing = 8;
     const positions: Array<{ tile: Tile; x: number; y: number; index: number }> = [];
-    
+
     let currentY = bounds.y + 15;
     let globalIndex = 0;
-    
+
     const colorOrder = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
-    
+
     for (const color of colorOrder) {
       if (tilesByColor.has(color)) {
         const tilesOfColor = tilesByColor.get(color)!;
         let currentX = bounds.x + 15;
-        
+
         for (let i = 0; i < tilesOfColor.length; i++) {
           positions.push({
             tile: color,
@@ -1276,21 +1276,21 @@ export class GameRenderer {
   private getTileAt(x: number, y: number): { factory: number; tile: Tile | null } {
     // Check center tiles using the same positioning logic - check tile positions directly
     const tilePositions = this.getCenterTilePositions();
-    
+
     for (const { tile, x: tileX, y: tileY } of tilePositions) {
-      if (x >= tileX && x <= tileX + this.STANDARD_TILE_SIZE && 
+      if (x >= tileX && x <= tileX + this.STANDARD_TILE_SIZE &&
           y >= tileY && y <= tileY + this.STANDARD_TILE_SIZE) {
         return { factory: -1, tile };
       }
     }
-    
+
     // Also check FirstPlayer token if present (drawn separately)
     if (this.gameState.center.includes(Tile.FirstPlayer)) {
       const centerBounds = this.getCenterBounds();
       const tokenX = centerBounds.x + centerBounds.width - this.STANDARD_TILE_SIZE - 15; // Match increased padding
       const tokenY = centerBounds.y + 15; // Match increased padding
-      
-      if (x >= tokenX && x <= tokenX + this.STANDARD_TILE_SIZE && 
+
+      if (x >= tokenX && x <= tokenX + this.STANDARD_TILE_SIZE &&
           y >= tokenY && y <= tokenY + this.STANDARD_TILE_SIZE) {
         return { factory: -1, tile: Tile.FirstPlayer };
       }
@@ -1300,21 +1300,21 @@ export class GameRenderer {
     for (let i = 0; i < this.gameState.factories.length; i++) {
       const factoryBounds = this.getFactoryBounds(i);
 
-      if (x >= factoryBounds.x && x <= factoryBounds.x + factoryBounds.width && 
+      if (x >= factoryBounds.x && x <= factoryBounds.x + factoryBounds.width &&
           y >= factoryBounds.y && y <= factoryBounds.y + factoryBounds.height) {
-        
+
         // Use the same positioning logic as drawing
         const tiles = this.gameState.factories[i];
         const tilePositions = this.getFactoryTilePositions(tiles, factoryBounds.x, factoryBounds.y, factoryBounds.width);
         const tileSize = this.STANDARD_TILE_SIZE; // Use same size as drawing logic
-        
+
         for (const { tile, x: tileX, y: tileY } of tilePositions) {
-          if (x >= tileX && x <= tileX + tileSize && 
+          if (x >= tileX && x <= tileX + tileSize &&
               y >= tileY && y <= tileY + tileSize) {
             return { factory: i, tile };
           }
         }
-        
+
         return { factory: i, tile: null };
       }
     }
@@ -1324,11 +1324,11 @@ export class GameRenderer {
 
   private getPatternLineAt(x: number, y: number): { player: number; line: number } {
     const numPlayers = this.gameState.playerBoards.length;
-    
+
     for (let i = 0; i < numPlayers; i++) {
       const boardBounds = this.getPlayerBoardBounds(i);
-      
-      if (x >= boardBounds.x && x <= boardBounds.x + boardBounds.width && 
+
+      if (x >= boardBounds.x && x <= boardBounds.x + boardBounds.width &&
           y >= boardBounds.y && y <= boardBounds.y + boardBounds.height) {
         // Check pattern lines
         for (let j = 0; j < 5; j++) {
@@ -1376,4 +1376,4 @@ export class GameRenderer {
     this.hoveredFactory = -2;
     this.hoveredTile = null;
   }
-} 
+}

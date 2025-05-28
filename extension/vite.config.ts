@@ -40,7 +40,7 @@ export default defineConfig({
           resolve(__dirname, 'src/manifest.json'),
           resolve(__dirname, 'dist/manifest.json')
         );
-        
+
         // Copy icons directory if it exists
         const iconsDir = resolve(__dirname, 'src/icons');
         if (await fs.pathExists(iconsDir)) {
@@ -71,4 +71,4 @@ export default defineConfig({
       '@ai': resolve(__dirname, '../webapp/src')  // Point to webapp's src directory
     }
   }
-}); 
+});

@@ -38,10 +38,10 @@ export class AzulAI {
     while (Date.now() - startTime < this.maxThinkingTime) {
       try {
         const result = this.alphaBetaSearch(
-          gameState, 
-          searchDepth, 
-          -Infinity, 
-          Infinity, 
+          gameState,
+          searchDepth,
+          -Infinity,
+          Infinity,
           true,
           startTime,
           previousMoveOrdering
@@ -85,10 +85,10 @@ export class AzulAI {
 
   // Alpha-beta search with move ordering
   private alphaBetaSearch(
-    gameState: BaseGameState, 
-    depth: number, 
-    alpha: number, 
-    beta: number, 
+    gameState: BaseGameState,
+    depth: number,
+    alpha: number,
+    beta: number,
     maximizingPlayer: boolean,
     startTime: number,
     moveOrdering?: Move[]
@@ -109,21 +109,21 @@ export class AzulAI {
 
     // Order moves based on heuristics and previous search results
     let orderedMoves = [...gameState.availableMoves];
-    
+
     // Apply move ordering heuristics
     orderedMoves.sort((a, b) => {
       let scoreA = this.getMoveOrderingScore(gameState, a);
       let scoreB = this.getMoveOrderingScore(gameState, b);
-      
+
       // Apply previous iteration ordering if available
       if (moveOrdering && depth === 1) {
         const aIndex = moveOrdering.findIndex(m => this.movesEqual(m, a));
         const bIndex = moveOrdering.findIndex(m => this.movesEqual(m, b));
-        
+
         if (aIndex !== -1) scoreA += 100 - aIndex; // Boost previously good moves
         if (bIndex !== -1) scoreB += 100 - bIndex;
       }
-      
+
       return maximizingPlayer ? scoreB - scoreA : scoreA - scoreB;
     });
 
@@ -134,10 +134,10 @@ export class AzulAI {
     for (const move of orderedMoves) {
       // Create new game state
       const newGameState = gameState.clone();
-      
+
       // Play the move
       const roundEnded = newGameState.playMove(move);
-      
+
       if (roundEnded) {
         // If round ended, evaluate final position
         const value = newGameState.evaluatePosition(this.playerIndex);
@@ -158,17 +158,17 @@ export class AzulAI {
       } else {
         // Continue search
         const result = this.alphaBetaSearch(
-          newGameState, 
-          depth - 1, 
-          alpha, 
-          beta, 
+          newGameState,
+          depth - 1,
+          alpha,
+          beta,
           newGameState.currentPlayer === this.playerIndex,
           startTime
         );
 
         if (result) {
           const value = result.value;
-          
+
           if (maximizingPlayer) {
             if (value > bestValue) {
               bestValue = value;
@@ -182,7 +182,7 @@ export class AzulAI {
             }
             beta = Math.min(beta, value);
           }
-          
+
           newMoveOrdering.push(move);
         }
       }
@@ -193,10 +193,10 @@ export class AzulAI {
       }
     }
 
-    return { 
-      move: bestMove, 
-      value: bestValue, 
-      moveOrdering: depth === 1 ? newMoveOrdering : undefined 
+    return {
+      move: bestMove,
+      value: bestValue,
+      moveOrdering: depth === 1 ? newMoveOrdering : undefined
     };
   }
 
@@ -227,7 +227,7 @@ export class AzulAI {
         const currentBoard = gameState.playerBoards[this.playerIndex];
         const line = currentBoard.lines[move.lineIndex];
         const requiredTiles = move.lineIndex + 1;
-        
+
         // Prefer moves that complete lines
         if (line.length === requiredTiles - 1) {
           score += 20;
@@ -292,7 +292,7 @@ export class AzulAI {
       if (wallPatternRow) {
         return wallPatternRow.indexOf(tileColor);
       }
-      return -1; 
+      return -1;
     };
 
     // 1. Evaluate moves placing tiles on pattern lines
@@ -366,7 +366,7 @@ export class AzulAI {
         // Heavy penalty if the move tries to place a tile in an invalid line (color mismatch, wall spot taken)
         score -= 100;
       }
-    } else { 
+    } else {
       // 2. Evaluate floor moves (move.lineIndex === -1)
       const tilesAvailableFromSource = this.countAvailableTilesInSource(gameState, move.factoryIndex, move.tile);
       score -= 30 + (tilesAvailableFromSource * 3); // Base penalty + per-tile penalty
@@ -379,12 +379,12 @@ export class AzulAI {
       // OR if move.tile IS FirstPlayer (though AI usually wouldn't pick FP token as a tile type)
       let takesFirstPlayerToken = false;
       const firstPlayerTokenInCenter = gameState.center.includes(Tile.FirstPlayer as any);
-      
+
       if (firstPlayerTokenInCenter) {
         // If we clear all of move.tile, and FP token is the only thing left (or also taken if move.tile IS FP)
         // This simplified check assumes taking *any* color from center when FP token is present means you *might* take it.
         // A more precise check would be in playMove, but for heuristic, this is an approximation.
-        takesFirstPlayerToken = true; 
+        takesFirstPlayerToken = true;
       }
 
       if (takesFirstPlayerToken) {
@@ -473,7 +473,7 @@ export class AzulAI {
     } else if (factoryIndex >= 0 && factoryIndex < gameState.factories.length) { // Specific factory
       return gameState.factories[factoryIndex].filter((t: any) => t === tile).length;
     }
-    return 0; 
+    return 0;
   }
 
   private countTotalTilesInPlay(gameState: BaseGameState, tile: any): number {
@@ -482,4 +482,4 @@ export class AzulAI {
     total += gameState.center.filter((t: any) => t === tile).length;
     return total;
   }
-} 
+}

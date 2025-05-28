@@ -38,4 +38,4 @@ export default [
       'no-undef': 'off', // TypeScript handles this
     },
   },
-]; 
+];

@@ -119,7 +119,7 @@ class TestBoundaryConditions:
         assert len(tiles) == 100, "Should create exactly 100 standard tiles"
 
         # Count each color
-        color_counts = {}
+        color_counts: dict[TileColor, int] = {}
         for tile in tiles:
             color_counts[tile.color] = color_counts.get(tile.color, 0) + 1
 
@@ -260,7 +260,7 @@ class TestInvalidInputHandling:
 
         # Test with None color (should handle gracefully)
         try:
-            result = wall.can_place_tile(0, None)
+            result = wall.can_place_tile(0, None)  # type: ignore
             # Should either return False or raise appropriate exception
             assert isinstance(result, bool), "Should return boolean or raise exception"
         except (TypeError, AttributeError):

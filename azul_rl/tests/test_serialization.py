@@ -338,7 +338,7 @@ class TestStateSerialization:
 
         try:
             # Load state representation
-            with open(temp_file, "rb") as f:
+            with open(temp_file, "rb") as f:  # type: ignore
                 loaded_state_repr = pickle.load(f)
 
             # Reconstruct information

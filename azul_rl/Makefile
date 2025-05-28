@@ -52,8 +52,8 @@ test-verbose:
 	python3 -m pytest tests/ -v
 	@echo "✓ Tests complete"
 
-# Run all checks (skip type-check for now due to complexity)
-check: format lint test
+# Run all checks
+check: format lint type-check test
 	@echo "✓ All checks passed!"
 
 # Pre-commit setup

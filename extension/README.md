@@ -88,4 +88,4 @@ src/
 npm run build
 ```
 
-The built extension will be in the `dist/` directory, ready to be packaged or loaded into Chrome. 
+The built extension will be in the `dist/` directory, ready to be packaged or loaded into Chrome.
