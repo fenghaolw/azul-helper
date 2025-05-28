@@ -1,6 +1,9 @@
 import copy
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from .state_representation import AzulStateRepresentation
 
 from .factory import FactoryArea
 from .player_board import PlayerBoard
@@ -58,7 +61,9 @@ class GameState:
 
         # Tile management
         self.bag: List[Tile] = []
-        self.discard_pile: List[Tile] = []  # All discarded tiles go here (lid of the game box)
+        self.discard_pile: List[Tile] = (
+            []
+        )  # All discarded tiles go here (lid of the game box)
 
         # Random seed for reproducibility
         if seed is not None:
@@ -159,7 +164,7 @@ class GameState:
             discarded = player.place_tiles_on_floor_line(tiles)
         else:
             discarded = player.place_tiles_on_pattern_line(action.destination, tiles)
-        
+
         # Track discarded tiles (all go to discard pile per official rules)
         self.discard_pile.extend(discarded)
 
@@ -183,7 +188,7 @@ class GameState:
             if player.has_first_player_marker():
                 next_first_player = i
                 break
-        
+
         # Score all players
         for player in self.players:
             points, discard_tiles = player.end_round_scoring()
@@ -200,7 +205,9 @@ class GameState:
             self._end_game()
         else:
             self.round_number += 1
-            self.current_player = next_first_player  # Set the first player for next round
+            self.current_player = (
+                next_first_player  # Set the first player for next round
+            )
             self._start_new_round()
 
     def _end_game(self) -> None:
@@ -239,19 +246,20 @@ class GameState:
         """Get a numerical representation of the game state for ML models."""
         # Import here to avoid circular imports
         from .state_representation import AzulStateRepresentation
-        
+
         # Create numerical representation and return flattened vector
         state_repr = AzulStateRepresentation(self)
         return state_repr.get_flat_state_vector(normalize=True).tolist()
-    
+
     def get_numerical_state(self) -> "AzulStateRepresentation":
         """
         Get the complete numerical state representation.
-        
+
         Returns:
             AzulStateRepresentation object containing all game state as NumPy arrays
         """
         from .state_representation import AzulStateRepresentation
+
         return AzulStateRepresentation(self)
 
     def copy(self) -> "GameState":

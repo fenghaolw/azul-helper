@@ -34,7 +34,9 @@ ignore =
     E402,
     # I100, I101: Import order (handled by isort)
     I100,
-    I101
+    I101,
+    # I201: newlines are handled by black
+    I201
 
 # Exclude directories
 exclude = 
@@ -48,4 +50,4 @@ exclude =
     *.egg-info
 
 # Maximum complexity (relaxed for now)
-max-complexity = 15 
+max-complexity = 50

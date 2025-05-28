@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .tile import Tile, TileColor
 
@@ -254,8 +254,13 @@ class PlayerBoard:
 
         return self.pattern_lines[line_index].can_add_tiles(tiles)
 
-    def place_tiles_on_pattern_line(self, line_index: int, tiles: List[Tile]) -> List[Tile]:
-        """Place tiles on pattern line. Overflow goes to floor line. Returns discarded tiles."""
+    def place_tiles_on_pattern_line(
+        self, line_index: int, tiles: List[Tile]
+    ) -> List[Tile]:
+        """Place tiles on pattern line. Overflow goes to floor line.
+
+        Returns discarded tiles.
+        """
         if line_index < 0 or line_index >= 5:
             return self.place_tiles_on_floor_line(tiles)
 
@@ -267,13 +272,18 @@ class PlayerBoard:
         return self.place_tiles_on_floor_line(overflow)
 
     def place_tiles_on_floor_line(self, tiles: List[Tile]) -> List[Tile]:
-        """Place tiles directly on floor line. Returns excess tiles that should be discarded."""
+        """Place tiles directly on floor line.
+
+        Returns excess tiles that should be discarded.
+        """
         discarded = []
         for tile in tiles:
             if len(self.floor_line) < 7:  # Floor line can only hold 7 tiles
                 self.floor_line.append(tile)
             else:
-                discarded.append(tile)  # Excess tiles are discarded (returned to box) per Azul rules
+                discarded.append(
+                    tile
+                )  # Excess tiles are discarded (returned to box) per Azul rules
         return discarded
 
     def end_round_scoring(self) -> Tuple[int, List[Tile]]:
@@ -291,7 +301,7 @@ class PlayerBoard:
 
         # Apply floor line penalties
         floor_penalty = 0
-        for i, tile in enumerate(self.floor_line):
+        for i, _tile in enumerate(self.floor_line):
             if i < len(self.FLOOR_PENALTIES):
                 floor_penalty += self.FLOOR_PENALTIES[i]
 

@@ -5,8 +5,7 @@ Example script demonstrating basic Azul game functionality.
 
 import random
 
-from azul_rl.game.game_state import Action, create_game
-from azul_rl.game.tile import TileColor
+from azul_rl.game.game_state import create_game
 
 
 def random_agent(game_state):

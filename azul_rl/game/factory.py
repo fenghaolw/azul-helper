@@ -1,5 +1,4 @@
-import random
-from typing import Dict, List, Optional
+from typing import List
 
 from .tile import Tile, TileColor
 
@@ -80,7 +79,8 @@ class CenterArea:
 
         self.tiles = remaining
 
-        # If taking tiles from center for first time this round, also take first player marker
+        # If taking tiles from center for first time this round,
+        # also take first player marker
         if taken and self.has_first_player_marker:
             taken.append(Tile.create_first_player_marker())
             self.has_first_player_marker = False
@@ -160,7 +160,10 @@ class FactoryArea:
         return all_factories_empty and center_empty
 
     def get_available_moves(self) -> List[tuple[int, TileColor]]:
-        """Get all available moves. Returns list of (source, color) where source -1 = center."""
+        """Get all available moves.
+
+        Returns list of (source, color) where source -1 = center.
+        """
         moves = []
 
         # Check center

@@ -8,7 +8,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game.game_state import Action, create_game
+from game.game_state import create_game
 from game.player_board import PlayerBoard
 from game.tile import Tile, TileColor
 
