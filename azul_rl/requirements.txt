@@ -1,6 +1,7 @@
 # Core dependencies
 numpy>=1.21.0
 typing-extensions>=4.0.0
+pettingzoo>=1.24.0
 
 # For future RL development - COMMENTED OUT TO SPEED UP CI
 # torch>=1.9.0
