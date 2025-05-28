@@ -33,8 +33,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         cd azul_rl
+        # Install only core dependencies and essential dev tools for CI
         pip install --no-cache-dir -r requirements.txt
-        pip install --no-cache-dir -r requirements-dev.txt
+        pip install --no-cache-dir -e ".[dev]"
 
     - name: Code formatting check (Black)
       run: |
