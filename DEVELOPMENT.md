@@ -162,3 +162,26 @@ When adding new dependencies:
 2. Add to `requirements-dev.txt` (development dependencies)
 3. Update `pyproject.toml` optional dependencies if needed
 4. Run `make install-dev` to install new dependencies
+
+## Python Setup
+
+### Python Executable
+This project uses `python3` explicitly in scripts and configuration files to avoid issues on systems where `python` is not available.
+
+If you prefer to use `python` instead of `python3`, you can:
+
+1. **Temporary alias (current session only):**
+   ```bash
+   source scripts/setup_python_alias.sh
+   ```
+
+2. **Permanent alias (recommended):**
+   Add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+   ```bash
+   alias python=python3
+   ```
+
+3. **System-wide symlink (advanced users):**
+   ```bash
+   sudo ln -s $(which python3) /usr/local/bin/python
+   ```

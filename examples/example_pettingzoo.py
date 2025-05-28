@@ -5,11 +5,15 @@ Example script demonstrating the Azul PettingZoo AEC Environment.
 This script shows how to use the Azul game as a PettingZoo environment
 for multi-agent reinforcement learning.
 """
-
+import os
 import random
+import sys
 from typing import Callable, Dict, List
 
 import numpy as np
+
+# Add parent directory to path so we can import from game
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from game import AzulAECEnv, env, raw_env, wrapped_env
 

@@ -5,11 +5,15 @@ This module demonstrates how to use the MCTS algorithm with PyTorch neural netwo
 for the Azul board game, including gameplay, benchmarking, and advanced features.
 """
 
+import os
+import sys
 import time
 from typing import List, Tuple
 
 import numpy as np
 
+# Add parent directory to path so we can import from game
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents.mcts import MCTS, MCTSAgent
 from game.game_state import Action
 from game.game_state import GameState as AzulGameState

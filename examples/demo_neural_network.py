@@ -9,10 +9,8 @@ including state preprocessing, action prediction, and value estimation.
 import os
 import sys
 
-# Add the parent directory to the path to import azul_rl modules
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+# Add parent directory to path so we can import from game
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np  # noqa: E402
 import torch  # noqa: E402,I201

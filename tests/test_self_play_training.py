@@ -8,6 +8,8 @@ This script runs tests to verify that all self-play training components work tog
 import os
 import sys
 
+import pytest
+
 # Add the parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
@@ -21,6 +23,7 @@ from training import (
 )
 
 
+@pytest.mark.slow
 def test_replay_buffer():
     """Test replay buffer functionality."""
     print("Testing Replay Buffer...")
@@ -39,6 +42,7 @@ def test_replay_buffer():
     print("✓ Replay buffer basic functionality works")
 
 
+@pytest.mark.slow
 def test_self_play_engine():
     """Test self-play engine functionality."""
     print("Testing Self-Play Engine...")
@@ -73,6 +77,7 @@ def test_self_play_engine():
     print("✓ Self-play engine functionality works")
 
 
+@pytest.mark.slow
 def test_training_config():
     """Test training configuration."""
     print("Testing Training Configuration...")
@@ -94,6 +99,7 @@ def test_training_config():
     print("✓ Training configuration works")
 
 
+@pytest.mark.slow
 def test_minimal_training():
     """Test minimal training loop."""
     print("Testing Minimal Training Loop...")

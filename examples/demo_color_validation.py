@@ -6,6 +6,12 @@ This script demonstrates that color encoding in the numerical state representati
 accurately reflects the actual game state colors.
 """
 
+import os
+import sys
+
+# Add parent directory to path so we can import from game
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from game import AzulStateRepresentation, GameState, TileColor
 
 

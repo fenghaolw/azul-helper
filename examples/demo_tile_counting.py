@@ -5,7 +5,11 @@ Demonstration: Tile Counting and Accessibility
 This script demonstrates that factory tiles (and all other tiles) are easily
 accessible and countable in the Azul game state representation.
 """
+import os
+import sys
 
+# Add parent directory to path so we can import from game
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from game import AzulStateRepresentation, GameState
 
 

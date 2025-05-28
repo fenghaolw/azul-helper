@@ -19,8 +19,8 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 
-# Add the project root to the path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+# Add parent directory to path so we can import from game
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from game.game_state import GameState
 from training.neural_network import AzulNeuralNetwork, create_azul_network

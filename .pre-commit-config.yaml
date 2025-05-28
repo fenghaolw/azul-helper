@@ -51,3 +51,13 @@ repos:
           - numpy>=1.20.0
           - torch>=1.9.0
         args: [--ignore-missing-imports, --config-file=mypy.ini, --show-error-codes]
+
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (fast tests only)
+        entry: python3 scripts/run_fast_tests.py
+        language: system
+        pass_filenames: false
+        files: ^tests/.*\.py$
+        types: [python]
