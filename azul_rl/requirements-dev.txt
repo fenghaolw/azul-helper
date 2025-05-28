@@ -8,19 +8,19 @@ pre-commit>=2.15.0
 # Testing
 pytest>=6.0.0
 pytest-cov>=3.0.0
-pytest-mock>=3.6.0
+# pytest-mock>=3.6.0  # COMMENTED OUT - not used
 psutil>=5.8.0  # For performance testing and memory monitoring
 
-# Flake8 plugins
+# Flake8 plugins - only keeping the one that's actually configured
 flake8-docstrings>=1.6.0
-flake8-import-order>=0.18.0
-flake8-bugbear>=22.0.0
+# flake8-import-order>=0.18.0  # COMMENTED OUT - not configured in .flake8
+# flake8-bugbear>=22.0.0  # COMMENTED OUT - not configured in .flake8
 
-# Type checking
-types-requests>=2.28.0
-types-setuptools>=57.4.0
-types-PyYAML>=6.0.0
-types-six>=1.16.0
-types-python-dateutil>=2.8.0
-types-pytz>=2021.3.0
-types-urllib3>=1.26.0
+# Type checking - COMMENTED OUT unused type stubs
+# types-requests>=2.28.0  # Not using requests
+# types-setuptools>=57.4.0  # Not using setuptools in code
+# types-PyYAML>=6.0.0  # Not using PyYAML
+# types-six>=1.16.0  # Not using six
+# types-python-dateutil>=2.8.0  # Not using dateutil
+# types-pytz>=2021.3.0  # Not using pytz
+# types-urllib3>=1.26.0  # Not using urllib3

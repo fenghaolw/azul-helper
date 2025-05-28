@@ -2,12 +2,12 @@
 numpy>=1.21.0
 typing-extensions>=4.0.0
 
-# For future RL development
-torch>=1.9.0
-gymnasium>=0.26.0
-stable-baselines3>=1.6.0
+# For future RL development - COMMENTED OUT TO SPEED UP CI
+# torch>=1.9.0
+# gymnasium>=0.26.0
+# stable-baselines3>=1.6.0
 
-# Optional: for visualization and analysis
-matplotlib>=3.5.0
-seaborn>=0.11.0
-pandas>=1.3.0
+# Optional: for visualization and analysis - COMMENTED OUT TO SPEED UP CI
+# matplotlib>=3.5.0
+# seaborn>=0.11.0
+# pandas>=1.3.0
