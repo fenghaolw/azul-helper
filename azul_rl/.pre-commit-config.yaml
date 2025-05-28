@@ -60,4 +60,4 @@ repos:
       # Check toml files
       - id: check-toml
       # Check json files
-      - id: check-json 
+      - id: check-json

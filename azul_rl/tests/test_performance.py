@@ -20,10 +20,7 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-from azul_rl.game import (
-    AzulStateRepresentation,
-    GameState,
-)
+from azul_rl.game import AzulStateRepresentation, GameState
 
 
 class TestBasicPerformance:

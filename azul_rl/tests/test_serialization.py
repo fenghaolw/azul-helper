@@ -14,10 +14,7 @@ import time
 import numpy as np
 import pytest
 
-from azul_rl.game import (
-    AzulStateRepresentation,
-    GameState,
-)
+from azul_rl.game import AzulStateRepresentation, GameState
 
 
 class TestStateSerialization:
@@ -492,7 +489,6 @@ class TestSerializationEdgeCases:
 
 
 if __name__ == "__main__":
-
     print("=== Azul Serialization Tests Demo ===")
 
     # Run a quick demo

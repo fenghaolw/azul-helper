@@ -433,7 +433,6 @@ class TestStateRepresentation:
 
         for player_idx, player in enumerate(game.players):
             if player_idx < state_repr.num_players:
-
                 # Test pattern lines
                 for line_idx, pattern_line in enumerate(player.pattern_lines):
                     encoded_line = state_repr.pattern_lines[player_idx, line_idx]

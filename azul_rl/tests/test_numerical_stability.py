@@ -7,11 +7,7 @@ numerical robustness of the state representation system.
 
 import numpy as np
 
-from azul_rl.game import (
-    AzulStateRepresentation,
-    GameState,
-    StateConfig,
-)
+from azul_rl.game import AzulStateRepresentation, GameState, StateConfig
 
 
 class TestFloatingPointPrecision:

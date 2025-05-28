@@ -15,12 +15,7 @@ import tempfile
 
 import numpy as np
 
-from azul_rl.game import (
-    AzulStateRepresentation,
-    GameState,
-    StateConfig,
-    TileColor,
-)
+from azul_rl.game import AzulStateRepresentation, GameState, StateConfig, TileColor
 
 
 class TestPlatformConsistency:

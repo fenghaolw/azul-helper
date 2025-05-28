@@ -79,4 +79,4 @@ example:
 
 # Quick development setup
 dev-setup: install-dev pre-commit
-	@echo "✓ Development environment setup complete!" 
+	@echo "✓ Development environment setup complete!"
