@@ -188,6 +188,52 @@ class AzulNetwork(nn.Module):
         else:
             return policy_probs, value
 
+    def forward_with_logits(
+        self,
+        state: torch.Tensor,
+        return_features: bool = False,
+    ) -> Union[
+        Tuple[torch.Tensor, torch.Tensor],
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+    ]:
+        """
+        Forward pass returning raw logits for cross-entropy loss computation.
+
+        Args:
+            state: Input state tensor of shape (batch_size, input_size)
+            return_features: Whether to return intermediate features
+
+        Returns:
+            Tuple of (policy_logits, value) where:
+            - policy_logits: Raw logits (batch_size, action_space_size)
+            - value: State value estimation (batch_size, 1)
+            - features: Intermediate features if return_features=True
+        """
+        # Input processing
+        x = self.input_layer(state)
+
+        # Shared body with optional residual connections
+        for i, layer in enumerate(self.body_layers):
+            if self.use_residual:
+                residual = self.residual_projections[i](x)
+                x = layer(x) + residual
+            else:
+                x = layer(x)
+
+        # Store features for potential return
+        features = x
+
+        # Policy head - output raw logits (no softmax)
+        policy_logits = self.policy_head(x)
+
+        # Value head - output state value
+        value = self.value_head(x)
+
+        if return_features:
+            return policy_logits, value, features
+        else:
+            return policy_logits, value
+
     def get_action_probabilities(
         self,
         state: torch.Tensor,
@@ -407,3 +453,186 @@ def test_network_architecture():
 
 if __name__ == "__main__":
     test_network_architecture()
+
+
+class AzulNeuralNetwork:
+    """
+    PyTorch neural network implementation for Azul game states.
+
+    This class wraps the AzulNetwork from the training module to work
+    with the MCTS NeuralNetwork protocol, using proper action encoding
+    from the PettingZoo environment.
+    """
+
+    def __init__(
+        self,
+        model: Optional[AzulNetwork] = None,
+        config_name: str = "medium",
+        model_path: Optional[str] = None,
+        device: Optional[str] = None,
+        **model_kwargs,
+    ):
+        """
+        Initialize the PyTorch neural network.
+
+        Args:
+            model: Pre-trained AzulNetwork instance (if None, creates new one)
+            config_name: Configuration name for new model ('small', 'medium', 'large', 'deep')
+            model_path: Path to saved model weights
+            device: Device to run inference on ('cpu', 'cuda', 'auto')
+            **model_kwargs: Additional arguments for model creation
+        """
+        # Set device
+        if device == "auto":
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        elif device is None:
+            self.device = torch.device("cpu")
+        else:
+            self.device = torch.device(device)
+
+        # Create or use provided model
+        if model is not None:
+            self.model = model
+        else:
+            self.model = create_azul_network(config_name, **model_kwargs)
+
+        # Move model to device
+        self.model = self.model.to(self.device)
+
+        # Load weights if provided
+        if model_path is not None:
+            self.load_model(model_path)
+
+        # Set to evaluation mode by default
+        self.model.eval()
+
+    def load_model(self, model_path: str) -> None:
+        """Load model weights from file."""
+        checkpoint = torch.load(model_path, map_location=self.device)
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+        else:
+            self.model.load_state_dict(checkpoint)
+        print(f"Loaded model weights from {model_path}")
+
+    def save_model(
+        self, model_path: str, include_optimizer: bool = False, **metadata
+    ) -> None:
+        """Save model weights to file."""
+        checkpoint = {
+            "model_state_dict": self.model.state_dict(),
+            "model_info": self.model.get_model_info(),
+            **metadata,
+        }
+        torch.save(checkpoint, model_path)
+        print(f"Saved model weights to {model_path}")
+
+    def evaluate(self, state) -> Tuple[np.ndarray, float]:
+        """
+        Evaluate an Azul game state using the real neural network.
+
+        Args:
+            state: Azul GameState object
+
+        Returns:
+            Tuple of (action_probabilities, state_value)
+            - action_probabilities: probabilities for each legal action
+            - state_value: estimated value of the state for current player
+        """
+        # Get numerical representation
+        try:
+            numerical_state = state.get_numerical_state()
+            state_vector = numerical_state.get_flat_state_vector(normalize=True)
+        except Exception as e:
+            raise ValueError(f"Failed to get numerical state representation: {e}")
+
+        # Get legal actions
+        legal_actions = state.get_legal_actions()
+        num_actions = len(legal_actions)
+
+        if num_actions == 0:
+            return np.array([]), 0.0
+
+        # Create legal action mask for the full action space using proper encoding
+        legal_action_mask = np.zeros(self.model.action_space_size, dtype=np.float32)
+
+        # Import here to avoid circular imports
+        from azul_rl.game.pettingzoo_env import AzulAECEnv
+
+        # Create a temporary environment instance for action encoding
+        # We need to match the number of players from the game state
+        temp_env = AzulAECEnv(num_players=state.num_players)
+
+        # Encode each legal action and set the corresponding mask position
+        for action in legal_actions:
+            try:
+                action_idx = temp_env._encode_action(action)
+                if 0 <= action_idx < self.model.action_space_size:
+                    legal_action_mask[action_idx] = 1.0
+            except Exception:
+                # Skip actions that can't be encoded
+                continue
+
+        # Run inference
+        self.model.eval()
+        with torch.no_grad():
+            # Convert state to tensor
+            state_tensor = torch.FloatTensor(state_vector).unsqueeze(0).to(self.device)
+            legal_mask_tensor = (
+                torch.FloatTensor(legal_action_mask).unsqueeze(0).to(self.device)
+            )
+
+            # Get predictions
+            policy_probs = self.model.get_action_probabilities(
+                state_tensor, legal_mask_tensor, temperature=1.0
+            )
+            value = self.model.get_state_value(state_tensor)
+
+            # Convert to numpy
+            policy_probs = policy_probs.cpu().numpy()[0]
+            value_float = float(value.cpu().item())
+
+        # Extract probabilities for actual legal actions in the same order
+        action_probs_list = []
+        for action in legal_actions:
+            try:
+                action_idx = temp_env._encode_action(action)
+                if 0 <= action_idx < len(policy_probs):
+                    action_probs_list.append(float(policy_probs[action_idx]))
+                else:
+                    action_probs_list.append(0.0)
+            except Exception:
+                action_probs_list.append(0.0)
+
+        action_probs = np.array(action_probs_list)
+
+        # Renormalize to ensure they sum to 1
+        if action_probs.sum() > 0:
+            action_probs = action_probs / action_probs.sum()
+        else:
+            # Fallback to uniform distribution
+            action_probs = np.ones(num_actions) / num_actions
+
+        return action_probs, value_float
+
+    def set_training_mode(self, training: bool = True) -> None:
+        """Set the model to training or evaluation mode."""
+        if training:
+            self.model.train()
+        else:
+            self.model.eval()
+
+    def get_model_info(self) -> dict:
+        """Get information about the underlying model."""
+        info = self.model.get_model_info()
+        info.update(
+            {
+                "device": str(self.device),
+                "pytorch_available": True,
+                "model_type": "AzulNeuralNetwork",
+            }
+        )
+        return info
+
+    def __repr__(self) -> str:
+        return f"AzulNeuralNetwork(device={self.device}, model_info={self.model.get_model_info()})"

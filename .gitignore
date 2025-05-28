@@ -100,6 +100,14 @@ dist
 tmp/
 temp/
 
+# Model files (large binary files)
+models/
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.pb
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

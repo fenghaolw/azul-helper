@@ -1,6 +1,6 @@
 """Agents module for Azul RL."""
 
-from .mcts import MCTS, AzulNeuralNetwork, GameState, MCTSAgent, MCTSNode, NeuralNetwork
+from .mcts import MCTS, GameState, MCTSAgent, MCTSNode, NeuralNetwork
 
 __all__ = [
     "MCTS",
@@ -8,5 +8,4 @@ __all__ = [
     "MCTSAgent",
     "GameState",
     "NeuralNetwork",
-    "AzulNeuralNetwork",
 ]
