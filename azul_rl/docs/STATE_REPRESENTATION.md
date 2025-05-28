@@ -213,4 +213,4 @@ The representation is designed to be extensible:
 
 ## Conclusion
 
-This numerical representation provides a complete, efficient, and ML-friendly encoding of the Azul game state. It balances completeness with computational efficiency, making it suitable for reinforcement learning, game analysis, and other machine learning applications. 
+This numerical representation provides a complete, efficient, and ML-friendly encoding of the Azul game state. It balances completeness with computational efficiency, making it suitable for reinforcement learning, game analysis, and other machine learning applications.

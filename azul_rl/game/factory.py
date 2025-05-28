@@ -1,5 +1,4 @@
-import random
-from typing import Dict, List, Optional
+from typing import List, Optional, Tuple
 
 from .tile import Tile, TileColor
 
@@ -18,7 +17,7 @@ class Factory:
                 tile = bag.pop()
                 self.tiles.append(tile)
 
-    def take_tiles(self, color: TileColor) -> tuple[List[Tile], List[Tile]]:
+    def take_tiles(self, color: TileColor) -> Tuple[List[Tile], List[Tile]]:
         """Take all tiles of specified color. Returns (taken_tiles, remaining_tiles)."""
         taken = []
         remaining = []
@@ -51,6 +50,16 @@ class Factory:
     def __repr__(self) -> str:
         return f"Factory({[str(tile) for tile in self.tiles]})"
 
+    def get_tiles(self) -> Tuple[List[Tile], List[Tile]]:
+        """Get all tiles from the factory.
+
+        Returns:
+            Tuple[List[Tile], List[Tile]]: A tuple containing (taken_tiles, remaining_tiles)
+        """
+        taken = self.tiles.copy()
+        self.tiles = []
+        return taken, []
+
 
 class CenterArea:
     """Represents the center area where leftover tiles accumulate."""
@@ -80,7 +89,8 @@ class CenterArea:
 
         self.tiles = remaining
 
-        # If taking tiles from center for first time this round, also take first player marker
+        # If taking tiles from center for first time this round,
+        # also take first player marker
         if taken and self.has_first_player_marker:
             taken.append(Tile.create_first_player_marker())
             self.has_first_player_marker = False
@@ -118,7 +128,7 @@ class CenterArea:
 class FactoryArea:
     """Manages all factories and the center area."""
 
-    def __init__(self, num_players: int):
+    def __init__(self, num_players: int) -> None:
         # Number of factories = 2 * num_players + 1
         self.num_factories = 2 * num_players + 1
         self.factories: List[Factory] = [Factory() for _ in range(self.num_factories)]
@@ -160,7 +170,10 @@ class FactoryArea:
         return all_factories_empty and center_empty
 
     def get_available_moves(self) -> List[tuple[int, TileColor]]:
-        """Get all available moves. Returns list of (source, color) where source -1 = center."""
+        """Get all available moves.
+
+        Returns list of (source, color) where source -1 = center.
+        """
         moves = []
 
         # Check center
@@ -176,3 +189,25 @@ class FactoryArea:
 
     def __repr__(self) -> str:
         return f"FactoryArea(factories={self.factories}, center={self.center})"
+
+    def get_tiles(self) -> Tuple[List[Tile], List[Tile]]:
+        """Get all tiles from all factories and center.
+
+        Returns:
+            Tuple[List[Tile], List[Tile]]: A tuple containing (taken_tiles, remaining_tiles)
+        """
+        taken: List[Tile] = []
+        remaining: List[Tile] = []
+
+        # Get tiles from all factories
+        for factory in self.factories:
+            factory_taken, factory_remaining = factory.get_tiles()
+            taken.extend(factory_taken)
+            remaining.extend(factory_remaining)
+
+        # Get tiles from center
+        center_tiles = self.center.tiles.copy()
+        self.center.clear()
+        taken.extend(center_tiles)
+
+        return taken, remaining

@@ -284,4 +284,4 @@ figures/
 .env.local
 .env.production
 config/secrets.yaml
-secrets.json 
+secrets.json

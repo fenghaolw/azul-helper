@@ -133,7 +133,7 @@ evaluation = playerEval - bestOpponentEval + defensiveValue + tacticalValue + te
 Based on the comprehensive improvements:
 
 1. **Defensive Play**: +15-25% win rate improvement
-2. **Strategic Timing**: +10-15% win rate improvement  
+2. **Strategic Timing**: +10-15% win rate improvement
 3. **Tactical Awareness**: +5-10% win rate improvement
 4. **Search Efficiency**: +5-10% win rate improvement
 
@@ -261,7 +261,7 @@ Based on comprehensive guidance from experienced Azul players, the AI has been e
 
 ### **Expected Performance Improvements:**
 1. **Strategic Focus**: +20-30% improvement from proper objective prioritization
-2. **Defensive Play**: +25-35% improvement from expert blocking strategies  
+2. **Defensive Play**: +25-35% improvement from expert blocking strategies
 3. **Resource Management**: +15-25% improvement from avoiding color traps
 4. **Positioning**: +10-20% improvement from adjacency and column focus
 5. **Timing**: +15-20% improvement from first player token and endgame awareness
@@ -293,7 +293,7 @@ The original game phase calculation incorrectly assumed games would progress tow
 ```typescript
 // Realistic thresholds based on actual Azul gameplay
 if (avgTilesPerPlayer < 3) return 'early';      // 0-2 tiles per player
-if (avgTilesPerPlayer < 8) return 'mid';        // 3-7 tiles per player  
+if (avgTilesPerPlayer < 8) return 'mid';        // 3-7 tiles per player
 return 'late';                                  // 8+ tiles per player
 ```
 
@@ -302,4 +302,4 @@ return 'late';                                  // 8+ tiles per player
 - **Better endgame recognition**: Correctly identifies when games are approaching completion
 - **Improved decision making**: Strategic bonuses weighted appropriately for actual game length
 
-This correction ensures the AI's strategic timing aligns with real Azul gameplay patterns rather than theoretical maximum game length. 
+This correction ensures the AI's strategic timing aligns with real Azul gameplay patterns rather than theoretical maximum game length.

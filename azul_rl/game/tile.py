@@ -1,5 +1,10 @@
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, List
+
+if TYPE_CHECKING:
+    from typing import TypeVar
+
+    T = TypeVar("T", bound="Tile")
 
 
 class TileColor(Enum):
@@ -39,7 +44,7 @@ class Tile:
         return self.color == TileColor.FIRST_PLAYER
 
     @classmethod
-    def create_standard_tiles(cls) -> list["Tile"]:
+    def create_standard_tiles(cls) -> List["Tile"]:
         """Create the standard set of tiles for Azul (20 of each color)."""
         tiles = []
         for color in [

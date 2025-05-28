@@ -19,4 +19,4 @@ async function generateIcons() {
     }
 }
 
-generateIcons().catch(console.error); 
+generateIcons().catch(console.error);

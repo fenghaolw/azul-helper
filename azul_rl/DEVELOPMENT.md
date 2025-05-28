@@ -161,4 +161,4 @@ When adding new dependencies:
 1. Add to `requirements.txt` (core dependencies)
 2. Add to `requirements-dev.txt` (development dependencies)
 3. Update `pyproject.toml` optional dependencies if needed
-4. Run `make install-dev` to install new dependencies 
+4. Run `make install-dev` to install new dependencies

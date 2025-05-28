@@ -119,4 +119,4 @@ This configuration prioritizes **reliability and developer experience** over max
 - ✅ **Good performance** with reasonable bundle sizes
 - ✅ **Easy maintenance** with simple configuration
 
-**No complex build modes, no breaking optimizations, just reliable bundling that works.** 
+**No complex build modes, no breaking optimizations, just reliable bundling that works.**

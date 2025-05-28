@@ -21,10 +21,10 @@ class AzulApp {
     this.gameState = new WebAppGameState(2);
     this.gameState.newGame(); // Initialize the game state
     this.renderer = new GameRenderer(this.canvas, this.gameState);
-    
+
     // Enable AI by default at Expert difficulty
     this.enableAIByDefault();
-    
+
     this.startGameLoop();
   }
 
@@ -118,7 +118,7 @@ class AzulApp {
       padding: 20px;
       border-bottom: 1px solid rgba(0,0,0,0.12);
     `;
-    
+
     const controlsTitle = document.createElement('h2');
     controlsTitle.textContent = 'Game Controls';
     controlsTitle.style.cssText = `
@@ -169,20 +169,20 @@ class AzulApp {
       transition: border-color 0.2s ease;
       outline: none;
     `;
-    
+
     // Add focus styles for select
     this.aiDifficultySelect.addEventListener('focus', () => {
       this.aiDifficultySelect.style.borderColor = colors.primary;
       this.aiDifficultySelect.style.borderWidth = '2px';
       this.aiDifficultySelect.style.padding = '13px 15px';
     });
-    
+
     this.aiDifficultySelect.addEventListener('blur', () => {
       this.aiDifficultySelect.style.borderColor = 'rgba(0,0,0,0.23)';
       this.aiDifficultySelect.style.borderWidth = '1px';
       this.aiDifficultySelect.style.padding = '14px 16px';
     });
-    
+
     const difficulties = [
       { value: '500', text: 'Easy (0.5s)' },
       { value: '1000', text: 'Medium (1s)' },
@@ -231,7 +231,7 @@ class AzulApp {
       padding: 20px;
       border-bottom: 1px solid rgba(0,0,0,0.12);
     `;
-    
+
     const infoTitle = document.createElement('h2');
     infoTitle.textContent = 'Game Information';
     infoTitle.style.cssText = `
@@ -261,7 +261,7 @@ class AzulApp {
     statsSection.style.cssText = `
       border-bottom: 1px solid rgba(0,0,0,0.12);
     `;
-    
+
     const statsHeader = document.createElement('div');
     statsHeader.style.cssText = `
       padding: 20px;
@@ -271,7 +271,7 @@ class AzulApp {
       justify-content: space-between;
       transition: background-color 0.2s ease;
     `;
-    
+
     const statsTitle = document.createElement('h2');
     statsTitle.textContent = 'AI Statistics';
     statsTitle.style.cssText = `
@@ -316,15 +316,15 @@ class AzulApp {
 
     // Add hover effect and click handler
     let statsExpanded = false;
-    
+
     statsHeader.addEventListener('mouseenter', () => {
       statsHeader.style.backgroundColor = 'rgba(0,0,0,0.04)';
     });
-    
+
     statsHeader.addEventListener('mouseleave', () => {
       statsHeader.style.backgroundColor = 'transparent';
     });
-    
+
     statsHeader.addEventListener('click', () => {
       statsExpanded = !statsExpanded;
       if (statsExpanded) {
@@ -349,7 +349,7 @@ class AzulApp {
 
     // Instructions section (collapsible)
     const instructionsSection = document.createElement('div');
-    
+
     const instructionsHeader = document.createElement('div');
     instructionsHeader.style.cssText = `
       padding: 20px;
@@ -359,7 +359,7 @@ class AzulApp {
       justify-content: space-between;
       transition: background-color 0.2s ease;
     `;
-    
+
     const instructionsTitle = document.createElement('h2');
     instructionsTitle.textContent = 'How to Play';
     instructionsTitle.style.cssText = `
@@ -388,7 +388,7 @@ class AzulApp {
       transition: all 0.3s ease;
       overflow: hidden;
     `;
-    
+
     const instructionsList = document.createElement('ul');
     instructionsList.style.cssText = `
       margin: 0;
@@ -397,7 +397,7 @@ class AzulApp {
       font-size: 14px;
       line-height: 1.5;
     `;
-    
+
     const instructionsText = [
       'Click on a factory or the center to select tiles',
       'Click on a pattern line (1-5) to place tiles',
@@ -417,15 +417,15 @@ class AzulApp {
 
     // Add hover effect and click handler
     let instructionsExpanded = false;
-    
+
     instructionsHeader.addEventListener('mouseenter', () => {
       instructionsHeader.style.backgroundColor = 'rgba(0,0,0,0.04)';
     });
-    
+
     instructionsHeader.addEventListener('mouseleave', () => {
       instructionsHeader.style.backgroundColor = 'transparent';
     });
-    
+
     instructionsHeader.addEventListener('click', () => {
       instructionsExpanded = !instructionsExpanded;
       if (instructionsExpanded) {
@@ -478,7 +478,7 @@ class AzulApp {
   private createMaterialButton(text: string, color: string, variant: 'contained' | 'outlined' = 'contained'): HTMLButtonElement {
     const button = document.createElement('button');
     button.textContent = text;
-    
+
     const baseStyles = `
       font-family: 'Roboto', sans-serif;
       font-size: 14px;
@@ -503,12 +503,12 @@ class AzulApp {
         color: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.24);
       `;
-      
+
       button.addEventListener('mouseenter', () => {
         button.style.boxShadow = '0 4px 8px rgba(0,0,0,0.16), 0 4px 8px rgba(0,0,0,0.32)';
         button.style.transform = 'translateY(-1px)';
       });
-      
+
       button.addEventListener('mouseleave', () => {
         button.style.boxShadow = '0 2px 4px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.24)';
         button.style.transform = 'translateY(0)';
@@ -520,11 +520,11 @@ class AzulApp {
         border: 1px solid ${color};
         box-shadow: none;
       `;
-      
+
       button.addEventListener('mouseenter', () => {
         button.style.background = `${color}08`;
       });
-      
+
       button.addEventListener('mouseleave', () => {
         button.style.background = 'transparent';
       });
@@ -537,7 +537,7 @@ class AzulApp {
       const size = Math.max(rect.width, rect.height);
       const x = e.clientX - rect.left - size / 2;
       const y = e.clientY - rect.top - size / 2;
-      
+
       ripple.style.cssText = `
         position: absolute;
         width: ${size}px;
@@ -550,7 +550,7 @@ class AzulApp {
         animation: ripple 0.6s linear;
         pointer-events: none;
       `;
-      
+
       // Add animation keyframes if not already added
       if (!document.head.querySelector('#ripple-animation')) {
         const style = document.createElement('style');
@@ -565,7 +565,7 @@ class AzulApp {
         `;
         document.head.appendChild(style);
       }
-      
+
       button.appendChild(ripple);
       setTimeout(() => ripple.remove(), 600);
     });
@@ -594,14 +594,14 @@ class AzulApp {
 
   private async handleAITurn(): Promise<void> {
     this.isAIThinking = true;
-    
+
     // Add a small delay for better UX
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     try {
       const result = this.ai!.getBestMove(this.gameState);
       await new Promise(resolve => setTimeout(resolve, 200)); // Show AI thinking
-      
+
       this.renderer.playMove(result.move);
     } catch (error) {
       console.error('AI error:', error);
@@ -609,13 +609,13 @@ class AzulApp {
       const simpleMove = this.ai!.getSimpleMove(this.gameState);
       this.renderer.playMove(simpleMove);
     }
-    
+
     this.isAIThinking = false;
   }
 
   private updateGameInfo(): void {
     const result = this.gameState.getResult();
-    
+
     let html = `
       <div style="margin-bottom: 10px;">
         <strong>Round:</strong> ${this.gameState.round}
@@ -641,7 +641,7 @@ class AzulApp {
         `;
       }
     } else {
-      const currentPlayerName = this.gameState.currentPlayer === 0 ? 'Human' : 
+      const currentPlayerName = this.gameState.currentPlayer === 0 ? 'Human' :
                                 (this.ai ? 'AI' : 'Player 2');
       html += `
         <div style="margin-bottom: 10px;">
@@ -678,22 +678,22 @@ class AzulApp {
           <strong>Last Round Scoring:</strong>
         </div>
       `;
-      
+
       for (const playerResult of lastRoundDetails) {
         const playerName = playerResult.player === 0 ? 'Human' : (this.ai ? 'AI' : `Player ${playerResult.player + 1}`);
         html += `
           <div style="margin-left: 10px; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px;">
             <strong>${playerName}:</strong><br>
         `;
-        
+
         if (playerResult.details.tilesPlaced.length > 0) {
           html += `<span style="color: #388e3c;">+${playerResult.details.totalTileScore} tiles</span><br>`;
         }
-        
+
         if (playerResult.details.totalFloorPenalty < 0) {
           html += `<span style="color: #d32f2f;">${playerResult.details.totalFloorPenalty} floor</span><br>`;
         }
-        
+
         const changeColor = playerResult.scoreGained >= 0 ? '#388e3c' : '#d32f2f';
         html += `<span style="color: ${changeColor}; font-weight: bold;">${playerResult.scoreGained >= 0 ? '+' : ''}${playerResult.scoreGained} total</span>`;
         html += '</div>';
@@ -733,7 +733,7 @@ class AzulApp {
   private newGame(): void {
     this.gameState = new WebAppGameState(2);
     this.renderer.updateGameState(this.gameState);
-    
+
     if (this.ai) {
       this.ai.resetStats();
     }
@@ -750,7 +750,7 @@ class AzulApp {
       this.aiToggleBtn.textContent = 'Disable AI Opponent';
       this.aiToggleBtn.style.background = '#d32f2f'; // Material Design error
     }
-    
+
     this.newGame(); // Start fresh game when toggling AI
   }
 }
@@ -758,4 +758,4 @@ class AzulApp {
 // Initialize the application when the page loads
 document.addEventListener('DOMContentLoaded', () => {
   new AzulApp();
-}); 
+});

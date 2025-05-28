@@ -35,4 +35,4 @@ Static assets (images, icons) are served from the `../static` directory and are 
 - **TypeScript** for type safety
 - **Vite** for fast development and building
 - **Canvas API** for game rendering
-- **Material Design** for UI components 
+- **Material Design** for UI components

@@ -71,10 +71,10 @@ export class PlayerBoard {
         }
       }
     }
-    
+
     // Load floor
     this.floor = data.floor.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[];
-    
+
     console.log('PlayerBoard loaded state:', {
         score: this.score,
         lines: this.lines,
@@ -156,7 +156,7 @@ export class PlayerBoard {
       if (line.length === requiredTiles) {
         const tileToPlace = line[0]; // The tile type to be placed
         const wallCol = PlayerBoard.WALL_PATTERN[i].indexOf(tileToPlace);
-        
+
         if (wallCol !== -1 && this.wall[i][wallCol] === null) { // Check if spot is actually empty
             this.wall[i][wallCol] = tileToPlace; // Place tile on wall
 
@@ -231,7 +231,7 @@ export class PlayerBoard {
         break;
       }
     }
-    // Count right  
+    // Count right
     for (let c = col + 1; c < 5; c++) {
       if (this.wall[row][c] !== null) { // Check if a tile is present
         horizontalCount++;
@@ -281,7 +281,7 @@ export class PlayerBoard {
 
     if (adjacent.horizontal > 0) score += adjacent.horizontal; // if 1 tile, score 1; if 2, score 2, etc.
     if (adjacent.vertical > 0) score += adjacent.vertical;
-    
+
     // If it forms both a horizontal AND vertical line, the tile itself is counted twice in the above.
     // But it should only be counted once. So if both are > 1 (meaning lines of 2+), subtract 1.
     if (adjacent.horizontal > 1 && adjacent.vertical > 1) {
@@ -312,7 +312,7 @@ export class PlayerBoard {
     if (adjacent.vertical > 1) score += adjacent.vertical;
     if (adjacent.horizontal === 1 && adjacent.vertical > 1) score +=1; // Part of vertical only, count itself
     if (adjacent.vertical === 1 && adjacent.horizontal > 1) score +=1; // Part of horizontal only, count itself
-    
+
     return Math.max(1, score); // Must score at least 1 if placed.
   }
 
@@ -386,15 +386,15 @@ export class PlayerBoard {
   clone(): PlayerBoard {
     const cloned = new PlayerBoard();
     cloned.score = this.score;
-    
+
     // Deep copy wall
     for (let i = 0; i < 5; i++) {
       cloned.wall[i] = [...this.wall[i]];
       cloned.lines[i] = [...this.lines[i]];
     }
-    
+
     cloned.floor = [...this.floor];
-    
+
     return cloned;
   }
 
@@ -402,4 +402,4 @@ export class PlayerBoard {
   static getWallTile(row: number, col: number): Tile {
     return PlayerBoard.WALL_PATTERN[row][col];
   }
-} 
+}

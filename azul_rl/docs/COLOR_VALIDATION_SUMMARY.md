@@ -107,4 +107,4 @@ The color representation validation is now **comprehensive and robust**:
 - **Edge cases** like first player marker are handled correctly
 - **Tile conservation** is maintained throughout gameplay
 
-The numerical state representation now has **complete validation coverage** ensuring that colors are accurately encoded and can be reliably used for machine learning applications. 
+The numerical state representation now has **complete validation coverage** ensuring that colors are accurately encoded and can be reliably used for machine learning applications.

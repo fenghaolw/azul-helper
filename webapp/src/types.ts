@@ -1,6 +1,6 @@
 export enum Tile {
   Red = 'red',
-  Blue = 'blue', 
+  Blue = 'blue',
   Yellow = 'yellow',
   Black = 'black',
   White = 'white',
@@ -66,4 +66,4 @@ export interface FinalScoreDetails {
   columnBonus: number;
   colorBonus: number;
   previousScore: number;
-} 
+}

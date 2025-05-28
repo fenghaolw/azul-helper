@@ -198,4 +198,4 @@ Complete documentation available in:
 
 ## Conclusion
 
-The numerical state representation is **complete, documented, and validated**. It provides a comprehensive, efficient, and ML-friendly encoding of the Azul game state that meets all acceptance criteria and is ready for use in reinforcement learning and other machine learning applications. 
+The numerical state representation is **complete, documented, and validated**. It provides a comprehensive, efficient, and ML-friendly encoding of the Azul game state that meets all acceptance criteria and is ready for use in reinforcement learning and other machine learning applications.

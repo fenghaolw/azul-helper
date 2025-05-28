@@ -241,4 +241,3 @@ observer.observe(gameArea, {
 });
 
 console.log('Azul Helper content script loaded and observer started.');
- 

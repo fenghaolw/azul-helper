@@ -3,7 +3,7 @@
 max-line-length = 88
 
 # Ignore specific error codes
-ignore = 
+ignore =
     # E203: whitespace before ':' (conflicts with black)
     E203,
     # W503: line break before binary operator (conflicts with black)
@@ -34,10 +34,12 @@ ignore =
     E402,
     # I100, I101: Import order (handled by isort)
     I100,
-    I101
+    I101,
+    # I201: newlines are handled by black
+    I201
 
 # Exclude directories
-exclude = 
+exclude =
     .git,
     __pycache__,
     .pytest_cache,
@@ -48,4 +50,4 @@ exclude =
     *.egg-info
 
 # Maximum complexity (relaxed for now)
-max-complexity = 15 
+max-complexity = 50

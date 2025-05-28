@@ -8,7 +8,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game.game_state import Action, create_game
+from game.game_state import create_game
 from game.player_board import PlayerBoard
 from game.tile import Tile, TileColor
 
@@ -22,7 +22,7 @@ def test_tile_creation():
     assert len(tiles) == 100, f"Expected 100 tiles, got {len(tiles)}"
 
     # Count each color
-    color_counts = {}
+    color_counts: dict[TileColor, int] = {}
     for tile in tiles:
         color = tile.color
         color_counts[color] = color_counts.get(color, 0) + 1
