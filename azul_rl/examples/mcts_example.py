@@ -10,10 +10,10 @@ from typing import List, Tuple
 
 import numpy as np
 
-from azul_rl.agents.mcts import MCTS, AzulNeuralNetwork, MCTSAgent
+from azul_rl.agents.mcts import MCTS, MCTSAgent
 from azul_rl.game.game_state import Action
 from azul_rl.game.game_state import GameState as AzulGameState
-from azul_rl.training.neural_network import create_azul_network
+from azul_rl.training.neural_network import AzulNeuralNetwork, create_azul_network
 
 
 def run_basic_mcts_example():

@@ -9,7 +9,6 @@ import pytest
 
 from azul_rl.agents.mcts import (
     MCTS,
-    AzulNeuralNetwork,
     GameState,
     MCTSAgent,
     MCTSNode,
@@ -17,6 +16,7 @@ from azul_rl.agents.mcts import (
 )
 from azul_rl.game.game_state import Action
 from azul_rl.game.game_state import GameState as AzulGameState
+from azul_rl.training.neural_network import AzulNeuralNetwork
 
 
 class TestMCTSNode:
