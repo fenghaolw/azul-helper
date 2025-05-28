@@ -16,6 +16,52 @@ This directory contains example scripts and demonstrations for the Azul reinforc
 python3 examples/example_game.py
 ```
 
+### 🤖 AI Agent Examples
+
+#### `mcts_example.py`
+**Comprehensive MCTS demonstration with PyTorch neural networks**
+- Complete implementation of MCTS algorithm with neural network guidance
+- Shows how to use MCTS for Azul game playing with real PyTorch models
+- Demonstrates all MCTS phases: Selection, Expansion, Simulation, Backpropagation
+- Includes performance benchmarking, network comparisons, and advanced features
+- AlphaZero-style implementation with UCT selection
+
+```bash
+python3 examples/mcts_example.py
+```
+
+**Features:**
+- **Basic MCTS Usage**: Simple example with Azul game states
+- **Gameplay Demonstration**: MCTS agent playing actual Azul games
+- **Network Configurations**: Comparison of small, medium, and large networks
+- **Performance Benchmarking**: Speed tests across different configurations
+- **MCTS Features**: Temperature effects, deterministic vs stochastic selection
+- **Numerical State Integration**: Shows how neural networks use game state representation
+- **Model Persistence**: Saving and loading trained PyTorch models
+- **Custom Networks**: Creating networks with custom architectures
+
+**Sample Output:**
+```
+MCTS with Azul Game - Basic Example
+============================================================
+Initial state: GameState(round=1, player=0, game_over=False)
+Legal actions: 78 available
+
+Neural network evaluation:
+Action probabilities shape: (78,)
+State value: 0.123
+Probabilities sum: 1.000
+
+Running MCTS with 50 simulations...
+Root node statistics: MCTSNode(N=50, Q=0.206, P=0.000, children=78)
+
+MCTS Performance Benchmark
+============================================================
+Testing small network:
+  Simulations:  5 | Time: 0.201s | Sims/sec: 24.9 | Root visits: 5 | Children: 78
+  Simulations: 10 | Time: 0.402s | Sims/sec: 24.9 | Root visits: 10 | Children: 78
+```
+
 ### 🔢 State Representation Examples
 
 #### `demo_tile_counting.py`
@@ -113,6 +159,9 @@ pip install -e .
 # Basic game example
 python3 examples/example_game.py
 
+# Comprehensive MCTS example
+python3 examples/mcts_example.py
+
 # Tile counting demonstration
 python3 examples/demo_tile_counting.py
 
@@ -137,6 +186,13 @@ done
 - **Action Handling**: Legal action generation and application
 - **Game Flow**: Round progression and game termination
 
+### 🤖 **AI and Machine Learning**
+- **MCTS Algorithm**: Complete Monte Carlo Tree Search implementation
+- **Neural Network Integration**: PyTorch models for game evaluation
+- **Action Selection**: Deterministic and stochastic strategies
+- **Performance Optimization**: Benchmarking and configuration tuning
+- **Model Persistence**: Saving and loading trained models
+
 ### 🔢 **Numerical State Representation**
 - **Complete Coverage**: All game components represented numerically
 - **Tile Accessibility**: Easy access to tiles in all locations
@@ -154,9 +210,45 @@ done
 - **Fixed Shapes**: Consistent dimensions for batch processing
 - **Complete Information**: All game state captured numerically
 
+## MCTS Example Details
+
+The comprehensive `mcts_example.py` includes eight different demonstrations:
+
+1. **Basic MCTS Usage** (`run_basic_mcts_example`)
+   - Simple MCTS search with neural network evaluation
+   - Shows action probabilities before and after MCTS
+
+2. **Gameplay Demonstration** (`demonstrate_gameplay`)
+   - MCTS agent playing actual Azul game moves
+   - Move-by-move analysis with scores
+
+3. **Network Configuration Comparison** (`compare_network_configurations`)
+   - Performance comparison of small, medium, and large networks
+   - Parameter counts and evaluation times
+
+4. **Performance Benchmarking** (`benchmark_mcts_performance`)
+   - Speed tests across different simulation counts
+   - Network size impact on performance
+
+5. **MCTS Features** (`demonstrate_mcts_features`)
+   - Temperature effects on action selection
+   - Deterministic vs stochastic behavior
+
+6. **Numerical State Integration** (`demonstrate_numerical_state`)
+   - How neural networks use game state representation
+   - Consistency validation
+
+7. **Model Persistence** (`demonstrate_model_saving`)
+   - Saving and loading PyTorch models
+   - Verification of loaded model accuracy
+
+8. **Custom Network Creation** (`demonstrate_custom_network`)
+   - Creating networks with custom architectures
+   - Advanced configuration options
+
 ## Integration with Tests
 
-These examples complement the comprehensive test suite in `tests/test_state_representation.py`:
+These examples complement the comprehensive test suite in `tests/test_mcts.py`:
 
 - **Examples**: Interactive demonstrations showing functionality
 - **Tests**: Automated validation ensuring correctness
@@ -169,6 +261,7 @@ After exploring these examples, you can:
 1. **Implement RL Agents**: Use the numerical state representation for training
 2. **Create Custom Games**: Modify game parameters and rules
 3. **Analyze Gameplay**: Use tile counting and color tracking for analysis
-4. **Extend Functionality**: Add new features building on the validated foundation
+4. **Train Neural Networks**: Use MCTS for self-play training
+5. **Extend Functionality**: Add new features building on the validated foundation
 
-The numerical state representation is **complete, validated, and ready** for machine learning applications!
+The numerical state representation is **complete, validated, and ready** for machine learning applications, and the MCTS implementation provides a solid foundation for advanced AI game playing!
