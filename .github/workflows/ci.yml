@@ -36,26 +36,10 @@ jobs:
         # Install only core dependencies and essential dev tools for CI
         pip install --no-cache-dir -r requirements.txt
         pip install --no-cache-dir -e ".[dev]"
+        pip install pre-commit
 
-    - name: Code formatting check (Black)
-      run: |
-        cd azul_rl
-        black --check --diff .
-
-    - name: Import sorting check (isort)
-      run: |
-        cd azul_rl
-        isort --check-only --diff .
-
-    - name: Lint with flake8
-      run: |
-        cd azul_rl
-        flake8 .
-
-    - name: Type checking with mypy
-      run: |
-        cd azul_rl
-        mypy .
+    - name: Run pre-commit checks
+      run: pre-commit run --all-files
 
     - name: Run tests
       run: |
