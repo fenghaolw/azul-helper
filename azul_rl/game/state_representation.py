@@ -82,9 +82,9 @@ class AzulStateRepresentation:
         # === PLAYER BOARDS ===
         self.player_scores = np.array([p.score for p in game_state.players], dtype=np.int32)
         
-        # Pattern lines: shape (num_players, 5, 7)
-        # For each player, each pattern line: [capacity, count, color_one_hot(5)]
-        self.pattern_lines = np.zeros((StateConfig.MAX_PLAYERS, StateConfig.PATTERN_LINES, 7), dtype=np.float32)
+        # Pattern lines: shape (num_players, 5, 8)
+        # For each player, each pattern line: [capacity, count, color_one_hot(5), empty]
+        self.pattern_lines = np.zeros((StateConfig.MAX_PLAYERS, StateConfig.PATTERN_LINES, 8), dtype=np.float32)
         
         # Wall: shape (num_players, 5, 5) - binary filled/empty
         self.walls = np.zeros((StateConfig.MAX_PLAYERS, StateConfig.WALL_SIZE, StateConfig.WALL_SIZE), dtype=np.int8)
@@ -119,7 +119,7 @@ class AzulStateRepresentation:
         
         # === TILE SUPPLY ===
         # Bag and discard pile counts by color: shape (2, 5)
-        # Row 0: bag, Row 1: discard pile
+        # Row 0: bag, Row 1: discard pile (lid of the game box)
         self.tile_supply = np.zeros((2, StateConfig.NUM_COLORS), dtype=np.int32)
         
         self._encode_tile_supply(game_state.bag, game_state.discard_pile)
@@ -141,7 +141,7 @@ class AzulStateRepresentation:
                 if color_idx < 5:  # Valid color
                     self.pattern_lines[player_idx, line_idx, 2 + color_idx] = 1.0
             else:
-                self.pattern_lines[player_idx, line_idx, 6] = 1.0  # Empty
+                self.pattern_lines[player_idx, line_idx, 7] = 1.0  # Empty
         
         # Wall
         for row in range(StateConfig.WALL_SIZE):
@@ -187,7 +187,7 @@ class AzulStateRepresentation:
             if color_idx < 5:  # Valid color
                 self.tile_supply[0, color_idx] += 1
         
-        # Count tiles by color in discard pile
+        # Count tiles by color in discard pile (lid of the game box)
         for tile in discard_pile:
             color_idx = self._color_to_index(tile.color)
             if color_idx < 5:  # Valid color
@@ -329,7 +329,7 @@ class AzulStateRepresentation:
             'game_over': (1,),
             'winner': (1,),
             'player_scores': (StateConfig.MAX_PLAYERS,),
-            'pattern_lines': (StateConfig.MAX_PLAYERS, StateConfig.PATTERN_LINES, 7),
+            'pattern_lines': (StateConfig.MAX_PLAYERS, StateConfig.PATTERN_LINES, 8),
             'walls': (StateConfig.MAX_PLAYERS, StateConfig.WALL_SIZE, StateConfig.WALL_SIZE),
             'floor_lines': (StateConfig.MAX_PLAYERS, StateConfig.FLOOR_LINE_SIZE, 7),
             'first_player_markers': (StateConfig.MAX_PLAYERS,),
@@ -346,7 +346,7 @@ class AzulStateRepresentation:
         expected_size = (
             4 +  # Global state
             StateConfig.MAX_PLAYERS +  # Player scores
-            StateConfig.MAX_PLAYERS * StateConfig.PATTERN_LINES * 7 +  # Pattern lines
+            StateConfig.MAX_PLAYERS * StateConfig.PATTERN_LINES * 8 +  # Pattern lines
             StateConfig.MAX_PLAYERS * StateConfig.WALL_SIZE * StateConfig.WALL_SIZE +  # Walls
             StateConfig.MAX_PLAYERS * StateConfig.FLOOR_LINE_SIZE * 7 +  # Floor lines (updated)
             StateConfig.MAX_PLAYERS +  # First player markers
@@ -385,11 +385,11 @@ class AzulStateRepresentation:
             for line_idx in range(5):
                 capacity = line_idx + 1
                 fill_ratio = self.pattern_lines[player_idx, line_idx, 1]
-                tiles_in_line = int(fill_ratio * capacity)
+                tiles_in_line = round(fill_ratio * capacity)
                 player_tiles += tiles_in_line
             
             # Floor lines - count tiles but exclude first player markers
-            for pos in range(7):
+            for pos in range(StateConfig.FLOOR_LINE_SIZE):
                 if self.floor_lines[player_idx, pos, 0] == 1:  # Has tile
                     if self.floor_lines[player_idx, pos, 6] == 1:  # First player marker
                         first_player_markers += 1
@@ -471,12 +471,12 @@ def get_state_documentation() -> str:
     - Current score for each player
     - Padded with zeros for unused player slots
     
-    ### pattern_lines: array(MAX_PLAYERS, 5, 7)
+    ### pattern_lines: array(MAX_PLAYERS, 5, 8)
     - For each player and each pattern line (0-4):
       - [0]: Capacity (normalized to [0,1])
       - [1]: Current tile count (normalized by capacity)
       - [2-6]: Color one-hot encoding (blue, yellow, red, black, white)
-      - [6]: Empty indicator (1 if no color assigned)
+      - [7]: Empty indicator (1 if no color assigned)
     
     ### walls: array(MAX_PLAYERS, 5, 5)
     - Binary array indicating filled positions on each player's wall
@@ -510,8 +510,9 @@ def get_state_documentation() -> str:
     
     ### tile_supply: array(2, 5)
     - Row 0: Count of each color in bag
-    - Row 1: Count of each color in discard pile
+    - Row 1: Count of each color in discard pile (lid of the game box)
     - Columns: [blue, yellow, red, black, white]
+    - Note: All discarded tiles go to discard pile and are recycled back to bag when needed
     
     ## COLOR ENCODING
     

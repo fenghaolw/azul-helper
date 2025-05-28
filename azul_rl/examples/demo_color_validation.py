@@ -97,7 +97,7 @@ def demonstrate_color_validation():
                         color_encoding = line_array[2:7]
                         if color_encoding[:5].sum() > 0:
                             color_idx = int(color_encoding[:5].argmax())
-                            tile_count = int(line_array[1] * (line_idx + 1))  # Denormalize count
+                            tile_count = round(line_array[1] * (line_idx + 1))  # Denormalize count
                             pattern_colors.append(f"line_{line_idx}:{color_names[color_idx]}({tile_count})")
                 
                 if pattern_colors:

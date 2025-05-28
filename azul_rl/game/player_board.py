@@ -254,18 +254,27 @@ class PlayerBoard:
 
         return self.pattern_lines[line_index].can_add_tiles(tiles)
 
-    def place_tiles_on_pattern_line(self, line_index: int, tiles: List[Tile]) -> None:
-        """Place tiles on pattern line. Overflow goes to floor line."""
+    def place_tiles_on_pattern_line(self, line_index: int, tiles: List[Tile]) -> List[Tile]:
+        """Place tiles on pattern line. Overflow goes to floor line. Returns discarded tiles."""
         if line_index < 0 or line_index >= 5:
-            self.floor_line.extend(tiles)
-            return
+            return self.place_tiles_on_floor_line(tiles)
+
+        # Check if tiles can be placed on this pattern line
+        if not self.can_place_tiles_on_pattern_line(line_index, tiles):
+            return self.place_tiles_on_floor_line(tiles)
 
         overflow = self.pattern_lines[line_index].add_tiles(tiles)
-        self.floor_line.extend(overflow)
+        return self.place_tiles_on_floor_line(overflow)
 
-    def place_tiles_on_floor_line(self, tiles: List[Tile]) -> None:
-        """Place tiles directly on floor line."""
-        self.floor_line.extend(tiles)
+    def place_tiles_on_floor_line(self, tiles: List[Tile]) -> List[Tile]:
+        """Place tiles directly on floor line. Returns excess tiles that should be discarded."""
+        discarded = []
+        for tile in tiles:
+            if len(self.floor_line) < 7:  # Floor line can only hold 7 tiles
+                self.floor_line.append(tile)
+            else:
+                discarded.append(tile)  # Excess tiles are discarded (returned to box) per Azul rules
+        return discarded
 
     def end_round_scoring(self) -> Tuple[int, List[Tile]]:
         """Perform end-of-round scoring. Returns (points_scored, tiles_to_discard)."""
