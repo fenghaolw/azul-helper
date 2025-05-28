@@ -3,9 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        files: ^azul_rl/
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
       - id: end-of-file-fixer
-        files: ^azul_rl/
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
       - id: check-yaml
       - id: check-toml
       - id: check-json
@@ -13,41 +13,41 @@ repos:
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: debug-statements
-        files: ^azul_rl/
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
       - id: check-ast
-        files: ^azul_rl/
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
       - id: black
         language_version: python3
-        files: ^azul_rl/
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
 
   - repo: https://github.com/pycqa/isort
     rev: 6.0.1
     hooks:
       - id: isort
-        files: ^azul_rl/
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
         args: ["--profile", "black"]
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.2.0
     hooks:
       - id: flake8
-        files: ^azul_rl/
-        args: [--config=azul_rl/.flake8]
+        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        args: [--config=.flake8]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
-        files: ^azul_rl/(game|training|agents|utils)/.*\.py$
-        exclude: ^azul_rl/(tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
+        exclude: ^(tests|examples)/.*\.py$
         additional_dependencies:
           - types-requests>=2.28.0
           - types-setuptools>=57.4.0
           - types-PyYAML>=6.0.0
           - numpy>=1.20.0
           - torch>=1.9.0
-        args: [--ignore-missing-imports, --config-file=azul_rl/mypy.ini, --show-error-codes]
+        args: [--ignore-missing-imports, --config-file=mypy.ini, --show-error-codes]
