@@ -3,8 +3,8 @@ numpy>=1.21.0
 typing-extensions>=4.0.0
 pettingzoo>=1.24.0
 
-# For future RL development - COMMENTED OUT TO SPEED UP CI
-# torch>=1.9.0
+# For RL development
+torch>=1.9.0
 # gymnasium>=0.26.0
 # stable-baselines3>=1.6.0
 
