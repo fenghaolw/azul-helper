@@ -51,7 +51,7 @@ class TestStateRepresentation:
             'factories': (StateConfig.MAX_FACTORIES, StateConfig.TILES_PER_FACTORY, 6),
             'center_tiles': (StateConfig.MAX_CENTER_TILES, 6),
             'center_first_player_marker': (1,),
-            'tile_supply': (3, StateConfig.NUM_COLORS),
+            'tile_supply': (2, StateConfig.NUM_COLORS),
         }
         
         actual_shapes = state_repr.state_shape
@@ -302,7 +302,7 @@ class TestStateRepresentation:
             StateConfig.MAX_FACTORIES * StateConfig.TILES_PER_FACTORY * 6 +  # Factories
             StateConfig.MAX_CENTER_TILES * 6 +  # Center tiles
             1 +  # Center first player marker
-            3 * StateConfig.NUM_COLORS  # Tile supply
+            2 * StateConfig.NUM_COLORS  # Tile supply
         )
         
         assert state_repr.flat_state_size == expected_size

@@ -41,6 +41,79 @@ class TestOfficialRulesCompliance:
         assert len(board.floor_line) == 7, "Floor line should still hold exactly 7 tiles"
         assert len(discarded) == 5, "Excess tiles should be discarded to box"
 
+    def test_tile_management_official_rules(self):
+        """Test that tile management follows official rules.
+        
+        Official rule: All discarded tiles (including floor line overflow) 
+        go to the lid of the game box (discard pile) and are recycled back 
+        to the bag when needed.
+        """
+        game = create_game(num_players=2, seed=42)
+        
+        # Initial state
+        initial_bag_count = len(game.bag)
+        initial_discard_count = len(game.discard_pile)
+        
+        assert initial_discard_count == 0, "Discard pile should start empty"
+        
+        # Make moves that will cause floor line overflow
+        player = game.players[0]
+        
+        # Fill floor line to capacity
+        seven_tiles = [Tile(TileColor.BLUE)] * 7
+        discarded = player.place_tiles_on_floor_line(seven_tiles)
+        game.discard_pile.extend(discarded)  # This is what happens in apply_action
+        
+        assert len(discarded) == 0, "No overflow yet"
+        assert len(game.discard_pile) == 0, "No tiles in discard pile yet"
+        
+        # Add more tiles to cause overflow
+        overflow_tiles = [Tile(TileColor.RED)] * 5
+        discarded = player.place_tiles_on_floor_line(overflow_tiles)
+        game.discard_pile.extend(discarded)  # This is what happens in apply_action
+        
+        assert len(discarded) == 5, "Should have 5 overflow tiles"
+        assert len(game.discard_pile) == 5, "Overflow tiles should go to discard pile"
+        
+        # Simulate end of round - tiles from floor line go to discard pile
+        points, floor_discards = player.end_round_scoring()
+        game.discard_pile.extend(floor_discards)
+        
+        assert len(game.discard_pile) == 12, "All floor line tiles + overflow should be in discard pile"
+        
+        # Simulate bag running low and needing refill
+        original_bag_size = len(game.bag)
+        game.bag.extend(game.discard_pile)
+        game.discard_pile = []
+        
+        assert len(game.bag) == original_bag_size + 12, "All discarded tiles should be recycled to bag"
+        assert len(game.discard_pile) == 0, "Discard pile should be empty after recycling"
+
+    def test_no_separate_discarded_tiles_tracking(self):
+        """Test that there's no separate tracking of 'discarded_tiles'.
+        
+        Official rule: All discarded tiles go to the same place (lid of game box)
+        and are recycled together. There's no distinction between different 
+        types of discarded tiles.
+        """
+        game = create_game(num_players=2, seed=42)
+        
+        # Verify game state only has bag and discard_pile, not discarded_tiles
+        assert hasattr(game, 'bag'), "Game should have bag"
+        assert hasattr(game, 'discard_pile'), "Game should have discard_pile"
+        assert not hasattr(game, 'discarded_tiles'), "Game should NOT have separate discarded_tiles"
+        
+        # Test state representation also only tracks 2 tile locations
+        state_repr = game.get_numerical_state()
+        assert state_repr.tile_supply.shape == (2, 5), "Should only track bag and discard pile"
+        
+        # Row 0: bag, Row 1: discard pile (no third row for separate discarded tiles)
+        bag_tiles = state_repr.tile_supply[0].sum()
+        discard_tiles = state_repr.tile_supply[1].sum()
+        
+        assert bag_tiles > 0, "Should have tiles in bag"
+        assert discard_tiles == 0, "Should start with empty discard pile"
+
     def test_floor_line_penalties(self):
         """Test floor line penalties according to official rules.
         

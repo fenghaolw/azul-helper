@@ -118,11 +118,11 @@ class AzulStateRepresentation:
         self._encode_center_area(game_state.factory_area.center)
         
         # === TILE SUPPLY ===
-        # Bag, discard pile, and discarded tiles counts by color: shape (3, 5)
-        # Row 0: bag, Row 1: discard pile, Row 2: discarded tiles (returned to box)
-        self.tile_supply = np.zeros((3, StateConfig.NUM_COLORS), dtype=np.int32)
+        # Bag and discard pile counts by color: shape (2, 5)
+        # Row 0: bag, Row 1: discard pile (lid of the game box)
+        self.tile_supply = np.zeros((2, StateConfig.NUM_COLORS), dtype=np.int32)
         
-        self._encode_tile_supply(game_state.bag, game_state.discard_pile, game_state.discarded_tiles)
+        self._encode_tile_supply(game_state.bag, game_state.discard_pile)
     
     def _encode_player_board(self, player, player_idx: int) -> None:
         """Encode a single player's board state."""
@@ -179,25 +179,19 @@ class AzulStateRepresentation:
                 if color_idx < 5:  # Valid color
                     self.center_tiles[tile_idx, 1 + color_idx] = 1
     
-    def _encode_tile_supply(self, bag: List, discard_pile: List, discarded_tiles: List) -> None:
-        """Encode tile supply (bag, discard pile, and discarded tiles)."""
+    def _encode_tile_supply(self, bag: List, discard_pile: List) -> None:
+        """Encode tile supply (bag and discard pile)."""
         # Count tiles by color in bag
         for tile in bag:
             color_idx = self._color_to_index(tile.color)
             if color_idx < 5:  # Valid color
                 self.tile_supply[0, color_idx] += 1
         
-        # Count tiles by color in discard pile
+        # Count tiles by color in discard pile (lid of the game box)
         for tile in discard_pile:
             color_idx = self._color_to_index(tile.color)
             if color_idx < 5:  # Valid color
                 self.tile_supply[1, color_idx] += 1
-        
-        # Count tiles by color in discarded tiles (returned to box)
-        for tile in discarded_tiles:
-            color_idx = self._color_to_index(tile.color)
-            if color_idx < 5:  # Valid color
-                self.tile_supply[2, color_idx] += 1
     
     def _color_to_index(self, color: TileColor) -> int:
         """Convert TileColor to numerical index."""
@@ -342,7 +336,7 @@ class AzulStateRepresentation:
             'factories': (StateConfig.MAX_FACTORIES, StateConfig.TILES_PER_FACTORY, 6),
             'center_tiles': (StateConfig.MAX_CENTER_TILES, 6),
             'center_first_player_marker': (1,),
-            'tile_supply': (3, StateConfig.NUM_COLORS),
+            'tile_supply': (2, StateConfig.NUM_COLORS),
         }
     
     @property
@@ -359,7 +353,7 @@ class AzulStateRepresentation:
             StateConfig.MAX_FACTORIES * StateConfig.TILES_PER_FACTORY * 6 +  # Factories
             StateConfig.MAX_CENTER_TILES * 6 +  # Center tiles
             1 +  # Center first player marker
-            3 * StateConfig.NUM_COLORS  # Tile supply
+            2 * StateConfig.NUM_COLORS  # Tile supply
         )
         return expected_size
 
@@ -373,7 +367,6 @@ class AzulStateRepresentation:
         # Count tiles in supply
         bag_tiles = int(np.sum(self.tile_supply[0]))
         discard_tiles = int(np.sum(self.tile_supply[1]))
-        discarded_tiles = int(np.sum(self.tile_supply[2]))
         
         # Count tiles on factories
         factory_tiles = 0
@@ -415,12 +408,11 @@ class AzulStateRepresentation:
         # Add first player markers held by players
         first_player_markers += int(np.sum(self.first_player_markers))
         
-        total_tiles = bag_tiles + discard_tiles + discarded_tiles + factory_tiles + center_tiles + player_tiles + wall_tiles
+        total_tiles = bag_tiles + discard_tiles + factory_tiles + center_tiles + player_tiles + wall_tiles
         
         return {
             'bag': bag_tiles,
             'discard': discard_tiles,
-            'discarded': discarded_tiles,
             'factories': factory_tiles,
             'center': center_tiles,
             'player_boards': player_tiles,
@@ -516,11 +508,11 @@ def get_state_documentation() -> str:
     
     ## TILE SUPPLY
     
-    ### tile_supply: array(3, 5)
+    ### tile_supply: array(2, 5)
     - Row 0: Count of each color in bag
-    - Row 1: Count of each color in discard pile
-    - Row 2: Count of each color in discarded tiles (returned to box)
+    - Row 1: Count of each color in discard pile (lid of the game box)
     - Columns: [blue, yellow, red, black, white]
+    - Note: All discarded tiles go to discard pile and are recycled back to bag when needed
     
     ## COLOR ENCODING
     

@@ -58,8 +58,7 @@ class GameState:
 
         # Tile management
         self.bag: List[Tile] = []
-        self.discard_pile: List[Tile] = []
-        self.discarded_tiles: List[Tile] = []  # Tiles discarded when floor lines are full
+        self.discard_pile: List[Tile] = []  # All discarded tiles go here (lid of the game box)
 
         # Random seed for reproducibility
         if seed is not None:
@@ -73,7 +72,6 @@ class GameState:
         self.bag = Tile.create_standard_tiles()
         random.shuffle(self.bag)
         self.discard_pile = []
-        self.discarded_tiles = []
 
     def _start_new_round(self) -> None:
         """Start a new round by filling factories."""
@@ -162,8 +160,8 @@ class GameState:
         else:
             discarded = player.place_tiles_on_pattern_line(action.destination, tiles)
         
-        # Track discarded tiles
-        self.discarded_tiles.extend(discarded)
+        # Track discarded tiles (all go to discard pile per official rules)
+        self.discard_pile.extend(discarded)
 
         # Check if round is over
         if self.factory_area.is_round_over():
