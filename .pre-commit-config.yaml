@@ -7,7 +7,15 @@ repos:
       - id: end-of-file-fixer
         files: ^azul_rl/
       - id: check-yaml
+      - id: check-toml
+      - id: check-json
       - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: debug-statements
+        files: ^azul_rl/
+      - id: check-ast
+        files: ^azul_rl/
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
@@ -21,6 +29,7 @@ repos:
     hooks:
       - id: isort
         files: ^azul_rl/
+        args: ["--profile", "black"]
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.2.0
@@ -28,3 +37,17 @@ repos:
       - id: flake8
         files: ^azul_rl/
         args: [--config=azul_rl/.flake8]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^azul_rl/(game|training|agents|utils)/.*\.py$
+        exclude: ^azul_rl/(tests|examples)/.*\.py$
+        additional_dependencies:
+          - types-requests>=2.28.0
+          - types-setuptools>=57.4.0
+          - types-PyYAML>=6.0.0
+          - numpy>=1.20.0
+          - torch>=1.9.0
+        args: [--ignore-missing-imports, --config-file=azul_rl/mypy.ini, --show-error-codes]

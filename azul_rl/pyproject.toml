@@ -116,6 +116,13 @@ warn_unreachable = true
 strict_equality = true
 explicit_package_bases = true
 namespace_packages = true
+# Exclude test files and examples from type checking
+exclude = [
+    ".*/tests/.*\\.py$",
+    ".*/examples/.*\\.py$",
+    ".*test.*\\.py$",
+    ".*_test\\.py$"
+]
 
 [[tool.mypy.overrides]]
 module = [

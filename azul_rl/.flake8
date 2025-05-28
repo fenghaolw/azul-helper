@@ -10,6 +10,8 @@ ignore =
     W503,
     # E501: line too long (handled by black)
     E501,
+    # E704: multiple statements on one line (conflicts with black for overloads)
+    E704,
     # D100: Missing docstring in public module
     D100,
     # D104: Missing docstring in public package
