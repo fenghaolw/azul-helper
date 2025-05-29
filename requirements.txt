@@ -6,6 +6,9 @@ pettingzoo>=1.24.0
 # Required for neural networks and MCTS
 torch>=1.9.0
 
+# Training monitoring
+tensorboard>=2.10.0
+
 # Web API server
 flask>=2.0.0
 flask-cors>=4.0.0
