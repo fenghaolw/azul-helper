@@ -35,6 +35,19 @@ python -m training.full_training_run \
 
 ### 3. Monitor Training Progress
 
+#### ETA Tracking
+The training system includes sophisticated progress tracking with estimated completion times:
+- Real-time progress bars and completion estimates
+- Phase-based timing (self-play, training, evaluation)
+- Multiple estimation methods for accurate predictions
+
+Enable detailed ETA tracking:
+```bash
+python -m training.demo_eta_tracking  # Quick demonstration
+```
+
+See [ETA_TRACKING.md](ETA_TRACKING.md) for detailed documentation.
+
 #### Real-time Dashboard (requires matplotlib)
 ```bash
 python -m training.monitor_dashboard logs/full_training_*/training_log.json

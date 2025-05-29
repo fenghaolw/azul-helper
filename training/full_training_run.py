@@ -22,6 +22,7 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
+from training.eta_tracker import ETATracker
 from training.neural_network import AzulNeuralNetwork
 from training.training_loop import AzulTrainer, TrainingConfig
 
@@ -160,6 +161,26 @@ class TrainingMonitor:
         print(f"  Iteration Time: {stats.get('iteration_time', 0):.2f}s")
         print(f"  Total Elapsed: {stats.get('elapsed_time', 0):.2f}s")
 
+        # ETA information if available
+        if "eta_seconds" in stats and stats["eta_seconds"]:
+            eta_tracker = ETATracker(
+                total_iterations=1000
+            )  # Dummy instance for formatting
+            eta_str = eta_tracker.format_time_display(stats["eta_seconds"])
+            print(f"  ETA: {eta_str}")
+
+        if "progress_percent" in stats:
+            print(f"  Progress: {stats['progress_percent']:.1f}%")
+
+        if "completion_time" in stats and stats["completion_time"]:
+            try:
+                completion_dt = datetime.fromisoformat(stats["completion_time"])
+                print(
+                    f"  Est. completion: {completion_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            except (ValueError, TypeError):
+                pass
+
         print(f"{'='*80}\n")
 
     def close(self) -> None:
@@ -210,6 +231,10 @@ def get_default_hyperparameters() -> Dict[str, Any]:
         "max_iterations": 1000,
         "device": "auto",
         "verbose": True,
+        # ETA tracking parameters
+        "enable_eta_tracking": True,
+        "eta_update_frequency": 1,
+        "eta_detailed_display": False,
     }
 
 

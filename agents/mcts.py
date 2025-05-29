@@ -33,29 +33,72 @@ class GameState(Protocol):
     """Protocol defining the interface for game states (aligned with Azul GameState)."""
 
     def get_legal_actions(self) -> List[Any]:
-        """Return list of legal actions (can be Action objects or integers)."""
+        """
+        Get the list of legal actions available in the current state.
+
+        Returns:
+            List of legal actions (can be Action objects or integers).
+        """
         ...
 
     def apply_action(self, action: Any) -> "GameState":
-        """Return new state after applying action."""
+        """
+        Apply an action to the current state and return the resulting state.
+
+        Args:
+            action: The action to apply
+
+        Returns:
+            New game state after applying the action
+        """
         ...
 
     @property
     def game_over(self) -> bool:
-        """Return True if this is a terminal state."""
+        """
+        Check if the game has reached a terminal state.
+
+        Returns:
+            True if this is a terminal state, False otherwise
+        """
         ...
 
     @property
     def current_player(self) -> int:
-        """Return the current player index."""
+        """
+        Get the index of the current player.
+
+        Returns:
+            The current player index
+        """
+        ...
+
+    @property
+    def winner(self) -> Optional[int]:
+        """
+        Get the winner of the game.
+
+        Returns:
+            The winner index, or None if no winner (draw or game not over)
+        """
         ...
 
     def get_numerical_state(self) -> Any:
-        """Get numerical representation of the state for neural network evaluation."""
+        """
+        Get numerical representation of the state for neural network evaluation.
+
+        Returns:
+            Numerical representation of the state
+        """
         ...
 
     def copy(self) -> "GameState":
-        """Create a deep copy of the game state."""
+        """
+        Create a deep copy of the game state.
+
+        Returns:
+            A new GameState instance with the same state
+        """
         ...
 
 
@@ -429,15 +472,30 @@ class MCTS:
         Get the value of a terminal state.
 
         Args:
-            state: Terminal game state
+            state: Terminal game state (assumed to be game_over=True)
 
         Returns:
             Value from current player's perspective (1 for win, -1 for loss, 0 for draw)
         """
-        # This is game-specific logic that should be implemented based on the game
-        # For now, return 0 (draw) as a safe default
-        # In a real implementation, you would check the game result
-        return 0.0
+        if not state.game_over:
+            # This should ideally not be called if game is not over, but as a safeguard:
+            return 0.0  # Or raise an error
+
+        # Determine perspective_player.
+        # The state passed here is the terminal state reached.
+        # The 'current_player' in this terminal state is the one whose turn it *would* have been.
+        # The game outcome (winner) is absolute. We need to see if this 'current_player'
+        # is the winner.
+        perspective_player = state.current_player
+
+        if state.winner is None:
+            # This implies a draw if game_over is true.
+            return 0.0
+        elif state.winner == perspective_player:
+            return 1.0
+        else:
+            # Another player won, or it's a scenario not clearly a win for perspective_player
+            return -1.0
 
 
 class MCTSAgent:

@@ -2,7 +2,7 @@
 Tests for the Monte Carlo Tree Search implementation.
 """
 
-from typing import List, Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -208,6 +208,56 @@ class TestAzulNeuralNetwork:
         assert isinstance(value, float)
 
 
+class MockGameState(GameState):
+    """Mock implementation of GameState for testing."""
+
+    def __init__(
+        self,
+        game_over: bool = False,
+        current_player: int = 0,
+        winner: Optional[int] = None,
+        legal_actions: List[Any] = None,
+    ):
+        self._game_over = game_over
+        self._current_player = current_player
+        self._winner = winner
+        self._legal_actions = legal_actions or []
+
+    def get_legal_actions(self) -> List[Any]:
+        return self._legal_actions
+
+    def apply_action(self, action: Any) -> "MockGameState":
+        return MockGameState(
+            game_over=self._game_over,
+            current_player=self._current_player,
+            winner=self._winner,
+            legal_actions=self._legal_actions,
+        )
+
+    @property
+    def game_over(self) -> bool:
+        return self._game_over
+
+    @property
+    def current_player(self) -> int:
+        return self._current_player
+
+    @property
+    def winner(self) -> Optional[int]:
+        return self._winner
+
+    def get_numerical_state(self) -> Any:
+        return np.zeros(1)  # Mock numerical state
+
+    def copy(self) -> "MockGameState":
+        return MockGameState(
+            game_over=self._game_over,
+            current_player=self._current_player,
+            winner=self._winner,
+            legal_actions=self._legal_actions.copy(),
+        )
+
+
 class TestMCTS:
     """Test the MCTS class."""
 
@@ -218,6 +268,88 @@ class TestMCTS:
 
         assert mcts.neural_network == nn
         assert mcts.num_simulations == 10
+
+    def test_terminal_value_calculation(self):
+        """Test terminal value calculation for different game outcomes."""
+        nn = AzulNeuralNetwork(config_name="small", device="cpu")
+        mcts = MCTS(nn)
+
+        # Test win scenario
+        win_state = MockGameState(game_over=True, current_player=0, winner=0)
+        assert mcts._get_terminal_value(win_state) == 1.0
+
+        # Test loss scenario
+        loss_state = MockGameState(game_over=True, current_player=0, winner=1)
+        assert mcts._get_terminal_value(loss_state) == -1.0
+
+        # Test draw scenario
+        draw_state = MockGameState(game_over=True, current_player=0, winner=None)
+        assert mcts._get_terminal_value(draw_state) == 0.0
+
+    def test_terminal_value_perspective(self):
+        """Test terminal value calculation from different player perspectives."""
+        nn = AzulNeuralNetwork(config_name="small", device="cpu")
+        mcts = MCTS(nn)
+
+        # Create a state where player 0 wins
+        state = MockGameState(game_over=True, winner=0)
+
+        # Test from player 0's perspective
+        state._current_player = 0
+        assert mcts._get_terminal_value(state) == 1.0
+
+        # Test from player 1's perspective
+        state._current_player = 1
+        assert mcts._get_terminal_value(state) == -1.0
+
+    def test_terminal_value_edge_cases(self):
+        """Test terminal value calculation for edge cases."""
+        nn = AzulNeuralNetwork(config_name="small", device="cpu")
+        mcts = MCTS(nn)
+
+        # Test non-terminal state
+        non_terminal = MockGameState(game_over=False, current_player=0, winner=None)
+        assert mcts._get_terminal_value(non_terminal) == 0.0
+
+        # Test terminal state with no winner but game over
+        no_winner = MockGameState(game_over=True, current_player=0, winner=None)
+        assert mcts._get_terminal_value(no_winner) == 0.0
+
+        # Test terminal state with winner but different current player
+        winner_diff_player = MockGameState(game_over=True, current_player=1, winner=0)
+        assert mcts._get_terminal_value(winner_diff_player) == -1.0
+
+    def test_terminal_value_consistency(self):
+        """Test consistency of terminal value calculation across multiple calls."""
+        nn = AzulNeuralNetwork(config_name="small", device="cpu")
+        mcts = MCTS(nn)
+
+        # Create a state where player 0 wins
+        state = MockGameState(game_over=True, current_player=0, winner=0)
+
+        # Should get same value multiple times
+        value1 = mcts._get_terminal_value(state)
+        value2 = mcts._get_terminal_value(state)
+        value3 = mcts._get_terminal_value(state)
+        assert value1 == value2 == value3 == 1.0
+
+    def test_terminal_value_multiplayer(self):
+        """Test terminal value calculation in multiplayer scenarios."""
+        nn = AzulNeuralNetwork(config_name="small", device="cpu")
+        mcts = MCTS(nn)
+
+        # Create a 3-player game state
+        state = MockGameState(game_over=True, winner=1)
+
+        # Test from each player's perspective
+        state._current_player = 0
+        assert mcts._get_terminal_value(state) == -1.0
+
+        state._current_player = 1
+        assert mcts._get_terminal_value(state) == 1.0
+
+        state._current_player = 2
+        assert mcts._get_terminal_value(state) == -1.0
 
     def test_search_with_azul_game(self):
         """Test MCTS search with Azul game."""
