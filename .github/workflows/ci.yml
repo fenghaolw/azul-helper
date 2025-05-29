@@ -42,13 +42,7 @@ jobs:
 
     - name: Run type checking
       run: |
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          # For PRs, only check modified files
-          python3 scripts/run_mypy.py
-        else
-          # For main branch, run full mypy check
-          mypy --config-file=mypy.ini game training agents utils
-        fi
+        mypy --config-file=mypy.ini .
 
     - name: Run tests
       run:
