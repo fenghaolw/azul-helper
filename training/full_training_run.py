@@ -16,7 +16,7 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -45,11 +45,11 @@ class TrainingMonitor:
 
         # JSON logging
         self.log_file = self.log_dir / "training_log.json"
-        self.training_logs = []
+        self.training_logs: List[Dict[str, Any]] = []
 
         # Performance tracking
         self.start_time = time.time()
-        self.iteration_times = []
+        self.iteration_times: List[float] = []
 
         print(f"Training monitor initialized:")
         print(f"  Log directory: {self.log_dir}")

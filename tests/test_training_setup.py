@@ -5,11 +5,14 @@ Test script to verify training setup and components.
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from game.game_state import GameState
 from training.neural_network import AzulNeuralNetwork
@@ -17,6 +20,7 @@ from training.replay_buffer import Experience, ReplayBuffer
 from training.training_utils import create_training_components
 
 
+@pytest.mark.slow
 def test_training_setup():
     """Test all training components."""
     print("Testing Azul Neural Network Training Setup")
@@ -106,10 +110,10 @@ def test_training_setup():
         agent = MCTSAgent(neural_network=nn, num_simulations=50, temperature=1.0)
 
         # Get action probabilities
-        action_probs = agent.get_action_probabilities(game_state)
+        action_probs: Tensor = agent.get_action_probabilities(game_state)
         print(f"   ✓ MCTS agent created")
         print(f"   ✓ Action probabilities shape: {action_probs.shape}")
-        print(f"   ✓ Sum of probabilities: {action_probs.sum():.3f}")
+        print(f"   ✓ Sum of probabilities: {action_probs.sum().item():.3f}")
     except Exception as e:
         print(f"   ✗ MCTS integration test failed: {e}")
         return False
