@@ -8,7 +8,8 @@ class AzulApp {
   private renderer: GameRenderer;
   private ai: AzulAI | null = null;
   private pythonAI: PythonAI | null = null;
-  private currentAgentType: string = 'python-auto'; // 'disabled', 'typescript', 'python-heuristic', 'python-mcts', 'python-auto'
+  private currentAgentType: string = 'python-minimax'; // 'disabled', 'typescript', 'python-heuristic', 'python-mcts', 'python-auto', 'python-minimax'
+  private currentMinimaxDifficulty: string = 'medium'; // 'easy', 'medium', 'hard', 'expert', 'custom'
   private canvas: HTMLCanvasElement;
   private isAIThinking: boolean = false;
 
@@ -16,6 +17,7 @@ class AzulApp {
   private newGameBtn!: HTMLButtonElement;
   private aiAgentSelect!: HTMLSelectElement;
   private aiDifficultySelect!: HTMLSelectElement;
+  private minimaxDifficultySelect!: HTMLSelectElement;
   private gameInfo!: HTMLDivElement;
   private aiStats!: HTMLDivElement;
 
@@ -74,6 +76,15 @@ class AzulApp {
         }
         break;
       
+      case 'python-minimax':
+        this.pythonAI = new PythonAI(1, thinkingTime);
+        // Configure server to use minimax agent with specific difficulty
+        if (this.pythonAI) {
+          await this.configureServerAgent('minimax');
+          await this.configureMinimaxDifficulty();
+        }
+        break;
+      
       case 'python-auto':
       default:
         this.pythonAI = new PythonAI(1, thinkingTime);
@@ -85,7 +96,7 @@ class AzulApp {
     }
   }
 
-  private async configureServerAgent(agentType: 'auto' | 'mcts' | 'heuristic'): Promise<void> {
+  private async configureServerAgent(agentType: 'auto' | 'mcts' | 'heuristic' | 'minimax'): Promise<void> {
     if (!this.pythonAI) return;
 
     try {
@@ -97,6 +108,33 @@ class AzulApp {
       }
     } catch (error) {
       console.warn(`⚠️  Error configuring server agent:`, error);
+    }
+  }
+
+  private async configureMinimaxDifficulty(): Promise<void> {
+    if (!this.pythonAI) return;
+
+    try {
+      const apiUrl = (this.pythonAI as any).apiBaseUrl;
+      if (!apiUrl) return;
+
+      const response = await fetch(`${apiUrl}/agent/minimax/configure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty: this.currentMinimaxDifficulty })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`✅ Configured minimax difficulty to ${this.currentMinimaxDifficulty}:`, result);
+        
+        // Refresh agent info to get updated configuration
+        await (this.pythonAI as any).refreshAgentInfo();
+      } else {
+        console.warn(`⚠️  Failed to configure minimax difficulty: ${response.status}`);
+      }
+    } catch (error) {
+      console.warn(`⚠️  Error configuring minimax difficulty:`, error);
     }
   }
 
@@ -249,14 +287,15 @@ class AzulApp {
       { value: 'typescript', text: '🧠 TypeScript AI (Minimax)', icon: '🧠' },
       { value: 'python-auto', text: '🤖 Python AI (Auto)', icon: '🤖' },
       { value: 'python-mcts', text: '🔬 Python AI (MCTS)', icon: '🔬' },
-      { value: 'python-heuristic', text: '📏 Python AI (Heuristic)', icon: '📏' }
+      { value: 'python-heuristic', text: '📏 Python AI (Heuristic)', icon: '📏' },
+      { value: 'python-minimax', text: '🧠 Python AI (Minimax)', icon: '🧠' }
     ];
 
     agentOptions.forEach(option => {
       const optionElement = document.createElement('option');
       optionElement.value = option.value;
       optionElement.textContent = option.text;
-      if (option.value === 'python-auto') optionElement.selected = true;
+      if (option.value === 'python-minimax') optionElement.selected = true;
       this.aiAgentSelect.appendChild(optionElement);
     });
 
@@ -264,6 +303,14 @@ class AzulApp {
     this.aiAgentSelect.addEventListener('change', async () => {
       console.log('AI dropdown changed to:', this.aiAgentSelect.value);
       this.currentAgentType = this.aiAgentSelect.value;
+      
+      // Show/hide minimax difficulty selector
+      if (this.currentAgentType === 'python-minimax') {
+        minimaxDifficultyFieldContainer.style.display = 'block';
+      } else {
+        minimaxDifficultyFieldContainer.style.display = 'none';
+      }
+      
       await this.initializeAI();
       console.log('AI initialized, starting new game...');
       this.newGame(); // Start fresh game with new agent
@@ -342,6 +389,78 @@ class AzulApp {
     difficultyFieldContainer.appendChild(difficultyLabel);
     difficultyFieldContainer.appendChild(this.aiDifficultySelect);
 
+    // Minimax difficulty selection (only shown for minimax agents)
+    const minimaxDifficultyFieldContainer = document.createElement('div');
+    minimaxDifficultyFieldContainer.style.cssText = `
+      margin-bottom: 16px;
+      position: relative;
+      display: ${this.currentAgentType === 'python-minimax' ? 'block' : 'none'};
+    `;
+
+    const minimaxDifficultyLabel = document.createElement('label');
+    minimaxDifficultyLabel.textContent = 'Minimax Difficulty';
+    minimaxDifficultyLabel.style.cssText = `
+      display: block;
+      margin-bottom: 8px;
+      color: ${colors.onSurfaceVariant};
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.25px;
+    `;
+
+    this.minimaxDifficultySelect = document.createElement('select');
+    this.minimaxDifficultySelect.style.cssText = `
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid rgba(0,0,0,0.23);
+      border-radius: 4px;
+      font-size: 16px;
+      font-family: 'Roboto', sans-serif;
+      background: ${colors.surface};
+      color: ${colors.onSurface};
+      transition: border-color 0.2s ease;
+      outline: none;
+    `;
+
+    // Add focus styles for minimax select
+    this.minimaxDifficultySelect.addEventListener('focus', () => {
+      this.minimaxDifficultySelect.style.borderColor = colors.primary;
+      this.minimaxDifficultySelect.style.borderWidth = '2px';
+      this.minimaxDifficultySelect.style.padding = '13px 15px';
+    });
+
+    this.minimaxDifficultySelect.addEventListener('blur', () => {
+      this.minimaxDifficultySelect.style.borderColor = 'rgba(0,0,0,0.23)';
+      this.minimaxDifficultySelect.style.borderWidth = '1px';
+      this.minimaxDifficultySelect.style.padding = '14px 16px';
+    });
+
+    const minimaxDifficulties = [
+      { value: 'easy', text: '🟢 Easy (0.3s, depth 2)' },
+      { value: 'medium', text: '🟡 Medium (0.7s, depth 4)' },
+      { value: 'hard', text: '🟠 Hard (1.5s, depth 6)' },
+      { value: 'expert', text: '🔴 Expert (3.0s, depth 8)' }
+    ];
+
+    minimaxDifficulties.forEach(diff => {
+      const option = document.createElement('option');
+      option.value = diff.value;
+      option.textContent = diff.text;
+      if (diff.value === 'medium') option.selected = true;
+      this.minimaxDifficultySelect.appendChild(option);
+    });
+
+    // Add change event listener for minimax difficulty
+    this.minimaxDifficultySelect.addEventListener('change', async () => {
+      this.currentMinimaxDifficulty = this.minimaxDifficultySelect.value;
+      if (this.currentAgentType === 'python-minimax') {
+        await this.configureMinimaxDifficulty();
+      }
+    });
+
+    minimaxDifficultyFieldContainer.appendChild(minimaxDifficultyLabel);
+    minimaxDifficultyFieldContainer.appendChild(this.minimaxDifficultySelect);
+
     // Debug button with outlined style
     const debugBtn = this.createMaterialButton('Show Debug Info', colors.purple, 'outlined');
     debugBtn.addEventListener('click', () => {
@@ -364,6 +483,7 @@ class AzulApp {
     controlsSection.appendChild(this.newGameBtn);
     controlsSection.appendChild(aiAgentFieldContainer);
     controlsSection.appendChild(difficultyFieldContainer);
+    controlsSection.appendChild(minimaxDifficultyFieldContainer);
     controlsSection.appendChild(debugBtn);
 
     // Game info section
@@ -930,6 +1050,26 @@ class AzulApp {
               </div>
             `;
           }
+        } else if (agentInfo.active_agent === 'minimax') {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> Alpha-Beta Pruning, Iterative Deepening
+            </div>
+          `;
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Difficulty:</strong> ${this.currentMinimaxDifficulty.charAt(0).toUpperCase() + this.currentMinimaxDifficulty.slice(1)}
+            </div>
+          `;
+          // Show minimax-specific configuration if available
+          const minimaxInfo = agentInfo as any;
+          if (minimaxInfo.time_limit !== undefined) {
+            html += `
+              <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
+                Time: ${minimaxInfo.time_limit}s, Max Depth: ${minimaxInfo.max_depth || 'adaptive'}, Last Depth: ${minimaxInfo.max_depth_reached || 0}
+              </div>
+            `;
+          }
         } else if (agentInfo.active_agent === 'heuristic') {
           html += `
             <div style="margin-bottom: 10px;">
@@ -943,6 +1083,17 @@ class AzulApp {
           html += `
             <div style="margin-bottom: 10px;">
               <strong>Features:</strong> Monte Carlo Tree Search, Neural Network
+            </div>
+          `;
+        } else if (this.currentAgentType === 'python-minimax') {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> Alpha-Beta Pruning, Iterative Deepening
+            </div>
+          `;
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Difficulty:</strong> ${this.currentMinimaxDifficulty.charAt(0).toUpperCase() + this.currentMinimaxDifficulty.slice(1)}
             </div>
           `;
         } else if (this.currentAgentType === 'python-heuristic') {
@@ -1055,6 +1206,8 @@ class AzulApp {
         return '🔬 Python MCTS AI';
       case 'python-auto':
         return '🤖 Python Auto AI (MCTS + Fallback)';
+      case 'python-minimax':
+        return '🧠 Python Minimax AI';
       default:
         return 'Unknown';
     }

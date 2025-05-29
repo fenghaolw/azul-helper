@@ -21,6 +21,7 @@ from flask_cors import CORS
 from agents.heuristic_agent import HeuristicAgent
 from agents.improved_heuristic_agent import ImprovedHeuristicAgent
 from agents.mcts import MCTSAgent
+from agents.minimax_agent import MinimaxAgent, MinimaxConfig
 from game.game_state import Action, GameState, TileColor
 from game.tile import Tile
 from training.neural_network import AzulNeuralNetwork
@@ -32,8 +33,9 @@ CORS(app)  # Enable CORS for webapp integration
 agent: Optional[MCTSAgent] = None
 heuristic_agent: Optional[HeuristicAgent] = None
 improved_heuristic_agent: Optional[ImprovedHeuristicAgent] = None
+minimax_agent: Optional[MinimaxAgent] = None
 neural_network: Optional[AzulNeuralNetwork] = None
-current_agent_type: str = "auto"  # "mcts", "heuristic", "improved_heuristic", or "auto"
+current_agent_type: str = "minimax"  # Changed default to minimax
 
 
 def find_available_port(start_port: int = 5000, max_attempts: int = 10) -> int:
@@ -113,10 +115,14 @@ def setup_server_port(preferred_port: int = 5000, kill_existing: bool = False) -
 
 
 def initialize_agent(
-    agent_type: str = "auto", network_config: str = "medium", simulations: int = 800
+    agent_type: str = "auto",
+    network_config: str = "medium",
+    simulations: int = 800,
+    minimax_difficulty: str = "medium",
+    minimax_config: Optional[dict] = None,
 ) -> tuple:
     """Initialize the appropriate agent type."""
-    global agent, heuristic_agent, improved_heuristic_agent, neural_network, current_agent_type
+    global agent, heuristic_agent, improved_heuristic_agent, minimax_agent, neural_network, current_agent_type
 
     current_agent_type = agent_type
 
@@ -127,6 +133,19 @@ def initialize_agent(
     # Initialize improved heuristic agent
     improved_heuristic_agent = ImprovedHeuristicAgent(player_id=1)
     print("✅ Initialized improved heuristic agent")
+
+    # Initialize minimax agent
+    if minimax_config:
+        # Create custom config from dictionary
+        config = MinimaxConfig(**minimax_config)
+        minimax_agent = MinimaxAgent(player_id=1, config=config)
+    else:
+        # Use difficulty preset
+        minimax_agent = MinimaxAgent(
+            player_id=1,
+            config=MinimaxConfig.create_difficulty_preset(minimax_difficulty),
+        )
+    print(f"✅ Initialized minimax agent (difficulty: {minimax_difficulty})")
 
     if agent_type == "heuristic":
         agent = None
@@ -139,6 +158,12 @@ def initialize_agent(
         neural_network = None
         print("🚀 Using improved heuristic agent only")
         return improved_heuristic_agent, None
+
+    if agent_type == "minimax":
+        agent = None
+        neural_network = None
+        print("🎯 Using minimax agent only")
+        return minimax_agent, None
 
     # Try to initialize MCTS agent
     try:
@@ -183,10 +208,16 @@ def get_active_agent() -> Optional[Any]:
         return heuristic_agent
     elif current_agent_type == "improved_heuristic":
         return improved_heuristic_agent
+    elif current_agent_type == "minimax":
+        return minimax_agent
     elif current_agent_type == "mcts" and agent:
         return agent
-    else:  # auto mode
-        return agent if agent else improved_heuristic_agent
+    else:  # auto mode - prefer minimax, then MCTS, then improved heuristic
+        return (
+            minimax_agent
+            if minimax_agent
+            else (agent if agent else improved_heuristic_agent)
+        )
 
 
 def webapp_move_to_action(move_data: Dict[str, Any]) -> Action:
@@ -369,6 +400,8 @@ def health_check():
 
     if active_agent == agent:
         agent_type = "mcts"
+    elif active_agent == minimax_agent:
+        agent_type = "minimax"
     elif active_agent == improved_heuristic_agent:
         agent_type = "improved_heuristic"
     elif active_agent == heuristic_agent:
@@ -389,6 +422,7 @@ def health_check():
             "current_agent_type": current_agent_type,
             "active_agent_type": agent_type,
             "mcts_available": agent is not None,
+            "minimax_available": minimax_agent is not None,
             "heuristic_available": heuristic_agent is not None,
             "server": server_info,
             "timestamp": time.time(),
@@ -410,9 +444,13 @@ def get_agent_info():
             "mcts"
             if active_agent == agent
             else (
-                "improved_heuristic"
-                if active_agent == improved_heuristic_agent
-                else "heuristic"
+                "minimax"
+                if active_agent == minimax_agent
+                else (
+                    "improved_heuristic"
+                    if active_agent == improved_heuristic_agent
+                    else "heuristic"
+                )
             )
         ),
         "neural_network_available": neural_network is not None,
@@ -427,6 +465,17 @@ def get_agent_info():
                 "algorithm": "MCTS",
             }
         )
+    elif active_agent == minimax_agent:
+        stats = minimax_agent.get_stats()
+        config = minimax_agent.get_info()["config"]
+        info["algorithm"] = "Minimax Alpha-Beta"
+        info["features"] = (
+            f"Time limit: {config['time_limit']}s, Max depth: {config['max_depth'] or 'adaptive'}"
+        )
+        info["max_depth_reached"] = stats.get("max_depth_reached", 0)
+        info["time_limit"] = config["time_limit"]
+        info["max_depth"] = config["max_depth"]
+        info["config"] = config
     elif active_agent == improved_heuristic_agent:
         stats = improved_heuristic_agent.get_stats()
         info["algorithm"] = stats.get("algorithm", "Improved Heuristic")
@@ -493,6 +542,14 @@ def get_best_move():
                 algorithm_info = f"Improved Heuristic ({stats['algorithm']})"
                 agent_type_name = "improved_heuristic"
 
+            elif active_agent == minimax_agent:  # Minimax agent
+                action = minimax_agent.select_action(game_state)  # type: ignore[union-attr]
+                stats = minimax_agent.get_stats()  # type: ignore[union-attr]
+                nodes_evaluated = stats["nodes_evaluated"]
+                max_depth = stats["max_depth_reached"]
+                algorithm_info = f"Minimax α-β (depth {max_depth})"
+                agent_type_name = "minimax"
+
             else:  # Original Heuristic agent
                 action = heuristic_agent.select_action(game_state)  # type: ignore[union-attr]
                 stats = heuristic_agent.get_stats()  # type: ignore[union-attr]
@@ -539,10 +596,12 @@ def configure_agent():
         agent_type = data.get("agentType", "auto")
         network_config = data.get("networkConfig", "medium")
         simulations = data.get("simulations", 800)
+        minimax_difficulty = data.get("minimaxDifficulty", "medium")
+        minimax_config = data.get("minimaxConfig", None)
 
         # Reinitialize agent with new parameters
         active_agent, network = initialize_agent(
-            agent_type, network_config, simulations
+            agent_type, network_config, simulations, minimax_difficulty, minimax_config
         )
 
         if not active_agent:
@@ -557,9 +616,13 @@ def configure_agent():
                     "mcts"
                     if active_agent == agent
                     else (
-                        "improved_heuristic"
-                        if active_agent == improved_heuristic_agent
-                        else "heuristic"
+                        "minimax"
+                        if active_agent == minimax_agent
+                        else (
+                            "improved_heuristic"
+                            if active_agent == improved_heuristic_agent
+                            else "heuristic"
+                        )
                     )
                 ),
             }
@@ -577,8 +640,13 @@ def get_agent_types():
             "available_types": [
                 {
                     "id": "auto",
-                    "name": "Auto (MCTS with Improved Heuristic Fallback)",
-                    "description": "Uses MCTS when available, falls back to improved heuristic agent",
+                    "name": "Auto (Minimax with Fallbacks)",
+                    "description": "Uses Minimax when available, falls back to MCTS or improved heuristic agent",
+                },
+                {
+                    "id": "minimax",
+                    "name": "Minimax Alpha-Beta",
+                    "description": "Minimax algorithm with alpha-beta pruning and iterative deepening",
                 },
                 {
                     "id": "mcts",
@@ -597,6 +665,132 @@ def get_agent_types():
                 },
             ],
             "current_type": current_agent_type,
+        }
+    )
+
+
+@app.route("/agent/minimax/presets", methods=["GET"])
+def get_minimax_presets():
+    """Get available minimax difficulty presets."""
+    presets = {
+        "easy": {
+            "name": "Easy",
+            "description": "Quick decisions, shallow search",
+            "time_limit": 0.3,
+            "max_depth": 2,
+            "features": ["Basic minimax", "No move ordering"],
+        },
+        "medium": {
+            "name": "Medium",
+            "description": "Balanced performance and strength",
+            "time_limit": 0.7,
+            "max_depth": 4,
+            "features": ["Iterative deepening", "Move ordering", "Alpha-beta pruning"],
+        },
+        "hard": {
+            "name": "Hard",
+            "description": "Strong play with longer thinking",
+            "time_limit": 1.5,
+            "max_depth": 6,
+            "features": ["Adaptive depth", "Advanced pruning", "Smart node limits"],
+        },
+        "expert": {
+            "name": "Expert",
+            "description": "Maximum strength, extended analysis",
+            "time_limit": 3.0,
+            "max_depth": 8,
+            "features": ["Deep search", "Full feature set", "Optimal play"],
+        },
+        "custom": {
+            "name": "Custom",
+            "description": "User-defined configuration",
+            "time_limit": "configurable",
+            "max_depth": "configurable",
+            "features": ["All features configurable"],
+        },
+    }
+
+    return jsonify(
+        {"presets": presets, "current_preset": "medium", "success": True}  # Default
+    )
+
+
+@app.route("/agent/minimax/configure", methods=["POST"])
+def configure_minimax():
+    """Configure minimax agent with specific parameters."""
+    if not minimax_agent:
+        return jsonify({"error": "Minimax agent not initialized"}), 500
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No configuration data provided"}), 400
+
+        difficulty = data.get("difficulty")
+        custom_config = data.get("config")
+
+        if difficulty and difficulty != "custom":
+            # Use preset
+            print(f"🔧 Configuring minimax agent to {difficulty} difficulty")
+            minimax_agent.set_difficulty_preset(difficulty)
+            config_info = minimax_agent.get_info()["config"]
+            print(f"✅ New minimax config: {config_info}")
+
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Minimax agent configured to {difficulty} difficulty",
+                    "difficulty": difficulty,
+                    "config": config_info,
+                }
+            )
+
+        elif custom_config:
+            # Use custom configuration
+            minimax_agent.update_config(**custom_config)
+            config_info = minimax_agent.get_info()["config"]
+
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Minimax agent configured with custom settings",
+                    "difficulty": "custom",
+                    "config": config_info,
+                }
+            )
+
+        else:
+            return (
+                jsonify(
+                    {"error": "Either difficulty preset or custom config required"}
+                ),
+                400,
+            )
+
+    except Exception as e:
+        return jsonify({"error": f"Configuration failed: {str(e)}"}), 500
+
+
+@app.route("/agent/minimax/info", methods=["GET"])
+def get_minimax_info():
+    """Get detailed minimax agent information and current configuration."""
+    if not minimax_agent:
+        return jsonify({"error": "Minimax agent not initialized"}), 500
+
+    info = minimax_agent.get_info()
+    stats = minimax_agent.get_stats()
+
+    return jsonify(
+        {
+            "info": info,
+            "stats": stats,
+            "performance": {
+                "nodes_per_second": stats["nodes_evaluated"]
+                / max(0.001, stats.get("last_move_time", 1.0)),
+                "effective_branching_factor": "calculated_from_search_tree",
+                "average_depth": stats["max_depth_reached"],
+            },
+            "success": True,
         }
     )
 
@@ -632,9 +826,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--agent-type",
         "-a",
-        choices=["auto", "mcts", "heuristic", "improved_heuristic"],
-        default="auto",
-        help="Agent type to initialize (default: auto)",
+        choices=["auto", "mcts", "heuristic", "improved_heuristic", "minimax"],
+        default="minimax",
+        help="Agent type to initialize (default: minimax)",
     )
     parser.add_argument(
         "--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
@@ -676,6 +870,9 @@ if __name__ == "__main__":
     print("  GET  /agent/types - Available agent types")
     print("  POST /agent/move - Get best move")
     print("  POST /agent/configure - Configure agent")
+    print("  GET  /agent/minimax/presets - Get minimax difficulty presets")
+    print("  POST /agent/minimax/configure - Configure minimax agent")
+    print("  GET  /agent/minimax/info - Get minimax agent information")
 
     if args.kill_existing:
         print("\n⚠️  Note: --kill-existing was used. Be careful with this option.")

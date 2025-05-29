@@ -7,6 +7,7 @@ from agents.improved_heuristic_agent import (
     create_improved_heuristic_agent,
 )
 from agents.mcts import MCTS, GameState, MCTSAgent, MCTSNode, NeuralNetwork
+from agents.minimax_agent import MinimaxAgent, create_minimax_agent
 from agents.random_agent import RandomAgent, create_random_agent
 
 __all__ = [
@@ -23,4 +24,6 @@ __all__ = [
     "create_improved_heuristic_agent",
     "CheckpointAgent",
     "create_checkpoint_agent",
+    "MinimaxAgent",
+    "create_minimax_agent",
 ]
