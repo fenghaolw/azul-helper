@@ -44,7 +44,7 @@ type-check:
 # Testing
 test:
 	@echo "Running tests..."
-	python3 -m pytest tests/
+	python3 -m pytest tests/ -m "not slow"
 	@echo "✓ Tests complete"
 
 test-verbose:

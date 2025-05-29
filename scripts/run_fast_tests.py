@@ -4,25 +4,28 @@ Run fast tests only (excluding tests marked with @pytest.mark.slow).
 This script is used by pre-commit hooks to avoid running slow tests.
 """
 
-import sys
 import subprocess
+import sys
 
 
 def main():
     """Run pytest with fast tests only."""
     cmd = [
-        sys.executable, "-m", "pytest", 
-        "-m", "not slow",  # Exclude slow tests
+        sys.executable,
+        "-m",
+        "pytest",
+        "-m",
+        "not slow",  # Exclude slow tests
         "--tb=short",
-        "-v"
+        "-v",
     ]
-    
+
     print("Running fast tests (excluding slow tests)...")
     print(f"Command: {' '.join(cmd)}")
-    
+
     result = subprocess.run(cmd)
     return result.returncode
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

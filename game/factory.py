@@ -67,6 +67,8 @@ class CenterArea:
     def __init__(self):
         self.tiles: List[Tile] = []
         self.has_first_player_marker = False
+        # Store a single first player marker instance that gets reused
+        self._first_player_marker = Tile.create_first_player_marker()
 
     def add_tiles(self, tiles: List[Tile]) -> None:
         """Add tiles to the center area."""
@@ -92,7 +94,8 @@ class CenterArea:
         # If taking tiles from center for first time this round,
         # also take first player marker
         if taken and self.has_first_player_marker:
-            taken.append(Tile.create_first_player_marker())
+            # Use the single reusable first player marker instance
+            taken.append(self._first_player_marker)
             self.has_first_player_marker = False
 
         return taken
@@ -139,6 +142,10 @@ class FactoryArea:
         # Clear center area
         self.center.clear()
 
+        # Clear all factories first
+        for factory in self.factories:
+            factory.tiles = []
+
         # Add first player marker to center
         self.center.add_first_player_marker()
 
@@ -164,10 +171,15 @@ class FactoryArea:
         return self.center.take_tiles(color)
 
     def is_round_over(self) -> bool:
-        """Check if all factories and center are empty."""
+        """Check if all factories and center are empty of regular tiles."""
         all_factories_empty = all(factory.is_empty() for factory in self.factories)
-        center_empty = self.center.is_empty()
-        return all_factories_empty and center_empty
+
+        # Center is considered empty if it has no regular tiles (first player marker doesn't count)
+        center_has_regular_tiles = any(
+            tile.color != TileColor.FIRST_PLAYER for tile in self.center.tiles
+        )
+
+        return all_factories_empty and not center_has_regular_tiles
 
     def get_available_moves(self) -> List[tuple[int, TileColor]]:
         """Get all available moves.

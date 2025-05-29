@@ -42,7 +42,15 @@ class HeuristicAgent:
         available_actions = game_state.get_legal_actions()
 
         if not available_actions:
-            raise ValueError("No legal actions available")
+            # Check if game is over before raising error
+            if game_state.game_over:
+                # Game has ended, this is expected
+                raise ValueError("No legal actions available - game is over")
+            else:
+                # Game is not over but no actions available - this indicates a bug
+                raise ValueError(
+                    "No legal actions available - possible game state inconsistency"
+                )
 
         if len(available_actions) == 1:
             self.nodes_evaluated = 1
@@ -303,6 +311,15 @@ class HeuristicAgent:
             "nodesEvaluated": self.nodes_evaluated,
             "algorithm": "Heuristic-based",
             "features": "Pattern completion, Wall scoring, Strategic play",
+        }
+
+    def get_info(self) -> dict:
+        """Get agent information for evaluation metadata."""
+        return {
+            "agent_type": self.__class__.__name__,
+            "algorithm": "Heuristic-based",
+            "features": "Pattern completion, Wall scoring, Strategic play",
+            "player_id": self.player_id,
         }
 
     def reset_stats(self):
