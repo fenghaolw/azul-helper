@@ -192,12 +192,11 @@ def run_detailed_minimax_evaluation(
             game_time = time.time() - game_start
             self.game_count += 1
 
-            # Track win/loss
-            test_player = game_config.get("test_agent_player", 0)
-            if result.winner == test_player:  # Test agent (minimax) wins
+            # Track win/loss based on the normalized result
+            if result.winner == 0:  # Test agent (minimax) wins
                 self.wins += 1
                 outcome = "🏆"
-            elif result.winner == (1 - test_player):  # Baseline wins
+            elif result.winner == 1:  # Baseline wins
                 outcome = "❌"
             else:  # Draw
                 outcome = "🤝"
@@ -236,6 +235,7 @@ def run_detailed_minimax_evaluation(
             )
 
             if show_progress:
+                # Calculate win rate based on total wins so far
                 win_rate = (self.wins / self.game_count) * 100
                 print(
                     f"   Game {self.game_count:3d}/{self.total_games}: {outcome} "
