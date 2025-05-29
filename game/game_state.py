@@ -111,6 +111,21 @@ class GameState:
         # Get available tile sources
         available_moves = self.factory_area.get_available_moves()
 
+        # If no moves are available (all sources empty), this indicates
+        # an unusual game state that should trigger game end
+        if not available_moves:
+            # Check if we're in a valid round-over state
+            if self.factory_area.is_round_over():
+                # This should trigger _end_round() in the next apply_action call
+                # For now, return empty list which will cause the calling code to handle appropriately
+                return []
+            else:
+                # This is an inconsistent state - we have no moves but round isn't over
+                # This could happen if bag is exhausted mid-round
+                # Force game to end gracefully
+                self._end_game()
+                return []
+
         for source, color in available_moves:
             # For each destination (pattern lines + floor line)
             for dest in range(-1, 5):  # -1 = floor, 0-4 = pattern lines

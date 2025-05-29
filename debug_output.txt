@@ -1,0 +1,323 @@
+=== DEBUGGING 'No legal actions available' ERROR ===
+Starting game with seed 42
+Initial game state: Round 1, Current player: 0
+
+Turn 1: Player 0
+Legal actions available: 78
+Actions: [Action(factory_0, blue, floor), Action(factory_0, blue, line_1), Action(factory_0, blue, line_2)]... (78 total)
+Agent selected: Action(factory_4, black, line_0)
+
+Turn 2: Player 1
+Legal actions available: 72
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_1), Action(center, yellow, line_2)]... (72 total)
+Agent selected: Action(factory_0, blue, line_3)
+
+Turn 3: Player 0
+Legal actions available: 53
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_1), Action(center, yellow, line_2)]... (53 total)
+Agent selected: Action(center, white, line_2)
+
+Turn 4: Player 1
+Legal actions available: 49
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_1), Action(center, yellow, line_2)]... (49 total)
+Agent selected: Action(center, yellow, line_1)
+
+Turn 5: Player 0
+Legal actions available: 44
+Actions: [Action(factory_1, blue, floor), Action(factory_1, blue, line_1), Action(factory_1, blue, line_2)]... (44 total)
+Agent selected: Action(factory_1, yellow, line_2)
+
+Turn 6: Player 1
+Legal actions available: 34
+Actions: [Action(center, blue, floor), Action(center, blue, line_0), Action(center, blue, line_2)]... (34 total)
+Agent selected: Action(factory_3, red, floor)
+
+Turn 7: Player 0
+Legal actions available: 24
+Actions: [Action(center, blue, floor), Action(center, blue, line_1), Action(center, blue, line_3)]... (24 total)
+Agent selected: Action(factory_2, blue, line_1)
+
+Turn 8: Player 1
+Legal actions available: 10
+Actions: [Action(center, blue, floor), Action(center, blue, line_2), Action(center, blue, line_3)]... (10 total)
+Agent selected: Action(center, blue, line_4)
+
+Turn 9: Player 0
+Legal actions available: 6
+Actions: [Action(center, white, floor), Action(center, white, line_3), Action(center, white, line_4)]... (6 total)
+Agent selected: Action(center, black, line_3)
+
+Turn 10: Player 1
+Legal actions available: 2
+Actions: [Action(center, white, floor), Action(center, white, line_2)]
+Agent selected: Action(center, white, floor)
+  ... 10 turns completed, game continuing
+
+Turn 11: Player 0
+Legal actions available: 65
+Actions: [Action(factory_0, yellow, floor), Action(factory_0, yellow, line_0), Action(factory_0, yellow, line_1)]... (65 total)
+Agent selected: Action(factory_1, red, line_1)
+
+Turn 12: Player 1
+Legal actions available: 55
+Actions: [Action(center, white, floor), Action(center, white, line_1), Action(center, white, line_2)]... (55 total)
+Agent selected: Action(factory_0, white, line_1)
+
+Turn 13: Player 0
+Legal actions available: 46
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_0), Action(center, yellow, line_4)]... (46 total)
+Agent selected: Action(center, yellow, line_0)
+
+Turn 14: Player 1
+Legal actions available: 39
+Actions: [Action(center, white, floor), Action(center, white, line_2), Action(center, black, floor)]... (39 total)
+Agent selected: Action(factory_2, blue, line_2)
+
+Turn 15: Player 0
+Legal actions available: 35
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_0), Action(center, yellow, line_4)]... (35 total)
+Agent selected: Action(factory_3, red, line_0)
+
+Turn 16: Player 1
+Legal actions available: 17
+Actions: [Action(center, blue, floor), Action(center, blue, line_0), Action(center, blue, line_2)]... (17 total)
+Agent selected: Action(center, blue, line_2)
+
+Turn 17: Player 0
+Legal actions available: 16
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_4), Action(center, white, floor)]... (16 total)
+Agent selected: Action(center, white, line_4)
+
+Turn 18: Player 1
+Legal actions available: 10
+Actions: [Action(center, yellow, floor), Action(center, yellow, line_0), Action(center, black, floor)]... (10 total)
+Agent selected: Action(factory_4, black, line_0)
+
+Turn 19: Player 0
+Legal actions available: 5
+Actions: [Action(center, blue, floor), Action(center, blue, line_2), Action(center, yellow, floor), Action(center, black, floor), Action(center, black, line_2)]
+Agent selected: Action(center, black, line_2)
+
+Turn 20: Player 1
+Legal actions available: 4
+Actions: [Action(center, blue, floor), Action(center, blue, line_3), Action(center, blue, line_4), Action(center, yellow, floor)]
+Agent selected: Action(center, yellow, floor)
+  ... 20 turns completed, game continuing
+
+Turn 21: Player 0
+Legal actions available: 1
+Actions: [Action(center, blue, floor)]
+Agent selected: Action(center, blue, floor)
+
+Turn 22: Player 0
+Legal actions available: 47
+Actions: [Action(factory_0, red, floor), Action(factory_0, red, line_2), Action(factory_0, red, line_4)]... (47 total)
+Agent selected: Action(factory_2, white, line_0)
+
+Turn 23: Player 1
+Legal actions available: 30
+Actions: [Action(center, red, floor), Action(center, red, line_0), Action(center, yellow, floor)]... (30 total)
+Agent selected: Action(center, red, line_0)
+
+Turn 24: Player 0
+Legal actions available: 35
+Actions: [Action(center, blue, floor), Action(center, blue, line_2), Action(center, blue, line_4)]... (35 total)
+Agent selected: Action(factory_0, black, line_1)
+
+Turn 25: Player 1
+Legal actions available: 24
+Actions: [Action(center, blue, floor), Action(center, blue, line_0), Action(center, blue, line_2)]... (24 total)
+Agent selected: Action(center, blue, floor)
+
+Turn 26: Player 0
+Legal actions available: 23
+Actions: [Action(center, red, floor), Action(center, red, line_2), Action(center, red, line_4)]... (23 total)
+Agent selected: Action(factory_3, black, line_4)
+
+Turn 27: Player 1
+Legal actions available: 18
+Actions: [Action(center, red, floor), Action(center, red, line_0), Action(center, yellow, floor)]... (18 total)
+Agent selected: Action(center, yellow, floor)
+
+Turn 28: Player 0
+Legal actions available: 12
+Actions: [Action(center, red, floor), Action(center, red, line_2), Action(center, blue, floor)]... (12 total)
+Agent selected: Action(factory_1, blue, line_2)
+
+Turn 29: Player 1
+Legal actions available: 11
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_0)]... (11 total)
+Agent selected: Action(center, blue, floor)
+
+Turn 30: Player 0
+Legal actions available: 4
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(factory_4, red, floor), Action(factory_4, yellow, floor)]
+Agent selected: Action(factory_4, red, floor)
+  ... 30 turns completed, game continuing
+
+Turn 31: Player 1
+Legal actions available: 2
+Actions: [Action(center, red, floor), Action(center, yellow, floor)]
+Agent selected: Action(center, red, floor)
+
+Turn 32: Player 0
+Legal actions available: 1
+Actions: [Action(center, yellow, floor)]
+Agent selected: Action(center, yellow, floor)
+
+Turn 33: Player 1
+Legal actions available: 31
+Actions: [Action(factory_0, blue, floor), Action(factory_0, blue, line_0), Action(factory_0, blue, line_2)]... (31 total)
+Agent selected: Action(factory_2, blue, line_2)
+
+Turn 34: Player 0
+Legal actions available: 25
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_0)]... (25 total)
+Agent selected: Action(center, yellow, line_0)
+
+Turn 35: Player 1
+Legal actions available: 23
+Actions: [Action(center, red, floor), Action(center, red, line_0), Action(center, white, floor)]... (23 total)
+Agent selected: Action(factory_4, yellow, floor)
+
+Turn 36: Player 0
+Legal actions available: 19
+Actions: [Action(center, red, floor), Action(center, white, floor), Action(center, white, line_1)]... (19 total)
+Agent selected: Action(factory_3, yellow, line_0)
+
+Turn 37: Player 1
+Legal actions available: 11
+Actions: [Action(center, red, floor), Action(center, white, floor), Action(factory_0, blue, floor)]... (11 total)
+Agent selected: Action(center, red, floor)
+
+Turn 38: Player 0
+Legal actions available: 10
+Actions: [Action(center, white, floor), Action(factory_0, blue, floor), Action(factory_0, blue, line_2)]... (10 total)
+Agent selected: Action(factory_0, white, line_1)
+
+Turn 39: Player 1
+Legal actions available: 9
+Actions: [Action(center, blue, floor), Action(center, blue, line_0), Action(center, blue, line_3)]... (9 total)
+Agent selected: Action(factory_1, black, floor)
+
+Turn 40: Player 0
+Legal actions available: 4
+Actions: [Action(center, blue, floor), Action(center, blue, line_2), Action(center, red, floor), Action(center, white, floor)]
+Agent selected: Action(center, blue, line_2)
+  ... 40 turns completed, game continuing
+
+Turn 41: Player 1
+Legal actions available: 2
+Actions: [Action(center, red, floor), Action(center, white, floor)]
+Agent selected: Action(center, red, floor)
+
+Turn 42: Player 0
+Legal actions available: 1
+Actions: [Action(center, white, floor)]
+Agent selected: Action(center, white, floor)
+
+Turn 43: Player 0
+Legal actions available: 31
+Actions: [Action(factory_0, red, floor), Action(factory_0, red, line_2), Action(factory_0, yellow, floor)]... (31 total)
+Agent selected: Action(factory_1, red, line_2)
+
+Turn 44: Player 1
+Legal actions available: 38
+Actions: [Action(center, black, floor), Action(center, black, line_2), Action(factory_0, red, floor)]... (38 total)
+Agent selected: Action(factory_4, white, floor)
+
+Turn 45: Player 0
+Legal actions available: 23
+Actions: [Action(center, blue, floor), Action(center, blue, line_0), Action(center, red, floor)]... (23 total)
+Agent selected: Action(center, blue, line_0)
+
+Turn 46: Player 1
+Legal actions available: 30
+Actions: [Action(center, red, floor), Action(center, red, line_2), Action(center, black, floor)]... (30 total)
+Agent selected: Action(factory_0, white, line_2)
+
+Turn 47: Player 0
+Legal actions available: 16
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_1)]... (16 total)
+Agent selected: Action(factory_3, blue, line_0)
+
+Turn 48: Player 1
+Legal actions available: 8
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_0)]... (8 total)
+Agent selected: Action(center, black, floor)
+
+Turn 49: Player 0
+Legal actions available: 7
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_1)]... (7 total)
+Agent selected: Action(factory_2, black, line_4)
+
+Turn 50: Player 1
+Legal actions available: 6
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_0)]... (6 total)
+Agent selected: Action(center, blue, floor)
+  ... 50 turns completed, game continuing
+
+Turn 51: Player 0
+Legal actions available: 3
+Actions: [Action(center, red, floor), Action(center, yellow, floor), Action(center, yellow, line_1)]
+Agent selected: Action(center, yellow, line_1)
+
+Turn 52: Player 1
+Legal actions available: 1
+Actions: [Action(center, red, floor)]
+Agent selected: Action(center, red, floor)
+
+Game ended after 52 turns
+Final game over status: True
+Final scores: [17, 0]
+
+=== DEBUGGING EVALUATION ERRORS ===
+Starting evaluation: HeuristicAgent vs RandomAgent
+Configuration: 10 games, 5.0s timeout
+Completed 10/10 games
+
+Evaluation complete!
+Results: HeuristicAgent 70.0% vs RandomAgent 0.0%
+Result is statistically significant (p=0.0031)
+
+Errors found: 3
+Draws: 3
+
+--- Game 7 ERROR ---
+Winner: -1
+Scores: [0, 0]
+Rounds: 6
+Error: Move error: No legal actions available
+Traceback (most recent call last):
+  File "/Users/fenghaolw/Documents/azul-helper/evaluation/agent_evaluator.py", line 361, in _run_single_game
+    action = agent.select_action(game)
+  File "/Users/fenghaolw/Documents/azul-helper/agents/random_agent.py", line 37, in select_action
+    raise ValueError("No legal actions available")
+ValueError: No legal actions available
+
+
+--- Game 8 ERROR ---
+Winner: -1
+Scores: [1, 4]
+Rounds: 6
+Error: Move error: No legal actions available
+Traceback (most recent call last):
+  File "/Users/fenghaolw/Documents/azul-helper/evaluation/agent_evaluator.py", line 361, in _run_single_game
+    action = agent.select_action(game)
+  File "/Users/fenghaolw/Documents/azul-helper/agents/heuristic_agent.py", line 45, in select_action
+    raise ValueError("No legal actions available")
+ValueError: No legal actions available
+
+
+--- Game 9 ERROR ---
+Winner: -1
+Scores: [0, 0]
+Rounds: 11
+Error: Move error: No legal actions available
+Traceback (most recent call last):
+  File "/Users/fenghaolw/Documents/azul-helper/evaluation/agent_evaluator.py", line 361, in _run_single_game
+    action = agent.select_action(game)
+  File "/Users/fenghaolw/Documents/azul-helper/agents/heuristic_agent.py", line 45, in select_action
+    raise ValueError("No legal actions available")
+ValueError: No legal actions available
+

@@ -470,6 +470,14 @@ class AzulAECEnv(AECEnv):
         """Get observation space for an agent."""
         return self.observation_spaces[agent]
 
+    def _check_termination(self) -> None:
+        """Check if game is over and set terminations accordingly."""
+        if self.game_state and self.game_state.game_over:
+            # Game is over, mark all agents as terminated
+            for agent_id in self.agents:
+                self.terminations[agent_id] = True
+            self.agent_selection = None
+
     def get_legal_actions(self, agent: Optional[str] = None) -> List[int]:
         """
         Get legal actions for an agent as integer encodings.
@@ -480,6 +488,9 @@ class AzulAECEnv(AECEnv):
         Returns:
             List of legal action integers
         """
+        # Check if game should be terminated first
+        self._check_termination()
+
         if agent is None:
             agent = self.agent_selection
 
@@ -488,6 +499,10 @@ class AzulAECEnv(AECEnv):
 
         player_id = int(agent.split("_")[1])
         legal_actions = self.game_state.get_legal_actions(player_id)
+
+        # If no legal actions and game is over, ensure terminations are set
+        if not legal_actions:
+            self._check_termination()
 
         return [self._encode_action(action) for action in legal_actions]
 
