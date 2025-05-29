@@ -176,6 +176,8 @@ class MCTS:
         self.temperature = temperature
         self.dirichlet_alpha = dirichlet_alpha
         self.dirichlet_epsilon = dirichlet_epsilon
+        self.nodes_evaluated = 0
+        self.max_depth_reached = 0
 
     def search(self, root_state: GameState) -> Tuple[np.ndarray, MCTSNode]:
         """
@@ -200,45 +202,44 @@ class MCTS:
             if not root.is_expanded:
                 self._expand_and_evaluate(root)
 
+        # Track stats for this search
+        max_depth_this_search = 0
+
         # Run simulations
         for _ in range(self.num_simulations):
-            self._simulate(root)
+            depth = self._simulate_with_depth(root)
+            if depth > max_depth_this_search:
+                max_depth_this_search = depth
+
+        # Update stats
+        self.nodes_evaluated += self.num_simulations
+        if max_depth_this_search > self.max_depth_reached:
+            self.max_depth_reached = max_depth_this_search
 
         # Calculate action probabilities based on visit counts
         action_probs = self._get_action_probabilities(root)
 
         return action_probs, root
 
-    def _simulate(self, root: MCTSNode) -> float:
+    def _simulate_with_depth(self, root: MCTSNode) -> int:
         """
-        Run a single MCTS simulation from root to leaf.
-
-        Args:
-            root: Root node to start simulation from
-
-        Returns:
-            Value to backpropagate
+        Run a single MCTS simulation and return the depth reached.
         """
         path = []
         current = root
-
-        # Selection: traverse tree until we reach a leaf
+        depth = 0
         while not current.is_leaf() and not current.state.game_over:
             action = self._select_action(current)
             path.append((current, action))
             current = current.children[action]
-
-        # Expansion and Simulation: expand leaf and get value
+            depth += 1
+        # Expansion and Simulation
         if not current.state.game_over:
             value = self._expand_and_evaluate(current)
         else:
-            # Terminal node - get actual game result
             value = self._get_terminal_value(current.state)
-
-        # Backpropagation: update statistics up the tree
         self._backpropagate(path, current, value)
-
-        return value
+        return depth
 
     def _select_action(self, node: MCTSNode) -> Any:
         """
@@ -503,3 +504,10 @@ class MCTSAgent:
         """
         action_probs, _ = self.mcts.search(state)
         return action_probs
+
+    def get_stats(self) -> dict:
+        """Return statistics for reporting (nodes evaluated, max depth)."""
+        return {
+            "nodes_evaluated": getattr(self.mcts, "nodes_evaluated", 0),
+            "max_depth_reached": getattr(self.mcts, "max_depth_reached", 0),
+        }

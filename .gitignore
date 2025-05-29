@@ -334,6 +334,7 @@ experiments/
 results/
 plots/
 figures/
+evaluation_results/
 
 # Configuration files with secrets
 .env.production

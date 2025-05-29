@@ -478,7 +478,7 @@ def full_training_example():
         keep_latest_checkpoints=5,
         # General parameters
         max_iterations=100,
-        device="cpu",  # Change to "cuda" if you have GPU
+        device="auto",  # Will automatically use MPS on Apple Silicon, CUDA on NVIDIA, or CPU
         verbose=True,
     )
 

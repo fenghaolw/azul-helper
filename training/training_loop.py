@@ -139,9 +139,17 @@ class AzulTrainer:
         """
         self.config = config
         self.save_dir = save_dir
-        self.device = torch.device(
-            config.device or ("cuda" if torch.cuda.is_available() else "cpu")
-        )
+
+        # Determine device with MPS support
+        if config.device == "auto":
+            if torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            elif torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            else:
+                self.device = torch.device("cpu")
+        else:
+            self.device = torch.device(config.device or "cpu")
 
         # Create save directory
         os.makedirs(save_dir, exist_ok=True)

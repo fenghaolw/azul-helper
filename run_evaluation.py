@@ -8,20 +8,123 @@ quick tests, comprehensive evaluations, tournaments, and improved agent comparis
 
 import argparse
 import sys
+import time
 from pathlib import Path
 from typing import Optional, Union
+
+import torch
 
 # Add evaluation module to path
 sys.path.append(str(Path(__file__).parent))
 
 from evaluation import (
-    AgentEvaluator,
     EvaluationConfig,
     format_evaluation_results,
     save_evaluation_results,
 )
+from evaluation.agent_evaluator import AgentEvaluator
 from evaluation.baseline_agents import HeuristicBaselineAgent, RandomBaselineAgent
 from evaluation.utils import ensure_evaluation_dir
+
+
+# --- Generalized ProgressTrackingEvaluator ---
+class ProgressTrackingEvaluator(AgentEvaluator):
+    """
+    AgentEvaluator subclass that tracks and prints progress, win rate, and agent stats (nodes, depth) during evaluation.
+    Can be used for any agent that exposes get_stats().
+    """
+
+    def __init__(
+        self,
+        config,
+        tracked_agent,
+        tracked_agent_role: str = "test",  # 'test' or 'baseline'
+        tracked_agent_name: str = "Agent",
+        baseline_name: str = "Baseline",
+    ):
+        super().__init__(config)
+        self.tracked_agent = tracked_agent
+        self.tracked_agent_role = tracked_agent_role
+        self.tracked_agent_name = tracked_agent_name
+        self.baseline_name = baseline_name
+        self.game_count = 0
+        self.total_games = config.num_games
+        self.wins = 0
+        self.start_time = time.time()
+        self.last_nodes = 0
+
+    def _run_single_game(self, test_agent, baseline_agent, game_config):
+        """Override to add progress tracking."""
+        game_start = time.time()
+
+        # Pick which agent to track
+        agent = test_agent if self.tracked_agent_role == "test" else baseline_agent
+
+        # Get nodes before game
+        nodes_before = 0
+        if hasattr(agent, "get_stats"):
+            stats = agent.get_stats()
+            nodes_before = stats.get("nodes_evaluated", 0)
+
+        # Run the actual game
+        result = super()._run_single_game(test_agent, baseline_agent, game_config)
+
+        game_time = time.time() - game_start
+        self.game_count += 1
+
+        # Track win/loss based on the normalized result
+        if result.winner == 0:  # Test agent wins
+            self.wins += 1
+            outcome = "🏆"
+        elif result.winner == 1:  # Baseline wins
+            outcome = "❌"
+        else:  # Draw
+            outcome = "🤝"
+
+        # Get tracked agent stats for this game
+        agent_stats_str = ""
+        if hasattr(agent, "get_stats"):
+            stats = agent.get_stats()
+            nodes_after = stats.get("nodes_evaluated", 0)
+            nodes_this_game = nodes_after - nodes_before
+            depth = stats.get("max_depth_reached", 0)
+            if nodes_this_game > 0:
+                agent_stats_str = f" (🔢{nodes_this_game:,} nodes, 🔍depth {depth})"
+
+        # Calculate progress and ETA
+        progress_pct = (self.game_count / self.total_games) * 100
+        elapsed = time.time() - self.start_time
+
+        if self.game_count > 3:  # Wait a few games for stable ETA
+            avg_game_time = elapsed / self.game_count
+            eta_seconds = avg_game_time * (self.total_games - self.game_count)
+            eta_str = (
+                f", ETA: {eta_seconds/60:.1f}m"
+                if eta_seconds > 60
+                else f", ETA: {eta_seconds:.0f}s"
+            )
+        else:
+            eta_str = ""
+
+        # Show progress every 10% or every 5 games, whichever is less frequent
+        show_progress = (
+            self.game_count % max(1, self.total_games // 10) == 0
+            or self.game_count % 5 == 0
+            or self.game_count <= 3
+            or self.game_count == self.total_games
+        )
+
+        if show_progress:
+            # Calculate win rate based on total wins so far
+            win_rate = (self.wins / self.game_count) * 100
+            print(
+                f"   Game {self.game_count:3d}/{self.total_games}: {outcome} "
+                f"({game_time:.1f}s{agent_stats_str}) | "
+                f"Progress: {progress_pct:5.1f}% | "
+                f"Win rate: {win_rate:5.1f}%{eta_str}"
+            )
+
+        return result
 
 
 def run_heuristic_vs_random(num_games: int = 100):
@@ -110,8 +213,6 @@ def run_minimax_evaluation(
     baseline_agent = HeuristicBaselineAgent()
     baseline_name = "Heuristic"
 
-    import time
-
     start_time = time.time()
 
     print(f"🥊 Minimax vs {baseline_name}")
@@ -154,101 +255,15 @@ def run_detailed_minimax_evaluation(
     minimax_agent, baseline_agent, baseline_name, config, eval_config
 ):
     """Run detailed evaluation with game-by-game progress tracking."""
-    import time
-
-    print(f"🎮 Starting {eval_config.num_games} games vs {baseline_name}")
-
     start_time = time.time()
 
-    # Create a custom evaluator that we can monitor
-    from evaluation.agent_evaluator import AgentEvaluator
-
-    # We need to run the evaluation with custom progress tracking
-    # Let's override the evaluation to show real-time progress
-    class ProgressTrackingEvaluator(AgentEvaluator):
-        def __init__(self, config, parent_agent, parent_baseline, parent_name):
-            super().__init__(config)
-            self.minimax_agent = parent_agent
-            self.baseline_name = parent_name
-            self.game_count = 0
-            self.total_games = config.num_games
-            self.wins = 0
-            self.start_time = time.time()
-            self.last_nodes = 0
-
-        def _run_single_game(self, test_agent, baseline_agent, game_config):
-            """Override to add progress tracking."""
-            game_start = time.time()
-
-            # Get nodes before game
-            nodes_before = 0
-            if hasattr(self.minimax_agent, "get_stats"):
-                stats = self.minimax_agent.get_stats()
-                nodes_before = stats.get("nodes_evaluated", 0)
-
-            # Run the actual game
-            result = super()._run_single_game(test_agent, baseline_agent, game_config)
-
-            game_time = time.time() - game_start
-            self.game_count += 1
-
-            # Track win/loss based on the normalized result
-            if result.winner == 0:  # Test agent (minimax) wins
-                self.wins += 1
-                outcome = "🏆"
-            elif result.winner == 1:  # Baseline wins
-                outcome = "❌"
-            else:  # Draw
-                outcome = "🤝"
-
-            # Get minimax stats for this game
-            minimax_stats = ""
-            if hasattr(self.minimax_agent, "get_stats"):
-                stats = self.minimax_agent.get_stats()
-                nodes_after = stats.get("nodes_evaluated", 0)
-                nodes_this_game = nodes_after - nodes_before
-                depth = stats.get("max_depth_reached", 0)
-                if nodes_this_game > 0:
-                    minimax_stats = f" (🔢{nodes_this_game:,} nodes, 🔍depth {depth})"
-
-            # Calculate progress and ETA
-            progress_pct = (self.game_count / self.total_games) * 100
-            elapsed = time.time() - self.start_time
-
-            if self.game_count > 3:  # Wait a few games for stable ETA
-                avg_game_time = elapsed / self.game_count
-                eta_seconds = avg_game_time * (self.total_games - self.game_count)
-                eta_str = (
-                    f", ETA: {eta_seconds/60:.1f}m"
-                    if eta_seconds > 60
-                    else f", ETA: {eta_seconds:.0f}s"
-                )
-            else:
-                eta_str = ""
-
-            # Show progress every 10% or every 5 games, whichever is less frequent
-            show_progress = (
-                self.game_count % max(1, self.total_games // 10) == 0
-                or self.game_count % 5 == 0
-                or self.game_count <= 3
-                or self.game_count == self.total_games
-            )
-
-            if show_progress:
-                # Calculate win rate based on total wins so far
-                win_rate = (self.wins / self.game_count) * 100
-                print(
-                    f"   Game {self.game_count:3d}/{self.total_games}: {outcome} "
-                    f"({game_time:.1f}s{minimax_stats}) | "
-                    f"Progress: {progress_pct:5.1f}% | "
-                    f"Win rate: {win_rate:5.1f}%{eta_str}"
-                )
-
-            return result
-
-    # Use our custom evaluator
+    # Use generalized progress evaluator, tracking the test agent (minimax)
     progress_evaluator = ProgressTrackingEvaluator(
-        eval_config, minimax_agent, baseline_agent, baseline_name
+        eval_config,
+        tracked_agent=minimax_agent,
+        tracked_agent_role="test",
+        tracked_agent_name="MinimaxAgent",
+        baseline_name=baseline_name,
     )
 
     try:
@@ -303,8 +318,6 @@ def run_baseline_comparison(num_games: int = 50):
     print(f"🧠 Test Agent: HeuristicAgent")
     print(f"🎲 Baseline: RandomAgent")
     print()
-
-    import time
 
     start_time = time.time()
 
@@ -375,8 +388,6 @@ def run_quick_test(agent_type: str = "heuristic", difficulty: str = "easy"):
     print(f"🎮 Games: 10 (quick test)")
     print()
 
-    import time
-
     start_time = time.time()
 
     # Quick evaluation
@@ -412,6 +423,130 @@ def run_quick_test(agent_type: str = "heuristic", difficulty: str = "easy"):
     return result
 
 
+def run_mcts_vs_heuristic(
+    num_games: int = 100,
+    model_path: Optional[str] = None,
+    network_config: Optional[str] = None,
+):
+    """Run evaluation: MCTS Agent vs Heuristic Agent."""
+    print(f"Running MCTS vs Heuristic evaluation ({num_games} games)...")
+    print("=" * 60)
+
+    from agents.mcts import MCTSAgent
+    from training.neural_network import AzulNeuralNetwork
+
+    # Determine network configuration
+    config_name = network_config or "medium"  # default
+    if not network_config and model_path:
+        # Try to infer configuration from model path
+        if "small" in model_path:
+            config_name = "small"
+        elif "large" in model_path:
+            config_name = "large"
+        elif "deep" in model_path:
+            config_name = "deep"
+    print(f"Using network configuration: {config_name}")
+
+    # Determine device
+    if torch.backends.mps.is_available():
+        device = "mps"  # Use Apple Silicon GPU
+        print("Using Apple Silicon GPU (MPS)")
+    else:
+        device = "cpu"
+        print("Using CPU (MPS not available)")
+
+    # Create neural network for MCTS
+    neural_network = AzulNeuralNetwork(
+        config_name=config_name, model_path=model_path, device=device
+    )
+    print(f"MCTS Neural network info: {neural_network.get_model_info()}")
+
+    # Create MCTS agent with optimized parameters for faster inference
+    mcts_agent = MCTSAgent(
+        neural_network=neural_network,
+        num_simulations=50,  # Reduced from 100 for faster inference
+        c_puct=1.4,
+        temperature=0.0,  # Deterministic play for faster inference
+        dirichlet_epsilon=0.0,  # No noise for deterministic play
+    )
+
+    # Create evaluation config
+    config = EvaluationConfig(
+        num_games=num_games,
+        timeout_per_move=10.0,  # MCTS is slower than heuristic
+        verbose=True,
+        use_fixed_seeds=True,
+        random_seed=42,
+        swap_player_positions=True,
+        confidence_interval=0.95,
+    )
+
+    baseline_agent = HeuristicBaselineAgent()
+    baseline_name = "HeuristicAgent"
+
+    # Use detailed evaluation with progress tracking
+    result = run_detailed_mcts_evaluation(
+        mcts_agent, baseline_agent, baseline_name, config, config
+    )
+
+    # Save results
+    ensure_evaluation_dir()
+    filename = "evaluation_results/mcts_vs_heuristic.json"
+    save_evaluation_results(result, filename)
+    print(f"   💾 Saved to {filename}")
+
+    return result
+
+
+def run_detailed_mcts_evaluation(
+    mcts_agent, baseline_agent, baseline_name, config, eval_config
+):
+    """Run detailed evaluation with game-by-game progress tracking for MCTS."""
+    start_time = time.time()
+
+    # Use generalized progress evaluator, tracking the test agent (MCTS)
+    progress_evaluator = ProgressTrackingEvaluator(
+        eval_config,
+        tracked_agent=mcts_agent,
+        tracked_agent_role="test",
+        tracked_agent_name="MCTSAgent",
+        baseline_name=baseline_name,
+    )
+
+    try:
+        result = progress_evaluator.evaluate_agent(
+            test_agent=mcts_agent,
+            baseline_agent=baseline_agent,
+            test_agent_name="MCTSAgent",
+            baseline_agent_name=baseline_name,
+        )
+
+        # Add our custom analysis
+        elapsed_time = time.time() - start_time
+
+        print(f"✅ Completed {eval_config.num_games} games in {elapsed_time:.1f}s")
+        print(f"⚡ Average time per game: {elapsed_time/eval_config.num_games:.2f}s")
+
+        # Get final MCTS statistics
+        final_stats = mcts_agent.get_stats()
+        if final_stats.get("nodes_evaluated", 0) > 0:
+            print(f"🧠 MCTS performance:")
+            print(f"   🔢 Total nodes evaluated: {final_stats['nodes_evaluated']:,}")
+            print(f"   🔍 Max depth reached: {final_stats['max_depth_reached']}")
+            print(
+                f"   ⚡ Nodes per game: {final_stats['nodes_evaluated'] / eval_config.num_games:.0f}"
+            )
+            print(
+                f"   🏃 Nodes per second: {final_stats['nodes_evaluated'] / elapsed_time:.0f}"
+            )
+
+        return result
+
+    except Exception as e:
+        print(f"❌ Evaluation failed: {e}")
+        raise
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -424,6 +559,8 @@ Examples:
   python run_evaluation.py minimax                      # Minimax(medium) vs Heuristic (100 games)
   python run_evaluation.py minimax --difficulty hard    # Minimax(hard) vs Heuristic (100 games)
   python run_evaluation.py minimax --games 50 --difficulty easy  # Minimax(easy) vs Heuristic (50 games)
+  python run_evaluation.py mcts --model_path models/checkpoint_100.pth  # MCTS with custom model
+  python run_evaluation.py mcts --model_path models/small_model.pth --network_config small  # MCTS with small model
   python run_evaluation.py quick heuristic              # Quick test: Heuristic vs Random (10 games)
   python run_evaluation.py quick minimax --difficulty expert     # Quick test: Minimax(expert) vs Heuristic (10 games)
         """,
@@ -453,6 +590,25 @@ Examples:
         help="Minimax difficulty (default: medium)",
     )
 
+    # MCTS evaluation (vs Heuristic)
+    mcts_parser = subparsers.add_parser(
+        "mcts", help="Evaluate MCTS agent vs heuristic baseline"
+    )
+    mcts_parser.add_argument(
+        "--games", type=int, default=100, help="Number of games to play (default: 100)"
+    )
+    mcts_parser.add_argument(
+        "--model_path",
+        type=str,
+        help="Path to a pre-trained neural network for MCTS",
+    )
+    mcts_parser.add_argument(
+        "--network_config",
+        type=str,
+        choices=["small", "medium", "large", "deep"],
+        help="Neural network configuration to use (default: inferred from model path or 'medium')",
+    )
+
     # Quick test command
     quick_parser = subparsers.add_parser("quick", help="Quick 10-game evaluation test")
     quick_parser.add_argument(
@@ -479,6 +635,9 @@ Examples:
 
         elif args.command == "minimax":
             run_minimax_evaluation(args.games, difficulty=args.difficulty)
+
+        elif args.command == "mcts":
+            run_mcts_vs_heuristic(args.games, args.model_path, args.network_config)
 
         elif args.command == "quick":
             run_quick_test(args.agent, args.difficulty)
