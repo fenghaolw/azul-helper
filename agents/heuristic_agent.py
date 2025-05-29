@@ -39,6 +39,11 @@ class HeuristicAgent:
             Best action according to heuristics
         """
         self.nodes_evaluated = 0
+
+        # Dynamically determine our player ID from the current game state
+        # This allows the agent to work correctly even when position swapping is enabled
+        current_player_id = game_state.current_player
+
         available_actions = game_state.get_legal_actions()
 
         if not available_actions:
@@ -63,7 +68,7 @@ class HeuristicAgent:
         best_score = float("-inf")
 
         for action in available_actions:
-            score = self._evaluate_action(game_state, action)
+            score = self._evaluate_action(game_state, action, current_player_id)
             self.nodes_evaluated += 1
 
             if score > best_score:
@@ -72,18 +77,21 @@ class HeuristicAgent:
 
         return best_action
 
-    def _evaluate_action(self, game_state: GameState, action: Action) -> float:
+    def _evaluate_action(
+        self, game_state: GameState, action: Action, player_id: int
+    ) -> float:
         """
         Evaluate the quality of an action using multiple heuristics.
 
         Args:
             game_state: Current game state
             action: Action to evaluate
+            player_id: The ID of the player we're evaluating for
 
         Returns:
             Heuristic score for the action (higher is better)
         """
-        player_board = game_state.players[self.player_id]
+        player_board = game_state.players[player_id]
         score = 0.0
 
         # Get the number of tiles we would take

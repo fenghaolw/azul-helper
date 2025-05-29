@@ -198,7 +198,7 @@ def main():
     parser.add_argument(
         "--agent-type",
         "-a",
-        choices=["auto", "mcts", "heuristic"],
+        choices=["auto", "mcts", "heuristic", "improved_heuristic"],
         default="auto",
         help="Agent type (default: auto)",
     )

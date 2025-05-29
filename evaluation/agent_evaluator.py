@@ -345,13 +345,24 @@ class AgentEvaluator:
         # Play the game
         timeout_occurred = False
         error_log = None
+        move_count = 0
+        max_moves = 500  # Safety limit to prevent infinite games
+        max_game_time = self.config.timeout_per_move * 100  # Total game timeout
 
         try:
-            while not game.game_over:
+            while not game.game_over and move_count < max_moves:
                 current_player = game.current_player
                 agent = agents[current_player]
 
+                # Check total game timeout
+                total_game_time = time.time() - start_time
+                if total_game_time > max_game_time:
+                    timeout_occurred = True
+                    error_log = f"Total game timeout: {total_game_time:.2f}s > {max_game_time:.2f}s"
+                    break
+
                 # Get action with timeout
+                move_start_time = time.time()
                 try:
                     if self.config.deterministic_evaluation and hasattr(
                         agent, "select_action"
@@ -363,6 +374,13 @@ class AgentEvaluator:
                             action = agent.select_action(game)
                     else:
                         action = agent.select_action(game)
+
+                    # Check for move timeout
+                    move_duration = time.time() - move_start_time
+                    if move_duration > self.config.timeout_per_move:
+                        timeout_occurred = True
+                        error_log = f"Move timeout: {move_duration:.2f}s > {self.config.timeout_per_move}s"
+                        break
 
                     # Apply action
                     success = game.apply_action(action)
@@ -379,9 +397,16 @@ class AgentEvaluator:
                             }
                         )
 
+                    move_count += 1
+
                 except Exception as e:
                     error_log = f"Move error: {str(e)}\n{traceback.format_exc()}"
                     break
+
+            # Check if game exceeded move limit
+            if move_count >= max_moves and not game.game_over:
+                error_log = f"Game exceeded maximum moves ({max_moves})"
+                timeout_occurred = True
 
         except Exception as e:
             error_log = f"Game error: {str(e)}\n{traceback.format_exc()}"

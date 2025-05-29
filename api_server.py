@@ -19,6 +19,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from agents.heuristic_agent import HeuristicAgent
+from agents.improved_heuristic_agent import ImprovedHeuristicAgent
 from agents.mcts import MCTSAgent
 from game.game_state import Action, GameState, TileColor
 from game.tile import Tile
@@ -30,8 +31,9 @@ CORS(app)  # Enable CORS for webapp integration
 # Global agent instances
 agent: Optional[MCTSAgent] = None
 heuristic_agent: Optional[HeuristicAgent] = None
+improved_heuristic_agent: Optional[ImprovedHeuristicAgent] = None
 neural_network: Optional[AzulNeuralNetwork] = None
-current_agent_type: str = "auto"  # "mcts", "heuristic", or "auto"
+current_agent_type: str = "auto"  # "mcts", "heuristic", "improved_heuristic", or "auto"
 
 
 def find_available_port(start_port: int = 5000, max_attempts: int = 10) -> int:
@@ -114,7 +116,7 @@ def initialize_agent(
     agent_type: str = "auto", network_config: str = "medium", simulations: int = 800
 ) -> tuple:
     """Initialize the appropriate agent type."""
-    global agent, heuristic_agent, neural_network, current_agent_type
+    global agent, heuristic_agent, improved_heuristic_agent, neural_network, current_agent_type
 
     current_agent_type = agent_type
 
@@ -122,11 +124,21 @@ def initialize_agent(
     heuristic_agent = HeuristicAgent(player_id=1)
     print("✅ Initialized heuristic agent")
 
+    # Initialize improved heuristic agent
+    improved_heuristic_agent = ImprovedHeuristicAgent(player_id=1)
+    print("✅ Initialized improved heuristic agent")
+
     if agent_type == "heuristic":
         agent = None
         neural_network = None
         print("🧠 Using heuristic agent only")
         return heuristic_agent, None
+
+    if agent_type == "improved_heuristic":
+        agent = None
+        neural_network = None
+        print("🚀 Using improved heuristic agent only")
+        return improved_heuristic_agent, None
 
     # Try to initialize MCTS agent
     try:
@@ -169,10 +181,12 @@ def get_active_agent() -> Optional[Any]:
     """Get the currently active agent."""
     if current_agent_type == "heuristic":
         return heuristic_agent
+    elif current_agent_type == "improved_heuristic":
+        return improved_heuristic_agent
     elif current_agent_type == "mcts" and agent:
         return agent
     else:  # auto mode
-        return agent if agent else heuristic_agent
+        return agent if agent else improved_heuristic_agent
 
 
 def webapp_move_to_action(move_data: Dict[str, Any]) -> Action:
@@ -355,6 +369,8 @@ def health_check():
 
     if active_agent == agent:
         agent_type = "mcts"
+    elif active_agent == improved_heuristic_agent:
+        agent_type = "improved_heuristic"
     elif active_agent == heuristic_agent:
         agent_type = "heuristic"
 
@@ -390,7 +406,15 @@ def get_agent_info():
 
     info: Dict[str, Any] = {
         "current_agent_type": current_agent_type,
-        "active_agent": "mcts" if active_agent == agent else "heuristic",
+        "active_agent": (
+            "mcts"
+            if active_agent == agent
+            else (
+                "improved_heuristic"
+                if active_agent == improved_heuristic_agent
+                else "heuristic"
+            )
+        ),
         "neural_network_available": neural_network is not None,
     }
 
@@ -403,6 +427,10 @@ def get_agent_info():
                 "algorithm": "MCTS",
             }
         )
+    elif active_agent == improved_heuristic_agent:
+        stats = improved_heuristic_agent.get_stats()
+        info["algorithm"] = stats.get("algorithm", "Improved Heuristic")
+        info["features"] = stats.get("features", "Unknown")
     elif active_agent == heuristic_agent:
         stats = heuristic_agent.get_stats()
         info["algorithm"] = stats.get("algorithm", "Heuristic")
@@ -456,12 +484,21 @@ def get_best_move():
                     agent.mcts, "nodes_evaluated", estimated_simulations
                 )
                 algorithm_info = f"MCTS ({agent.mcts.num_simulations} simulations)"
+                agent_type_name = "mcts"
 
-            else:  # Heuristic agent
+            elif active_agent == improved_heuristic_agent:  # Improved Heuristic agent
+                action = improved_heuristic_agent.select_action(game_state)  # type: ignore[union-attr]
+                stats = improved_heuristic_agent.get_stats()  # type: ignore[union-attr]
+                nodes_evaluated = stats["nodesEvaluated"]
+                algorithm_info = f"Improved Heuristic ({stats['algorithm']})"
+                agent_type_name = "improved_heuristic"
+
+            else:  # Original Heuristic agent
                 action = heuristic_agent.select_action(game_state)  # type: ignore[union-attr]
                 stats = heuristic_agent.get_stats()  # type: ignore[union-attr]
                 nodes_evaluated = stats["nodesEvaluated"]
                 algorithm_info = f"Heuristic ({stats['algorithm']})"
+                agent_type_name = "heuristic"
 
             search_time = time.time() - start_time
 
@@ -478,7 +515,7 @@ def get_best_move():
                     else 0
                 ),
                 "algorithm": algorithm_info,
-                "agent_type": "mcts" if active_agent == agent else "heuristic",
+                "agent_type": agent_type_name,
             }
 
             return jsonify({"move": move, "stats": response_stats, "success": True})
@@ -516,7 +553,15 @@ def configure_agent():
                 "success": True,
                 "message": f"Agent reconfigured successfully",
                 "agent_type": agent_type,
-                "active_agent": "mcts" if active_agent == agent else "heuristic",
+                "active_agent": (
+                    "mcts"
+                    if active_agent == agent
+                    else (
+                        "improved_heuristic"
+                        if active_agent == improved_heuristic_agent
+                        else "heuristic"
+                    )
+                ),
             }
         )
 
@@ -532,8 +577,8 @@ def get_agent_types():
             "available_types": [
                 {
                     "id": "auto",
-                    "name": "Auto (MCTS with Heuristic Fallback)",
-                    "description": "Uses MCTS when available, falls back to heuristic agent",
+                    "name": "Auto (MCTS with Improved Heuristic Fallback)",
+                    "description": "Uses MCTS when available, falls back to improved heuristic agent",
                 },
                 {
                     "id": "mcts",
@@ -541,9 +586,14 @@ def get_agent_types():
                     "description": "Monte Carlo Tree Search with neural network guidance",
                 },
                 {
+                    "id": "improved_heuristic",
+                    "name": "Improved Heuristic",
+                    "description": "Advanced rule-based agent with strategic guidelines for competitive play",
+                },
+                {
                     "id": "heuristic",
-                    "name": "Heuristic Only",
-                    "description": "Rule-based agent with Azul strategy heuristics",
+                    "name": "Original Heuristic",
+                    "description": "Basic rule-based agent with Azul strategy heuristics",
                 },
             ],
             "current_type": current_agent_type,
@@ -582,7 +632,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--agent-type",
         "-a",
-        choices=["auto", "mcts", "heuristic"],
+        choices=["auto", "mcts", "heuristic", "improved_heuristic"],
         default="auto",
         help="Agent type to initialize (default: auto)",
     )

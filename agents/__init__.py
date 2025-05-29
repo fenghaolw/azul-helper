@@ -2,6 +2,10 @@
 
 from agents.checkpoint_agent import CheckpointAgent, create_checkpoint_agent
 from agents.heuristic_agent import HeuristicAgent, create_heuristic_agent
+from agents.improved_heuristic_agent import (
+    ImprovedHeuristicAgent,
+    create_improved_heuristic_agent,
+)
 from agents.mcts import MCTS, GameState, MCTSAgent, MCTSNode, NeuralNetwork
 from agents.random_agent import RandomAgent, create_random_agent
 
@@ -15,6 +19,8 @@ __all__ = [
     "create_random_agent",
     "HeuristicAgent",
     "create_heuristic_agent",
+    "ImprovedHeuristicAgent",
+    "create_improved_heuristic_agent",
     "CheckpointAgent",
     "create_checkpoint_agent",
 ]

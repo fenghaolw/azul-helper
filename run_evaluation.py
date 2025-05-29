@@ -3,7 +3,7 @@
 Main entry point for the Agent Evaluation Framework.
 
 This script provides easy access to common evaluation tasks including
-quick tests, comprehensive evaluations, and tournaments.
+quick tests, comprehensive evaluations, tournaments, and improved agent comparisons.
 """
 
 import argparse
@@ -185,6 +185,89 @@ def run_comprehensive_evaluation(
     return results
 
 
+def run_improved_vs_original_evaluation(num_games: int = 200, verbose: bool = True):
+    """Run evaluation: Improved Heuristic Agent vs Original Heuristic Agent."""
+    print(f"Running Improved vs Original Heuristic evaluation ({num_games} games)...")
+    print(
+        "This will test if the improved strategic guidelines provide better performance."
+    )
+    print()
+
+    config = EvaluationConfig(
+        num_games=num_games,
+        timeout_per_move=5.0,
+        verbose=verbose,
+        use_fixed_seeds=True,
+        random_seed=42,
+        save_detailed_logs=True,
+        confidence_interval=0.95,
+        swap_player_positions=True,  # Enable position swapping with proper dynamic player ID support
+    )
+
+    # Create agents
+    from agents.improved_heuristic_agent import ImprovedHeuristicAgent
+
+    improved_agent = ImprovedHeuristicAgent(player_id=0)
+    original_agent = HeuristicBaselineAgent(player_id=1)
+
+    # Run evaluation
+    evaluator = AgentEvaluator(config)
+    result = evaluator.evaluate_agent(
+        test_agent=improved_agent,
+        baseline_agent=original_agent,
+        test_agent_name="ImprovedHeuristicAgent",
+        baseline_agent_name="OriginalHeuristicAgent",
+    )
+
+    # Print detailed results
+    print("=" * 80)
+    print("EVALUATION RESULTS: IMPROVED HEURISTIC vs ORIGINAL HEURISTIC")
+    print("=" * 80)
+    print(format_evaluation_results(result))
+
+    # Analyze the results
+    print("\n" + "=" * 60)
+    print("ANALYSIS")
+    print("=" * 60)
+
+    win_rate = result.test_agent_win_rate
+    if win_rate > 0.55:
+        print(
+            f"✅ IMPROVED AGENT PERFORMS SIGNIFICANTLY BETTER ({win_rate:.1%} win rate)"
+        )
+        print("The strategic guidelines provide clear advantages!")
+    elif win_rate > 0.50:
+        print(f"✅ IMPROVED AGENT PERFORMS SLIGHTLY BETTER ({win_rate:.1%} win rate)")
+        print("The improvements are modest but positive.")
+    elif win_rate >= 0.45:
+        print(f"⚠️  AGENTS PERFORM SIMILARLY ({win_rate:.1%} win rate)")
+        print("The improvements may need further tuning.")
+    else:
+        print(f"❌ IMPROVED AGENT UNDERPERFORMS ({win_rate:.1%} win rate)")
+        print("The strategic guidelines may need revision.")
+
+    if result.is_statistically_significant:
+        print(
+            f"📊 Results are statistically significant (p-value: {result.p_value:.4f})"
+        )
+    else:
+        print(
+            f"📊 Results are not statistically significant (p-value: {result.p_value:.4f})"
+        )
+        print("Consider running more games for definitive conclusions.")
+
+    avg_score_diff = result.average_score_difference
+    print(f"📈 Average score difference: {avg_score_diff:+.1f} points per game")
+
+    # Save results
+    ensure_evaluation_dir()
+    filename = "evaluation_results/improved_vs_original_heuristic.json"
+    save_evaluation_results(result, filename)
+    print(f"\n💾 Results saved to {filename}")
+
+    return result
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -196,6 +279,7 @@ Examples:
   python run_evaluation.py heuristic-vs-random --games 200
   python run_evaluation.py baseline-comparison
   python run_evaluation.py comprehensive --agent heuristic --games 500
+  python run_evaluation.py improved-vs-original --games 200
         """,
     )
 
@@ -245,6 +329,18 @@ Examples:
         "--games", type=int, default=200, help="Number of games per baseline"
     )
 
+    # Improved vs Original evaluation command
+    improved_parser = subparsers.add_parser(
+        "improved-vs-original",
+        help="Improved Heuristic Agent vs Original Heuristic Agent",
+    )
+    improved_parser.add_argument(
+        "--games", type=int, default=200, help="Number of games to play"
+    )
+    improved_parser.add_argument(
+        "--verbose", action="store_true", default=True, help="Verbose output"
+    )
+
     # Command line interface
     cli_parser = subparsers.add_parser("cli", help="Use the full CLI interface")
     cli_parser.add_argument("args", nargs="*", help="Arguments to pass to CLI")
@@ -267,6 +363,9 @@ Examples:
 
         elif args.command == "comprehensive":
             run_comprehensive_evaluation(args.agent, args.games)
+
+        elif args.command == "improved-vs-original":
+            run_improved_vs_original_evaluation(args.games, args.verbose)
 
         elif args.command == "cli":
             # Import and run the full CLI
