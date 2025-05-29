@@ -12,6 +12,7 @@ Enhanced features:
 - MSE loss for value head
 - Improved batch sampling
 - Better checkpoint management
+- ETA tracking for training progress
 - All requirements from the user's specifications
 """
 
@@ -26,6 +27,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from training.eta_tracker import ETATracker
 from training.neural_network import AzulNetwork, AzulNeuralNetwork, create_azul_network
 from training.replay_buffer import ReplayBuffer
 from training.self_play import SelfPlayEngine
@@ -75,6 +77,10 @@ class TrainingConfig:
         max_iterations: int = 1000,
         device: Optional[str] = None,
         verbose: bool = True,
+        # ETA tracking parameters
+        enable_eta_tracking: bool = True,
+        eta_update_frequency: int = 1,
+        eta_detailed_display: bool = False,
     ):
         self.self_play_games_per_iteration = self_play_games_per_iteration
         self.mcts_simulations = mcts_simulations
@@ -107,6 +113,10 @@ class TrainingConfig:
         self.max_iterations = max_iterations
         self.device = device
         self.verbose = verbose
+
+        self.enable_eta_tracking = enable_eta_tracking
+        self.eta_update_frequency = eta_update_frequency
+        self.eta_detailed_display = eta_detailed_display
 
 
 class AzulTrainer:
@@ -198,6 +208,17 @@ class AzulTrainer:
             value_loss_weight=config.value_loss_weight,
         )
 
+        # Initialize ETA tracker
+        self.eta_tracker: Optional[ETATracker] = None
+        if config.enable_eta_tracking:
+            self.eta_tracker = ETATracker(
+                total_iterations=config.max_iterations,
+                moving_average_window=min(10, config.max_iterations // 10),
+                enable_phase_tracking=True,
+            )
+            if config.verbose:
+                print("ETA tracking enabled")
+
         # Override checkpoint manager settings
         self.checkpoint_manager.save_frequency = config.save_frequency
         self.checkpoint_manager.keep_best = config.save_best_model
@@ -238,28 +259,48 @@ class AzulTrainer:
             self.iteration = iteration
             iteration_start = time.time()
 
+            # Start ETA tracking for this iteration
+            if self.eta_tracker:
+                self.eta_tracker.start_iteration(iteration)
+
             if self.config.verbose:
                 print(f"\n{'='*60}")
                 print(f"Iteration {iteration + 1}/{self.config.max_iterations}")
                 print(f"{'='*60}")
 
             # Phase 1: Generate self-play games
+            if self.eta_tracker:
+                self.eta_tracker.start_phase("self_play")
             self._generate_self_play_data()
+            if self.eta_tracker:
+                self.eta_tracker.end_phase()
 
             # Phase 2: Train neural network using enhanced training step
             if self.replay_buffer.is_ready_for_sampling():
+                if self.eta_tracker:
+                    self.eta_tracker.start_phase("training")
                 training_stats = self._train_network()
+                if self.eta_tracker:
+                    self.eta_tracker.end_phase()
             else:
                 training_stats = {"message": "Buffer not ready for training"}
 
             # Phase 3: Evaluate model (periodically)
             eval_stats: Dict[str, Any] = {}
             if iteration % self.config.eval_frequency == 0:
+                if self.eta_tracker:
+                    self.eta_tracker.start_phase("evaluation")
                 eval_stats = self._evaluate_model()
+                if self.eta_tracker:
+                    self.eta_tracker.end_phase()
 
             # Phase 4: Save model checkpoint using enhanced checkpoint manager
             if self.checkpoint_manager.should_save_checkpoint(iteration + 1):
                 self._save_checkpoint(training_stats, eval_stats)
+
+            # End ETA tracking for this iteration
+            if self.eta_tracker:
+                self.eta_tracker.end_iteration()
 
             # Update statistics
             iteration_time = time.time() - iteration_start
@@ -272,10 +313,34 @@ class AzulTrainer:
                 **eval_stats,
             }
 
+            # Add ETA information to stats
+            if self.eta_tracker:
+                eta_summary = self.eta_tracker.get_progress_summary()
+                iteration_stats.update(
+                    {
+                        "eta_seconds": eta_summary["eta_seconds"],
+                        "progress_percent": eta_summary["progress_percent"],
+                        "completion_time": (
+                            eta_summary["completion_time"].isoformat()
+                            if eta_summary["completion_time"]
+                            else None
+                        ),
+                    }
+                )
+
             self.training_history.append(iteration_stats)
 
             if self.config.verbose:
                 self._print_iteration_summary(iteration_stats)
+
+                # Print ETA update
+                if (
+                    self.eta_tracker
+                    and iteration % self.config.eta_update_frequency == 0
+                ):
+                    self.eta_tracker.print_progress_update(
+                        detailed=self.config.eta_detailed_display
+                    )
 
         # Final evaluation and save
         final_eval = self._evaluate_model()
@@ -480,6 +545,24 @@ class AzulTrainer:
 
         if stats.get("is_best", False):
             print("  🏆 New best model!")
+
+        # Add ETA information if available
+        if "eta_seconds" in stats and stats["eta_seconds"]:
+            if self.eta_tracker:
+                eta_str = self.eta_tracker.format_time_display(stats["eta_seconds"])
+                print(f"  ETA: {eta_str}")
+
+        if "progress_percent" in stats:
+            print(f"  Progress: {stats['progress_percent']:.1f}%")
+
+        if "completion_time" in stats and stats["completion_time"]:
+            from datetime import datetime
+
+            try:
+                completion_time = datetime.fromisoformat(stats["completion_time"])
+                print(f"  Est. completion: {completion_time.strftime('%H:%M:%S')}")
+            except (ValueError, TypeError):
+                pass
 
 
 def create_training_config(**kwargs) -> TrainingConfig:

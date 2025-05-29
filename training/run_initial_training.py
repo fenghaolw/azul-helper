@@ -59,6 +59,10 @@ def run_initial_training():
         "max_iterations": 10,  # Short run for demonstration
         "device": "auto",
         "verbose": True,
+        # ETA tracking parameters
+        "enable_eta_tracking": True,
+        "eta_update_frequency": 1,
+        "eta_detailed_display": True,  # Show detailed ETA info for demo
     }
 
     # Run training
