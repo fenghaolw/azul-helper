@@ -38,7 +38,7 @@ lint:
 # Type checking
 type-check:
 	@echo "Running mypy..."
-	python3 -m mypy --explicit-package-bases .
+	python3 scripts/run_mypy.py
 	@echo "✓ Type checking complete"
 
 # Testing

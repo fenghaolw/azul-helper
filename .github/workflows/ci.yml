@@ -40,6 +40,16 @@ jobs:
     - name: Run pre-commit checks
       run: pre-commit run --all-files
 
+    - name: Run type checking
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # For PRs, only check modified files
+          python3 scripts/run_mypy.py
+        else
+          # For main branch, run full mypy check
+          mypy --config-file=mypy.ini game training agents utils
+        fi
+
     - name: Run tests
       run:
         python3 scripts/run_fast_tests.py
