@@ -9,6 +9,7 @@ quick tests, comprehensive evaluations, tournaments, and improved agent comparis
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional, Union
 
 # Add evaluation module to path
 sys.path.append(str(Path(__file__).parent))
@@ -16,7 +17,6 @@ sys.path.append(str(Path(__file__).parent))
 from evaluation import (
     AgentEvaluator,
     EvaluationConfig,
-    Tournament,
     format_evaluation_results,
     save_evaluation_results,
 )
@@ -24,14 +24,14 @@ from evaluation.baseline_agents import HeuristicBaselineAgent, RandomBaselineAge
 from evaluation.utils import ensure_evaluation_dir
 
 
-def run_heuristic_vs_random(num_games: int = 100, verbose: bool = True):
+def run_heuristic_vs_random(num_games: int = 100):
     """Run evaluation: Heuristic Agent vs Random Agent."""
     print(f"Running Heuristic vs Random evaluation ({num_games} games)...")
 
     config = EvaluationConfig(
         num_games=num_games,
         timeout_per_move=3.0,
-        verbose=verbose,
+        verbose=True,
         use_fixed_seeds=True,
         random_seed=42,
     )
@@ -61,289 +61,411 @@ def run_heuristic_vs_random(num_games: int = 100, verbose: bool = True):
     return result
 
 
-def run_baseline_comparison(num_games: int = 50, verbose: bool = True):
-    """Compare all baseline agents against each other."""
-    print(f"Running baseline comparison tournament ({num_games} games per matchup)...")
+def run_minimax_evaluation(
+    num_games: int = 100,
+    difficulty: str = "medium",
+    custom_config: Optional[dict] = None,
+):
+    """Run evaluation: Minimax Agent vs Heuristic Agent."""
+    print(f"Running Minimax Agent evaluation ({num_games} games)...")
+    print("=" * 60)
 
-    config = EvaluationConfig(
+    # Create minimax agent with configuration
+    from agents.minimax_agent import MinimaxAgent, MinimaxConfig
+
+    if custom_config:
+        config = MinimaxConfig(**custom_config)
+        print(f"📋 Minimax custom config: {custom_config}")
+    else:
+        config = MinimaxConfig.create_difficulty_preset(difficulty)
+        print(f"🎯 Minimax difficulty: {difficulty}")
+        print(f"   ⏱️  Time limit: {config.time_limit}s per move")
+        print(f"   🔍 Max depth: {config.max_depth}")
+        print(
+            f"   🔧 Features: Iterative deepening={config.enable_iterative_deepening}, "
+            f"Alpha-beta={config.enable_alpha_beta_pruning}, Move ordering={config.enable_move_ordering}"
+        )
+
+    minimax_agent = MinimaxAgent(config=config)
+
+    # Create evaluation config with appropriate timeout based on agent configuration
+    eval_config = EvaluationConfig(
         num_games=num_games,
-        timeout_per_move=2.0,
-        verbose=verbose,
+        timeout_per_move=max(
+            5.0, config.time_limit + 2.0
+        ),  # Give extra time for overhead
+        verbose=True,
+        use_fixed_seeds=True,
+        random_seed=42,
+        save_detailed_logs=True,
+        confidence_interval=0.95,
+        swap_player_positions=True,
     )
 
-    # Create tournament
-    tournament = Tournament(config)
+    print(f"⚙️  Evaluation timeout per move: {eval_config.timeout_per_move}s")
+    print(f"🎲 Baseline: HeuristicAgent")
+    print()
 
-    # Add baseline agents
-    tournament.add_agent(RandomBaselineAgent(seed=1), "Random")
-    tournament.add_agent(HeuristicBaselineAgent(), "Heuristic")
+    # Run against heuristic baseline only
+    baseline_agent = HeuristicBaselineAgent()
+    baseline_name = "Heuristic"
 
-    # Run tournament
-    result = tournament.run_tournament(verbose=verbose)
+    import time
 
-    # Save results
+    start_time = time.time()
+
+    print(f"🥊 Minimax vs {baseline_name}")
+    print("-" * 50)
+
+    # Reset minimax stats
+    minimax_agent.reset_stats()
+
+    # Custom evaluation with detailed logging
+    result = run_detailed_minimax_evaluation(
+        minimax_agent, baseline_agent, baseline_name, config, eval_config
+    )
+
+    duration = time.time() - start_time
+
+    # Show results
+    print(f"\n📊 Final Results:")
+    print(
+        f"   🏆 Win rate: {result.test_agent_win_rate:.1%} ({result.test_agent_wins}/{result.games_played})"
+    )
+    print(f"   📈 Avg score diff: {result.average_score_difference:+.1f}")
+    print(f"   ⏱️  Total duration: {duration:.1f}s ({duration/60:.1f} minutes)")
+    print(f"   🔢 Avg game duration: {result.average_game_duration:.2f}s")
+
+    if result.is_statistically_significant:
+        print(f"   📊 Statistically significant (p={result.p_value:.4f})")
+    else:
+        print(f"   📊 Not statistically significant (p={result.p_value:.4f})")
+
+    # Save result
     ensure_evaluation_dir()
-    tournament.save_results("evaluation_results/baseline_comparison")
+    filename = f"evaluation_results/minimax_{difficulty}_vs_heuristic.json"
+    save_evaluation_results(result, filename)
+    print(f"   💾 Saved to {filename}")
 
     return result
 
 
-def run_quick_test(agent_type: str = "heuristic"):
-    """Run a quick test evaluation."""
-    print(f"Running quick test with {agent_type} agent...")
+def run_detailed_minimax_evaluation(
+    minimax_agent, baseline_agent, baseline_name, config, eval_config
+):
+    """Run detailed evaluation with game-by-game progress tracking."""
+    import time
 
-    # Create test agent
+    print(f"🎮 Starting {eval_config.num_games} games vs {baseline_name}")
+
+    start_time = time.time()
+
+    # Create a custom evaluator that we can monitor
+    from evaluation.agent_evaluator import AgentEvaluator
+
+    # We need to run the evaluation with custom progress tracking
+    # Let's override the evaluation to show real-time progress
+    class ProgressTrackingEvaluator(AgentEvaluator):
+        def __init__(self, config, parent_agent, parent_baseline, parent_name):
+            super().__init__(config)
+            self.minimax_agent = parent_agent
+            self.baseline_name = parent_name
+            self.game_count = 0
+            self.total_games = config.num_games
+            self.wins = 0
+            self.start_time = time.time()
+            self.last_nodes = 0
+
+        def _run_single_game(self, test_agent, baseline_agent, game_config):
+            """Override to add progress tracking."""
+            game_start = time.time()
+
+            # Get nodes before game
+            nodes_before = 0
+            if hasattr(self.minimax_agent, "get_stats"):
+                stats = self.minimax_agent.get_stats()
+                nodes_before = stats.get("nodes_evaluated", 0)
+
+            # Run the actual game
+            result = super()._run_single_game(test_agent, baseline_agent, game_config)
+
+            game_time = time.time() - game_start
+            self.game_count += 1
+
+            # Track win/loss based on the normalized result
+            if result.winner == 0:  # Test agent (minimax) wins
+                self.wins += 1
+                outcome = "🏆"
+            elif result.winner == 1:  # Baseline wins
+                outcome = "❌"
+            else:  # Draw
+                outcome = "🤝"
+
+            # Get minimax stats for this game
+            minimax_stats = ""
+            if hasattr(self.minimax_agent, "get_stats"):
+                stats = self.minimax_agent.get_stats()
+                nodes_after = stats.get("nodes_evaluated", 0)
+                nodes_this_game = nodes_after - nodes_before
+                depth = stats.get("max_depth_reached", 0)
+                if nodes_this_game > 0:
+                    minimax_stats = f" (🔢{nodes_this_game:,} nodes, 🔍depth {depth})"
+
+            # Calculate progress and ETA
+            progress_pct = (self.game_count / self.total_games) * 100
+            elapsed = time.time() - self.start_time
+
+            if self.game_count > 3:  # Wait a few games for stable ETA
+                avg_game_time = elapsed / self.game_count
+                eta_seconds = avg_game_time * (self.total_games - self.game_count)
+                eta_str = (
+                    f", ETA: {eta_seconds/60:.1f}m"
+                    if eta_seconds > 60
+                    else f", ETA: {eta_seconds:.0f}s"
+                )
+            else:
+                eta_str = ""
+
+            # Show progress every 10% or every 5 games, whichever is less frequent
+            show_progress = (
+                self.game_count % max(1, self.total_games // 10) == 0
+                or self.game_count % 5 == 0
+                or self.game_count <= 3
+                or self.game_count == self.total_games
+            )
+
+            if show_progress:
+                # Calculate win rate based on total wins so far
+                win_rate = (self.wins / self.game_count) * 100
+                print(
+                    f"   Game {self.game_count:3d}/{self.total_games}: {outcome} "
+                    f"({game_time:.1f}s{minimax_stats}) | "
+                    f"Progress: {progress_pct:5.1f}% | "
+                    f"Win rate: {win_rate:5.1f}%{eta_str}"
+                )
+
+            return result
+
+    # Use our custom evaluator
+    progress_evaluator = ProgressTrackingEvaluator(
+        eval_config, minimax_agent, baseline_agent, baseline_name
+    )
+
+    try:
+        result = progress_evaluator.evaluate_agent(
+            test_agent=minimax_agent,
+            baseline_agent=baseline_agent,
+            test_agent_name=f"MinimaxAgent(t={config.time_limit}s, d={config.max_depth})",
+            baseline_agent_name=baseline_name,
+        )
+
+        # Add our custom analysis
+        elapsed_time = time.time() - start_time
+
+        print(f"✅ Completed {eval_config.num_games} games in {elapsed_time:.1f}s")
+        print(f"⚡ Average time per game: {elapsed_time/eval_config.num_games:.2f}s")
+
+        # Get final minimax statistics
+        final_stats = minimax_agent.get_stats()
+        if final_stats.get("nodes_evaluated", 0) > 0:
+            print(f"🧠 Minimax performance:")
+            print(f"   🔢 Total nodes evaluated: {final_stats['nodes_evaluated']:,}")
+            print(f"   🔍 Max depth reached: {final_stats['max_depth_reached']}")
+            print(
+                f"   ⚡ Nodes per game: {final_stats['nodes_evaluated'] / eval_config.num_games:.0f}"
+            )
+            print(
+                f"   🏃 Nodes per second: {final_stats['nodes_evaluated'] / elapsed_time:.0f}"
+            )
+
+        return result
+
+    except Exception as e:
+        print(f"❌ Evaluation failed: {e}")
+        raise
+
+
+def run_baseline_comparison(num_games: int = 50):
+    """Compare heuristic agent against random agent."""
+    print(f"Running baseline comparison: Heuristic vs Random ({num_games} games)...")
+    print("=" * 60)
+
+    config = EvaluationConfig(
+        num_games=num_games,
+        timeout_per_move=2.0,
+        verbose=True,
+        use_fixed_seeds=True,
+        random_seed=42,
+    )
+
+    evaluator = AgentEvaluator(config)
+
+    print(f"🧠 Test Agent: HeuristicAgent")
+    print(f"🎲 Baseline: RandomAgent")
+    print()
+
+    import time
+
+    start_time = time.time()
+
+    print(f"🥊 Heuristic vs Random")
+    print("-" * 50)
+
+    # Run evaluation
+    result = evaluator.evaluate_agent(
+        test_agent=HeuristicBaselineAgent(),
+        baseline_agent=RandomBaselineAgent(seed=42),
+        test_agent_name="HeuristicAgent",
+        baseline_agent_name="RandomAgent",
+    )
+
+    duration = time.time() - start_time
+
+    print(f"\n📊 Final Results:")
+    print(
+        f"   🏆 Win rate: {result.test_agent_win_rate:.1%} ({result.test_agent_wins}/{result.games_played})"
+    )
+    print(f"   📈 Avg score diff: {result.average_score_difference:+.1f}")
+    print(f"   ⏱️  Total duration: {duration:.1f}s")
+
+    if result.is_statistically_significant:
+        print(f"   📊 Statistically significant (p={result.p_value:.4f})")
+    else:
+        print(f"   📊 Not statistically significant (p={result.p_value:.4f})")
+
+    # Save results
+    ensure_evaluation_dir()
+    filename = "evaluation_results/heuristic_vs_random.json"
+    save_evaluation_results(result, filename)
+    print(f"   💾 Saved to {filename}")
+
+    return result
+
+
+def run_quick_test(agent_type: str = "heuristic", difficulty: str = "easy"):
+    """Run a quick test evaluation."""
+    print(f"🚀 Running quick test with {agent_type} agent...")
+    print("=" * 40)
+
+    # Create test agent and baseline
+    test_agent: Union["HeuristicAgent", "MinimaxAgent"]
+    baseline_agent: Union["RandomBaselineAgent", "HeuristicBaselineAgent"]
+
     if agent_type.lower() == "heuristic":
         from agents.heuristic_agent import HeuristicAgent
 
         test_agent = HeuristicAgent()
+        baseline_agent = RandomBaselineAgent(seed=42)
+        print(f"🧠 Test Agent: HeuristicAgent")
+        print(f"🎲 Baseline: RandomAgent")
+    elif agent_type.lower() == "minimax":
+        from agents.minimax_agent import MinimaxAgent, MinimaxConfig
+
+        config = MinimaxConfig.create_difficulty_preset(difficulty)
+        test_agent = MinimaxAgent(config=config)
+        baseline_agent = HeuristicBaselineAgent()
+        print(f"🎯 Test Agent: MinimaxAgent ({difficulty} difficulty)")
+        print(f"   ⏱️  Time limit: {config.time_limit}s per move")
+        print(f"   🔍 Max depth: {config.max_depth}")
+        print(f"🧠 Baseline: HeuristicAgent")
     else:
         print(f"Unknown agent type: {agent_type}")
         return None
+
+    print(f"🎮 Games: 10 (quick test)")
+    print()
+
+    import time
+
+    start_time = time.time()
 
     # Quick evaluation
     evaluator = AgentEvaluator()
     result = evaluator.quick_evaluation(
         test_agent=test_agent,
-        baseline_agent=RandomBaselineAgent(seed=42),
+        baseline_agent=baseline_agent,
         num_games=10,
         verbose=True,
     )
 
-    print(result.summary())
-    return result
+    duration = time.time() - start_time
 
-
-def run_comprehensive_evaluation(
-    test_agent_type: str = "heuristic", num_games: int = 200
-):
-    """Run comprehensive evaluation with multiple baselines."""
-    print(f"Running comprehensive evaluation of {test_agent_type} agent...")
-
-    # Create test agent
-    if test_agent_type.lower() == "heuristic":
-        from agents.heuristic_agent import HeuristicAgent
-
-        test_agent = HeuristicAgent()
-        test_name = "HeuristicAgent"
-    else:
-        print(f"Unknown agent type: {test_agent_type}")
-        return None
-
-    config = EvaluationConfig(
-        num_games=num_games,
-        timeout_per_move=5.0,
-        verbose=True,
-        num_workers=2,  # Use some parallelism
-        save_detailed_logs=True,
-        confidence_interval=0.95,
-    )
-
-    evaluator = AgentEvaluator(config)
-
-    # Test against multiple baselines
-    baselines = [
-        ("Random", RandomBaselineAgent(seed=42)),
-        ("Heuristic", HeuristicBaselineAgent()),
-    ]
-
-    results = []
-
-    for baseline_name, baseline_agent in baselines:
-        print(f"\n--- Evaluating against {baseline_name} ---")
-
-        result = evaluator.evaluate_agent(
-            test_agent=test_agent,
-            baseline_agent=baseline_agent,
-            test_agent_name=test_name,
-            baseline_agent_name=baseline_name,
-        )
-
-        results.append(result)
-
-        print(f"Result: {result.test_agent_win_rate:.1%} win rate")
-        if result.is_statistically_significant:
-            print(f"Statistically significant (p={result.p_value:.4f})")
-
-        # Save individual result
-        ensure_evaluation_dir()
-        filename = f"evaluation_results/{test_name}_vs_{baseline_name}.json"
-        save_evaluation_results(result, filename)
-
-    # Print summary
-    print("\n" + "=" * 60)
-    print("COMPREHENSIVE EVALUATION SUMMARY")
-    print("=" * 60)
-
-    for result in results:
-        print(
-            f"{result.baseline_agent_name}: {result.test_agent_win_rate:.1%} "
-            f"({result.test_agent_wins}/{result.games_played}) "
-            f"avg score diff: {result.average_score_difference:+.1f}"
-        )
-
-    return results
-
-
-def run_improved_vs_original_evaluation(num_games: int = 200, verbose: bool = True):
-    """Run evaluation: Improved Heuristic Agent vs Original Heuristic Agent."""
-    print(f"Running Improved vs Original Heuristic evaluation ({num_games} games)...")
-    print(
-        "This will test if the improved strategic guidelines provide better performance."
-    )
     print()
-
-    config = EvaluationConfig(
-        num_games=num_games,
-        timeout_per_move=5.0,
-        verbose=verbose,
-        use_fixed_seeds=True,
-        random_seed=42,
-        save_detailed_logs=True,
-        confidence_interval=0.95,
-        swap_player_positions=True,  # Enable position swapping with proper dynamic player ID support
+    print("=" * 40)
+    print("🏁 QUICK TEST RESULTS")
+    print("=" * 40)
+    print(f"⏱️  Duration: {duration:.1f}s")
+    print(f"🏆 Win rate: {result.test_agent_win_rate:.1%}")
+    print(
+        f"📊 Games: {result.test_agent_wins} wins, {result.baseline_agent_wins} losses, {result.draws} draws"
     )
+    print(f"📈 Avg score diff: {result.average_score_difference:+.1f}")
 
-    # Create agents
-    from agents.improved_heuristic_agent import ImprovedHeuristicAgent
+    if agent_type.lower() == "minimax" and hasattr(test_agent, "get_stats"):
+        stats = test_agent.get_stats()
+        if stats.get("nodes_evaluated", 0) > 0:
+            print(
+                f"🧠 Minimax stats: {stats['nodes_evaluated']:,} nodes, depth {stats['max_depth_reached']}"
+            )
 
-    improved_agent = ImprovedHeuristicAgent(player_id=0)
-    original_agent = HeuristicBaselineAgent(player_id=1)
-
-    # Run evaluation
-    evaluator = AgentEvaluator(config)
-    result = evaluator.evaluate_agent(
-        test_agent=improved_agent,
-        baseline_agent=original_agent,
-        test_agent_name="ImprovedHeuristicAgent",
-        baseline_agent_name="OriginalHeuristicAgent",
-    )
-
-    # Print detailed results
-    print("=" * 80)
-    print("EVALUATION RESULTS: IMPROVED HEURISTIC vs ORIGINAL HEURISTIC")
-    print("=" * 80)
-    print(format_evaluation_results(result))
-
-    # Analyze the results
-    print("\n" + "=" * 60)
-    print("ANALYSIS")
-    print("=" * 60)
-
-    win_rate = result.test_agent_win_rate
-    if win_rate > 0.55:
-        print(
-            f"✅ IMPROVED AGENT PERFORMS SIGNIFICANTLY BETTER ({win_rate:.1%} win rate)"
-        )
-        print("The strategic guidelines provide clear advantages!")
-    elif win_rate > 0.50:
-        print(f"✅ IMPROVED AGENT PERFORMS SLIGHTLY BETTER ({win_rate:.1%} win rate)")
-        print("The improvements are modest but positive.")
-    elif win_rate >= 0.45:
-        print(f"⚠️  AGENTS PERFORM SIMILARLY ({win_rate:.1%} win rate)")
-        print("The improvements may need further tuning.")
-    else:
-        print(f"❌ IMPROVED AGENT UNDERPERFORMS ({win_rate:.1%} win rate)")
-        print("The strategic guidelines may need revision.")
-
-    if result.is_statistically_significant:
-        print(
-            f"📊 Results are statistically significant (p-value: {result.p_value:.4f})"
-        )
-    else:
-        print(
-            f"📊 Results are not statistically significant (p-value: {result.p_value:.4f})"
-        )
-        print("Consider running more games for definitive conclusions.")
-
-    avg_score_diff = result.average_score_difference
-    print(f"📈 Average score difference: {avg_score_diff:+.1f} points per game")
-
-    # Save results
-    ensure_evaluation_dir()
-    filename = "evaluation_results/improved_vs_original_heuristic.json"
-    save_evaluation_results(result, filename)
-    print(f"\n💾 Results saved to {filename}")
-
+    print(result.summary())
     return result
 
 
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Agent Evaluation Framework",
+        description="Agent Evaluation Framework - 1v1 Agent Comparisons",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_evaluation.py quick
-  python run_evaluation.py heuristic-vs-random --games 200
-  python run_evaluation.py baseline-comparison
-  python run_evaluation.py comprehensive --agent heuristic --games 500
-  python run_evaluation.py improved-vs-original --games 200
+  python run_evaluation.py heuristic                    # Heuristic vs Random (100 games)
+  python run_evaluation.py heuristic --games 50         # Heuristic vs Random (50 games)
+  python run_evaluation.py minimax                      # Minimax(medium) vs Heuristic (100 games)
+  python run_evaluation.py minimax --difficulty hard    # Minimax(hard) vs Heuristic (100 games)
+  python run_evaluation.py minimax --games 50 --difficulty easy  # Minimax(easy) vs Heuristic (50 games)
+  python run_evaluation.py quick heuristic              # Quick test: Heuristic vs Random (10 games)
+  python run_evaluation.py quick minimax --difficulty expert     # Quick test: Minimax(expert) vs Heuristic (10 games)
         """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Evaluation commands")
 
+    # Heuristic evaluation (vs Random)
+    heuristic_parser = subparsers.add_parser(
+        "heuristic", help="Evaluate heuristic agent vs random baseline"
+    )
+    heuristic_parser.add_argument(
+        "--games", type=int, default=100, help="Number of games to play (default: 100)"
+    )
+
+    # Minimax evaluation (vs Heuristic)
+    minimax_parser = subparsers.add_parser(
+        "minimax", help="Evaluate minimax agent vs heuristic baseline"
+    )
+    minimax_parser.add_argument(
+        "--games", type=int, default=100, help="Number of games to play (default: 100)"
+    )
+    minimax_parser.add_argument(
+        "--difficulty",
+        default="medium",
+        choices=["easy", "medium", "hard", "expert"],
+        help="Minimax difficulty (default: medium)",
+    )
+
     # Quick test command
-    quick_parser = subparsers.add_parser(
-        "quick", help="Quick evaluation test (10 games)"
+    quick_parser = subparsers.add_parser("quick", help="Quick 10-game evaluation test")
+    quick_parser.add_argument(
+        "agent",
+        choices=["heuristic", "minimax"],
+        help="Agent type to test quickly",
     )
     quick_parser.add_argument(
-        "--agent",
-        default="heuristic",
-        choices=["heuristic", "simple"],
-        help="Agent type to test",
+        "--difficulty",
+        default="easy",
+        choices=["easy", "medium", "hard", "expert"],
+        help="Minimax difficulty for quick test (default: easy)",
     )
-
-    # Heuristic vs Random command
-    hvr_parser = subparsers.add_parser(
-        "heuristic-vs-random", help="Heuristic agent vs Random agent"
-    )
-    hvr_parser.add_argument(
-        "--games", type=int, default=100, help="Number of games to play"
-    )
-    hvr_parser.add_argument(
-        "--verbose", action="store_true", default=True, help="Verbose output"
-    )
-
-    # Baseline comparison command
-    baseline_parser = subparsers.add_parser(
-        "baseline-comparison", help="Tournament between baseline agents"
-    )
-    baseline_parser.add_argument(
-        "--games", type=int, default=50, help="Games per matchup"
-    )
-    baseline_parser.add_argument(
-        "--verbose", action="store_true", default=True, help="Verbose output"
-    )
-
-    # Comprehensive evaluation command
-    comp_parser = subparsers.add_parser(
-        "comprehensive", help="Comprehensive evaluation against multiple baselines"
-    )
-    comp_parser.add_argument(
-        "--agent", default="heuristic", help="Agent type to evaluate"
-    )
-    comp_parser.add_argument(
-        "--games", type=int, default=200, help="Number of games per baseline"
-    )
-
-    # Improved vs Original evaluation command
-    improved_parser = subparsers.add_parser(
-        "improved-vs-original",
-        help="Improved Heuristic Agent vs Original Heuristic Agent",
-    )
-    improved_parser.add_argument(
-        "--games", type=int, default=200, help="Number of games to play"
-    )
-    improved_parser.add_argument(
-        "--verbose", action="store_true", default=True, help="Verbose output"
-    )
-
-    # Command line interface
-    cli_parser = subparsers.add_parser("cli", help="Use the full CLI interface")
-    cli_parser.add_argument("args", nargs="*", help="Arguments to pass to CLI")
 
     args = parser.parse_args()
 
@@ -352,27 +474,14 @@ Examples:
         return 1
 
     try:
-        if args.command == "quick":
-            run_quick_test(args.agent)
+        if args.command == "heuristic":
+            run_heuristic_vs_random(args.games)
 
-        elif args.command == "heuristic-vs-random":
-            run_heuristic_vs_random(args.games, args.verbose)
+        elif args.command == "minimax":
+            run_minimax_evaluation(args.games, difficulty=args.difficulty)
 
-        elif args.command == "baseline-comparison":
-            run_baseline_comparison(args.games, args.verbose)
-
-        elif args.command == "comprehensive":
-            run_comprehensive_evaluation(args.agent, args.games)
-
-        elif args.command == "improved-vs-original":
-            run_improved_vs_original_evaluation(args.games, args.verbose)
-
-        elif args.command == "cli":
-            # Import and run the full CLI
-            from evaluation.cli import main as cli_main
-
-            sys.argv = ["evaluation.cli"] + args.args
-            return cli_main()
+        elif args.command == "quick":
+            run_quick_test(args.agent, args.difficulty)
 
         else:
             print(f"Unknown command: {args.command}")
