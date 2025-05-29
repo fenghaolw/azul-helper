@@ -1,17 +1,20 @@
 import { WebAppGameState } from './GameState.js';
 import { GameRenderer } from './GameRenderer.js';
 import { AzulAI } from './AI.js';
+import { PythonAI } from './PythonAI.js';
 
 class AzulApp {
   private gameState: WebAppGameState;
   private renderer: GameRenderer;
   private ai: AzulAI | null = null;
+  private pythonAI: PythonAI | null = null;
+  private currentAgentType: string = 'python-auto'; // 'disabled', 'typescript', 'python-heuristic', 'python-mcts', 'python-auto'
   private canvas: HTMLCanvasElement;
   private isAIThinking: boolean = false;
 
   // UI Elements
   private newGameBtn!: HTMLButtonElement;
-  private aiToggleBtn!: HTMLButtonElement;
+  private aiAgentSelect!: HTMLSelectElement;
   private aiDifficultySelect!: HTMLSelectElement;
   private gameInfo!: HTMLDivElement;
   private aiStats!: HTMLDivElement;
@@ -22,18 +25,79 @@ class AzulApp {
     this.gameState.newGame(); // Initialize the game state
     this.renderer = new GameRenderer(this.canvas, this.gameState);
 
-    // Enable AI by default at Expert difficulty
-    this.enableAIByDefault();
+    // Initialize async components
+    this.initializeAsync();
 
     this.startGameLoop();
   }
 
-  private enableAIByDefault(): void {
-    // Enable AI with Expert difficulty (5000ms)
+  private async initializeAsync(): Promise<void> {
+    // Enable AI by default with Python Auto
+    await this.enableAIByDefault();
+  }
+
+  private async enableAIByDefault(): Promise<void> {
+    // Enable Python AI by default with Expert difficulty (5000ms)
+    this.currentAgentType = 'python-auto';
+    await this.initializeAI();
+  }
+
+  private async initializeAI(): Promise<void> {
+    // Clear existing AI instances
+    this.ai = null;
+    this.pythonAI = null;
+
     const thinkingTime = parseInt(this.aiDifficultySelect.value);
-    this.ai = new AzulAI(1, thinkingTime);
-    this.aiToggleBtn.textContent = 'Disable AI Opponent';
-    this.aiToggleBtn.style.background = '#d32f2f'; // Material Design error color
+
+    switch (this.currentAgentType) {
+      case 'disabled':
+        // No AI - do nothing
+        break;
+      
+      case 'typescript':
+        this.ai = new AzulAI(1, thinkingTime);
+        break;
+      
+      case 'python-heuristic':
+        this.pythonAI = new PythonAI(1, thinkingTime);
+        // Configure server to use heuristic agent
+        if (this.pythonAI) {
+          await this.configureServerAgent('heuristic');
+        }
+        break;
+      
+      case 'python-mcts':
+        this.pythonAI = new PythonAI(1, thinkingTime);
+        // Configure server to use MCTS agent
+        if (this.pythonAI) {
+          await this.configureServerAgent('mcts');
+        }
+        break;
+      
+      case 'python-auto':
+      default:
+        this.pythonAI = new PythonAI(1, thinkingTime);
+        // Configure server to use auto agent (MCTS with fallback)
+        if (this.pythonAI) {
+          await this.configureServerAgent('auto');
+        }
+        break;
+    }
+  }
+
+  private async configureServerAgent(agentType: 'auto' | 'mcts' | 'heuristic'): Promise<void> {
+    if (!this.pythonAI) return;
+
+    try {
+      const success = await this.pythonAI.configureAgent({ agentType });
+      if (success) {
+        console.log(`✅ Successfully configured server to use ${agentType} agent`);
+      } else {
+        console.warn(`⚠️  Failed to configure server agent type to ${agentType}`);
+      }
+    } catch (error) {
+      console.warn(`⚠️  Error configuring server agent:`, error);
+    }
   }
 
   private setupUI(): HTMLCanvasElement {
@@ -131,14 +195,84 @@ class AzulApp {
 
     // Material Design buttons
     this.newGameBtn = this.createMaterialButton('New Game', colors.success, 'contained');
-    this.newGameBtn.style.marginBottom = '12px';
+    this.newGameBtn.style.marginBottom = '16px';
     this.newGameBtn.addEventListener('click', this.newGame.bind(this));
 
-    this.aiToggleBtn = this.createMaterialButton('Enable AI Opponent', colors.primary, 'contained');
-    this.aiToggleBtn.style.marginBottom = '16px';
-    this.aiToggleBtn.addEventListener('click', this.toggleAI.bind(this));
+    // AI Agent Selection Dropdown
+    const aiAgentFieldContainer = document.createElement('div');
+    aiAgentFieldContainer.style.cssText = `
+      margin-bottom: 16px;
+      position: relative;
+    `;
 
-    // Material Design select field
+    const aiAgentLabel = document.createElement('label');
+    aiAgentLabel.textContent = 'AI Agent';
+    aiAgentLabel.style.cssText = `
+      display: block;
+      margin-bottom: 8px;
+      color: ${colors.onSurfaceVariant};
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.25px;
+    `;
+
+    this.aiAgentSelect = document.createElement('select');
+    this.aiAgentSelect.style.cssText = `
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid rgba(0,0,0,0.23);
+      border-radius: 4px;
+      font-size: 16px;
+      font-family: 'Roboto', sans-serif;
+      background: ${colors.surface};
+      color: ${colors.onSurface};
+      transition: border-color 0.2s ease;
+      outline: none;
+    `;
+
+    // Add focus styles for select
+    this.aiAgentSelect.addEventListener('focus', () => {
+      this.aiAgentSelect.style.borderColor = colors.primary;
+      this.aiAgentSelect.style.borderWidth = '2px';
+      this.aiAgentSelect.style.padding = '13px 15px';
+    });
+
+    this.aiAgentSelect.addEventListener('blur', () => {
+      this.aiAgentSelect.style.borderColor = 'rgba(0,0,0,0.23)';
+      this.aiAgentSelect.style.borderWidth = '1px';
+      this.aiAgentSelect.style.padding = '14px 16px';
+    });
+
+    // AI Agent options
+    const agentOptions = [
+      { value: 'disabled', text: '🚫 No AI (Human vs Human)', icon: '🚫' },
+      { value: 'typescript', text: '🧠 TypeScript AI (Minimax)', icon: '🧠' },
+      { value: 'python-auto', text: '🤖 Python AI (Auto)', icon: '🤖' },
+      { value: 'python-mcts', text: '🔬 Python AI (MCTS)', icon: '🔬' },
+      { value: 'python-heuristic', text: '📏 Python AI (Heuristic)', icon: '📏' }
+    ];
+
+    agentOptions.forEach(option => {
+      const optionElement = document.createElement('option');
+      optionElement.value = option.value;
+      optionElement.textContent = option.text;
+      if (option.value === 'python-auto') optionElement.selected = true;
+      this.aiAgentSelect.appendChild(optionElement);
+    });
+
+    // Add change event listener
+    this.aiAgentSelect.addEventListener('change', async () => {
+      console.log('AI dropdown changed to:', this.aiAgentSelect.value);
+      this.currentAgentType = this.aiAgentSelect.value;
+      await this.initializeAI();
+      console.log('AI initialized, starting new game...');
+      this.newGame(); // Start fresh game with new agent
+    });
+
+    aiAgentFieldContainer.appendChild(aiAgentLabel);
+    aiAgentFieldContainer.appendChild(this.aiAgentSelect);
+
+    // Material Design difficulty select field
     const difficultyFieldContainer = document.createElement('div');
     difficultyFieldContainer.style.cssText = `
       margin-bottom: 16px;
@@ -198,6 +332,13 @@ class AzulApp {
       this.aiDifficultySelect.appendChild(option);
     });
 
+    // Add change event listener for difficulty
+    this.aiDifficultySelect.addEventListener('change', async () => {
+      if (this.currentAgentType !== 'disabled') {
+        await this.initializeAI(); // Reinitialize with new thinking time
+      }
+    });
+
     difficultyFieldContainer.appendChild(difficultyLabel);
     difficultyFieldContainer.appendChild(this.aiDifficultySelect);
 
@@ -221,7 +362,7 @@ class AzulApp {
 
     controlsSection.appendChild(controlsTitle);
     controlsSection.appendChild(this.newGameBtn);
-    controlsSection.appendChild(this.aiToggleBtn);
+    controlsSection.appendChild(aiAgentFieldContainer);
     controlsSection.appendChild(difficultyFieldContainer);
     controlsSection.appendChild(debugBtn);
 
@@ -586,8 +727,9 @@ class AzulApp {
     this.updateGameInfo();
     this.updateAIStats();
 
-    // Handle AI turn
-    if (this.ai && this.gameState.currentPlayer === 1 && !this.gameState.gameOver && !this.isAIThinking) {
+    // Handle AI turn - check both AI types
+    const hasAI = this.pythonAI || this.ai;
+    if (hasAI && this.gameState.currentPlayer === 1 && !this.gameState.gameOver && !this.isAIThinking) {
       this.handleAITurn();
     }
   }
@@ -599,15 +741,35 @@ class AzulApp {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
-      const result = this.ai!.getBestMove(this.gameState);
-      await new Promise(resolve => setTimeout(resolve, 200)); // Show AI thinking
+      let result;
+      if (this.pythonAI) {
+        result = await this.pythonAI.getBestMove(this.gameState);
+      } else if (this.ai) {
+        result = this.ai.getBestMove(this.gameState);
+      } else {
+        throw new Error('No AI available');
+      }
 
+      await new Promise(resolve => setTimeout(resolve, 200)); // Show AI thinking
       this.renderer.playMove(result.move);
     } catch (error) {
       console.error('AI error:', error);
       // Fallback to simple move
-      const simpleMove = this.ai!.getSimpleMove(this.gameState);
-      this.renderer.playMove(simpleMove);
+      try {
+        let simpleMove;
+        if (this.pythonAI) {
+          const fallbackResult = this.pythonAI.getSimpleMove(this.gameState);
+          simpleMove = fallbackResult.move;
+        } else if (this.ai) {
+          simpleMove = this.ai.getSimpleMove(this.gameState);
+        } else {
+          // Ultimate fallback - just pick first available move
+          simpleMove = this.gameState.availableMoves[0];
+        }
+        this.renderer.playMove(simpleMove);
+      } catch (fallbackError) {
+        console.error('Fallback AI also failed:', fallbackError);
+      }
     }
 
     this.isAIThinking = false;
@@ -627,7 +789,8 @@ class AzulApp {
 
     if (this.gameState.gameOver) {
       if (result.winner !== -1) {
-        const winnerName = result.winner === 0 ? 'Human' : (this.ai ? 'AI' : 'Player 2');
+        const hasAI = this.pythonAI || this.ai;
+        const winnerName = result.winner === 0 ? 'Human' : (hasAI ? 'AI' : 'Player 2');
         html += `
           <div style="margin-bottom: 10px; color: #388e3c; font-weight: bold;">
             🏆 Winner: ${winnerName} (Player ${result.winner + 1})
@@ -641,8 +804,9 @@ class AzulApp {
         `;
       }
     } else {
+      const hasAI = this.pythonAI || this.ai;
       const currentPlayerName = this.gameState.currentPlayer === 0 ? 'Human' :
-                                (this.ai ? 'AI' : 'Player 2');
+                                (hasAI ? 'AI' : 'Player 2');
       html += `
         <div style="margin-bottom: 10px;">
           <strong>Current Turn:</strong> ${currentPlayerName} (Player ${this.gameState.currentPlayer + 1})
@@ -650,9 +814,10 @@ class AzulApp {
       `;
 
       if (this.isAIThinking) {
+        const aiType = this.pythonAI ? '🤖 Python AI' : '🧠 TypeScript AI';
         html += `
           <div style="margin-bottom: 10px; color: #7b1fa2; font-style: italic;">
-            🤖 AI is thinking...
+            ${aiType} is thinking...
           </div>
         `;
       }
@@ -661,7 +826,8 @@ class AzulApp {
     // Show scores
     html += '<div style="margin-top: 15px;"><strong>Scores:</strong></div>';
     result.scores.forEach((score, index) => {
-      const playerName = index === 0 ? 'Human' : (this.ai ? 'AI' : `Player ${index + 1}`);
+      const hasAI = this.pythonAI || this.ai;
+      const playerName = index === 0 ? 'Human' : (hasAI ? 'AI' : `Player ${index + 1}`);
       const isCurrentPlayer = index === this.gameState.currentPlayer && !this.gameState.gameOver;
       html += `
         <div style="margin-left: 10px; ${isCurrentPlayer ? 'font-weight: bold; color: #388e3c;' : ''}">
@@ -680,7 +846,8 @@ class AzulApp {
       `;
 
       for (const playerResult of lastRoundDetails) {
-        const playerName = playerResult.player === 0 ? 'Human' : (this.ai ? 'AI' : `Player ${playerResult.player + 1}`);
+        const hasAI = this.pythonAI || this.ai;
+        const playerName = playerResult.player === 0 ? 'Human' : (hasAI ? 'AI' : `Player ${playerResult.player + 1}`);
         html += `
           <div style="margin-left: 10px; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px;">
             <strong>${playerName}:</strong><br>
@@ -704,54 +871,215 @@ class AzulApp {
   }
 
   private updateAIStats(): void {
-    if (!this.ai) {
-      this.aiStats.innerHTML = '<div style="color: #757575; font-style: italic;">AI is disabled</div>';
+    const hasAI = this.pythonAI || this.ai;
+    
+    if (!hasAI) {
+      this.aiStats.innerHTML = '<div style="color: #757575; font-style: italic;">AI is disabled - Human vs Human mode</div>';
       return;
     }
 
-    const stats = this.ai.getStats();
+    const stats = hasAI.getStats() as { 
+      nodesEvaluated: number; 
+      algorithm?: string; 
+      agent_type?: string; 
+    };
     const difficultyText = this.aiDifficultySelect.options[this.aiDifficultySelect.selectedIndex].text;
 
-    const html = `
+    let html = `
+      <div style="margin-bottom: 10px;">
+        <strong>Current Agent:</strong> ${this.getAgentDisplayName()}
+      </div>
       <div style="margin-bottom: 10px;">
         <strong>Difficulty:</strong> ${difficultyText}
       </div>
       <div style="margin-bottom: 10px;">
         <strong>Last Search:</strong> ${stats.nodesEvaluated.toLocaleString()} nodes
       </div>
-      <div style="margin-bottom: 10px;">
-        <strong>Algorithm:</strong> Minimax + Alpha-Beta Pruning
-      </div>
-      <div style="margin-bottom: 10px;">
-        <strong>Features:</strong> Iterative Deepening, Move Ordering
-      </div>
     `;
+
+    if (this.pythonAI) {
+      // Show Python AI specific information
+      const agentInfo = this.pythonAI.getCurrentAgentInfo();
+      
+      if (stats.algorithm) {
+        html += `
+          <div style="margin-bottom: 10px;">
+            <strong>Algorithm:</strong> ${stats.algorithm}
+          </div>
+        `;
+      } else if (agentInfo) {
+        html += `
+          <div style="margin-bottom: 10px;">
+            <strong>Algorithm:</strong> ${agentInfo.algorithm || 'Unknown'}
+          </div>
+        `;
+      }
+      
+      // Show features based on agent type
+      if (agentInfo) {
+        if (agentInfo.active_agent === 'mcts') {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> Monte Carlo Tree Search, Neural Network
+            </div>
+          `;
+          if (agentInfo.simulations) {
+            html += `
+              <div style="margin-bottom: 10px;">
+                <strong>Simulations:</strong> ${agentInfo.simulations}
+              </div>
+            `;
+          }
+        } else if (agentInfo.active_agent === 'heuristic') {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> ${agentInfo.features || 'Rule-based strategy, Pattern recognition'}
+            </div>
+          `;
+        }
+      } else {
+        // Fallback info based on configured agent type
+        if (this.currentAgentType === 'python-mcts') {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> Monte Carlo Tree Search, Neural Network
+            </div>
+          `;
+        } else if (this.currentAgentType === 'python-heuristic') {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> Rule-based strategy, Pattern recognition
+            </div>
+          `;
+        } else {
+          html += `
+            <div style="margin-bottom: 10px;">
+              <strong>Features:</strong> MCTS + Neural Network with Heuristic fallback
+            </div>
+          `;
+        }
+      }
+      
+      // Show connection status with more detail
+      if (this.pythonAI.isServerConnected()) {
+        const agentType = agentInfo?.active_agent || 'unknown';
+        const statusIcon = agentType === 'mcts' ? '🔬' : agentType === 'heuristic' ? '📏' : '✅';
+        html += `
+          <div style="margin-bottom: 10px; color: #388e3c;">
+            <strong>Status:</strong> ${statusIcon} Connected to Python server
+          </div>
+        `;
+        
+        // Show the actual server URL being used
+        const currentApiUrl = (this.pythonAI as any).apiBaseUrl;
+        if (currentApiUrl && currentApiUrl !== 'http://localhost:5000') {
+          const port = currentApiUrl.split(':').pop();
+          html += `
+            <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
+              <strong>Server:</strong> Port ${port} (auto-discovered)
+            </div>
+          `;
+        }
+        
+        // Show agent configuration details
+        if (agentInfo?.current_agent_type) {
+          let typeDescription = '';
+          let configStatus = '';
+          
+          if (agentInfo.current_agent_type === 'auto') {
+            typeDescription = 'Auto (MCTS with heuristic fallback)';
+            configStatus = this.currentAgentType === 'python-auto' ? '✅' : '⚠️';
+          } else if (agentInfo.current_agent_type === 'mcts') {
+            typeDescription = 'MCTS only';
+            configStatus = this.currentAgentType === 'python-mcts' ? '✅' : '⚠️';
+          } else if (agentInfo.current_agent_type === 'heuristic') {
+            typeDescription = 'Heuristic only';
+            configStatus = this.currentAgentType === 'python-heuristic' ? '✅' : '⚠️';
+          }
+          
+          if (typeDescription) {
+            html += `
+              <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
+                <strong>Server Mode:</strong> ${configStatus} ${typeDescription}
+              </div>
+            `;
+          }
+        }
+      } else {
+        // Check if we're in auto-discovery mode
+        const apiUrl = (this.pythonAI as any).apiBaseUrl;
+        if (!apiUrl) {
+          html += `
+            <div style="margin-bottom: 10px; color: #f57c00;">
+              <strong>Status:</strong> 🔍 Auto-discovering server...
+            </div>
+          `;
+        } else {
+          html += `
+            <div style="margin-bottom: 10px; color: #d32f2f;">
+              <strong>Status:</strong> ❌ Python server disconnected
+            </div>
+            <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
+              💡 Try: python3 start.py --server-only
+            </div>
+          `;
+        }
+      }
+    } else {
+      // TypeScript AI info
+      html += `
+        <div style="margin-bottom: 10px;">
+          <strong>Algorithm:</strong> Minimax + Alpha-Beta Pruning
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>Features:</strong> Iterative Deepening, Move Ordering
+        </div>
+        <div style="margin-bottom: 10px; color: #388e3c;">
+          <strong>Status:</strong> 🧠 Running locally (no server required)
+        </div>
+      `;
+    }
 
     this.aiStats.innerHTML = html;
   }
 
-  private newGame(): void {
-    this.gameState = new WebAppGameState(2);
-    this.renderer.updateGameState(this.gameState);
-
-    if (this.ai) {
-      this.ai.resetStats();
+  private getAgentDisplayName(): string {
+    switch (this.currentAgentType) {
+      case 'disabled':
+        return 'None (Human vs Human)';
+      case 'typescript':
+        return '🧠 TypeScript Minimax AI';
+      case 'python-heuristic':
+        return '📏 Python Heuristic AI';
+      case 'python-mcts':
+        return '🔬 Python MCTS AI';
+      case 'python-auto':
+        return '🤖 Python Auto AI (MCTS + Fallback)';
+      default:
+        return 'Unknown';
     }
   }
 
-  private toggleAI(): void {
-    if (this.ai) {
-      this.ai = null;
-      this.aiToggleBtn.textContent = 'Enable AI Opponent';
-      this.aiToggleBtn.style.background = '#1976d2'; // Material Design primary
-    } else {
-      const thinkingTime = parseInt(this.aiDifficultySelect.value);
-      this.ai = new AzulAI(1, thinkingTime);
-      this.aiToggleBtn.textContent = 'Disable AI Opponent';
-      this.aiToggleBtn.style.background = '#d32f2f'; // Material Design error
-    }
+  private newGame(): void {
+    console.log('newGame() called - creating new game state');
+    this.gameState = new WebAppGameState(2);
+    this.gameState.newGame(); // Initialize the game state with factories and tiles
+    this.renderer.updateGameState(this.gameState);
+    
+    console.log('Game state after creation:', {
+      factories: this.gameState.factories,
+      center: this.gameState.center,
+      playerBoards: this.gameState.playerBoards.length,
+      currentPlayer: this.gameState.currentPlayer,
+      round: this.gameState.round
+    });
 
-    this.newGame(); // Start fresh game when toggling AI
+    // Reset stats for whichever AI is active
+    if (this.pythonAI) {
+      this.pythonAI.resetStats();
+    } else if (this.ai) {
+      this.ai.resetStats();
+    }
   }
 }
 
