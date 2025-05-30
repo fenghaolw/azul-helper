@@ -16,6 +16,23 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Skip duplicate actions
+      uses: fkirc/skip-duplicate-actions@v5
+      with:
+        # Skip concurrent runs for the same branch/PR
+        concurrent_skipping: 'same_content_newer'
+        # Skip if an identical run is already in progress
+        skip_after_successful_duplicate: 'true'
+        # Paths to consider for determining if content has changed
+        paths_filter: |
+          tests:
+            paths:
+              - 'tests/**'
+              - '*.py'
+              - 'requirements*.txt'
+              - 'pyproject.toml'
+              - '.github/workflows/**'
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
