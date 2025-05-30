@@ -451,6 +451,9 @@ def run_mcts_vs_heuristic(
     if torch.backends.mps.is_available():
         device = "mps"  # Use Apple Silicon GPU
         print("Using Apple Silicon GPU (MPS)")
+    elif torch.cuda.is_available():
+        device = "cuda"
+        print("Using CUDA GPU")
     else:
         device = "cpu"
         print("Using CPU (MPS not available)")
