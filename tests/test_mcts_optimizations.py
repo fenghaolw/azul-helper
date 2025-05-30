@@ -474,8 +474,8 @@ class MCTSOptimizationBenchmark(unittest.TestCase):
         ]
 
         # Configuration for testing
-        num_games = 3  # Reduced for CI performance but still multiple games
-        simulations_per_search = 50  # Higher than unit tests for meaningful benchmark
+        num_games = 10
+        simulations_per_search = 25
 
         results = {}
 
