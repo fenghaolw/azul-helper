@@ -47,8 +47,6 @@ repos:
         language_version: python3
         pass_filenames: false
         types: [python]
-        files: ^(game|training|agents|utils)/.*\.py$
-        exclude: ^(tests|examples)/.*\.py$
         additional_dependencies:
           - mypy>=1.13.0
           - types-requests>=2.28.0

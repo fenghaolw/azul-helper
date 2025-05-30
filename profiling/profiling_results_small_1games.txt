@@ -1,0 +1,63 @@
+Azul Self-Play Profiling Results
+==================================================
+
+nn.state_conversion:
+  Total time: 7.869s
+  Average time: 3.58ms
+  Call count: 2200
+  Calls/second: 279.6
+
+nn.inference:
+  Total time: 37.483s
+  Average time: 17.04ms
+  Call count: 2200
+  Calls/second: 58.7
+
+nn.forward_pass:
+  Total time: 45.769s
+  Average time: 20.80ms
+  Call count: 2200
+  Calls/second: 48.1
+
+mcts.expand_and_evaluate:
+  Total time: 611.491s
+  Average time: 277.95ms
+  Call count: 2200
+  Calls/second: 3.6
+
+mcts.action_selection:
+  Total time: 0.195s
+  Average time: 0.09ms
+  Call count: 2248
+  Calls/second: 11547.4
+
+mcts.backpropagate:
+  Total time: 0.084s
+  Average time: 0.04ms
+  Call count: 2000
+  Calls/second: 23671.8
+
+mcts.single_simulation:
+  Total time: 555.117s
+  Average time: 277.56ms
+  Call count: 2000
+  Calls/second: 3.6
+
+mcts.full_search:
+  Total time: 612.597s
+  Average time: 3062.99ms
+  Call count: 200
+  Calls/second: 0.3
+
+self_play.full_game:
+  Total time: 617.930s
+  Average time: 617929.87ms
+  Call count: 1
+  Calls/second: 0.0
+
+total_self_play:
+  Total time: 617.930s
+  Average time: 617930.05ms
+  Call count: 1
+  Calls/second: 0.0
+
