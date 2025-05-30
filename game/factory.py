@@ -60,6 +60,12 @@ class Factory:
         self.tiles = []
         return taken, []
 
+    def copy(self) -> "Factory":
+        """Create a copy of this factory."""
+        new_factory = Factory()
+        new_factory.tiles = self.tiles.copy()
+        return new_factory
+
 
 class CenterArea:
     """Represents the center area where leftover tiles accumulate."""
@@ -126,6 +132,15 @@ class CenterArea:
         if self.has_first_player_marker:
             tiles_str.append("first_player")
         return f"Center({tiles_str})"
+
+    def copy(self) -> "CenterArea":
+        """Create a copy of this center area."""
+        new_center = CenterArea()
+        new_center.tiles = self.tiles.copy()
+        new_center.has_first_player_marker = self.has_first_player_marker
+        # No need to copy _first_player_marker as it's a shared instance
+        new_center._first_player_marker = self._first_player_marker
+        return new_center
 
 
 class FactoryArea:
@@ -223,3 +238,11 @@ class FactoryArea:
         taken.extend(center_tiles)
 
         return taken, remaining
+
+    def copy(self) -> "FactoryArea":
+        """Create a copy of this factory area."""
+        new_area = FactoryArea.__new__(FactoryArea)
+        new_area.num_factories = self.num_factories
+        new_area.factories = [factory.copy() for factory in self.factories]
+        new_area.center = self.center.copy()
+        return new_area
