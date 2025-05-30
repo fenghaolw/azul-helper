@@ -1,4 +1,3 @@
-import copy
 import random
 from typing import TYPE_CHECKING, List, Optional
 
@@ -278,8 +277,34 @@ class GameState:
         return AzulStateRepresentation(self)
 
     def copy(self) -> "GameState":
-        """Create a deep copy of the game state."""
-        return copy.deepcopy(self)
+        """Create an optimized copy of the game state.
+
+        This method is optimized to avoid the expensive deepcopy() operation
+        that was consuming 83% of execution time. It manually copies only
+        what needs to be copied and uses shallow copies where safe.
+        """
+        # Create new instance without calling __init__ to avoid re-initialization
+        new_state = GameState.__new__(GameState)
+
+        # Copy simple immutable/atomic fields
+        new_state.num_players = self.num_players
+        new_state.current_player = self.current_player
+        new_state.round_number = self.round_number
+        new_state.game_over = self.game_over
+        new_state.winner = self.winner
+
+        # Copy players - each player board needs its own copy
+        new_state.players = [player.copy() for player in self.players]
+
+        # Copy factory area
+        new_state.factory_area = self.factory_area.copy()
+
+        # Copy tile collections - these need to be independent lists
+        # since they can be modified during gameplay
+        new_state.bag = self.bag.copy()
+        new_state.discard_pile = self.discard_pile.copy()
+
+        return new_state
 
     def __repr__(self) -> str:
         return (

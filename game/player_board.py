@@ -66,6 +66,13 @@ class PatternLine:
 
         return wall_tile, discard_tiles
 
+    def copy(self) -> "PatternLine":
+        """Create a copy of this pattern line."""
+        new_line = PatternLine(self.capacity)
+        new_line.tiles = self.tiles.copy()
+        new_line.color = self.color
+        return new_line
+
 
 class Wall:
     """Represents the wall (scoring area) of the player board."""
@@ -227,6 +234,13 @@ class Wall:
         ]
         return [color for color in colors if self.is_color_complete(color)]
 
+    def copy(self) -> "Wall":
+        """Create a copy of this wall."""
+        new_wall = Wall()
+        # Deep copy the filled 2D list
+        new_wall.filled = [row.copy() for row in self.filled]
+        return new_wall
+
 
 class PlayerBoard:
     """Represents a player's board including pattern lines, wall, and floor line."""
@@ -347,3 +361,21 @@ class PlayerBoard:
                 self.floor_line.pop(i)
                 return True
         return False
+
+    def copy(self) -> "PlayerBoard":
+        """Create a copy of this player board."""
+        new_board = PlayerBoard()
+
+        # Copy pattern lines
+        new_board.pattern_lines = [line.copy() for line in self.pattern_lines]
+
+        # Copy wall
+        new_board.wall = self.wall.copy()
+
+        # Copy floor line
+        new_board.floor_line = self.floor_line.copy()
+
+        # Copy score
+        new_board.score = self.score
+
+        return new_board
