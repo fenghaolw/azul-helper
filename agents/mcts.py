@@ -376,6 +376,12 @@ class MCTS:
 
         # State management optimizations
         self.enable_optimizations = enable_optimizations
+
+        # Declare types for optimization components
+        self.state_pool: Optional[StatePool]
+        self.transposition_table: Optional[TranspositionTable]
+        self.incremental_manager: Optional[IncrementalStateManager]
+
         if enable_optimizations:
             self.state_pool = StatePool(max_size=state_pool_size)
             self.transposition_table = TranspositionTable(
@@ -476,6 +482,9 @@ class MCTS:
             # If node not expanded, expand it first
             self._expand_and_evaluate(node)
 
+        if not node.children:
+            raise ValueError("No children available for action selection")
+
         best_action = None
         best_value = float("-inf")
 
@@ -492,6 +501,9 @@ class MCTS:
             if uct_value > best_value:
                 best_value = uct_value
                 best_action = action
+
+        if best_action is None:
+            raise ValueError("Failed to select action from available children")
 
         return best_action
 
@@ -586,6 +598,11 @@ class MCTS:
         """
         Create child nodes using state pool optimization.
         """
+        if self.state_pool is None:
+            # Fallback to standard creation if pool not available
+            self._create_child_nodes_standard(node, legal_actions, action_probs)
+            return
+
         for i, action in enumerate(legal_actions):
             # Get state from pool instead of copying
             child_state = self.state_pool.get_state(node.state)
