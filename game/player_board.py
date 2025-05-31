@@ -67,9 +67,10 @@ class PatternLine:
         return wall_tile, discard_tiles
 
     def copy(self) -> "PatternLine":
-        """Create a copy of this pattern line."""
-        new_line = PatternLine(self.capacity)
-        new_line.tiles = self.tiles.copy()
+        """Create an optimized copy of this pattern line."""
+        new_line = PatternLine.__new__(PatternLine)
+        new_line.capacity = self.capacity
+        new_line.tiles = list(self.tiles)  # Shallow copy - tiles are immutable
         new_line.color = self.color
         return new_line
 
@@ -235,10 +236,10 @@ class Wall:
         return [color for color in colors if self.is_color_complete(color)]
 
     def copy(self) -> "Wall":
-        """Create a copy of this wall."""
-        new_wall = Wall()
-        # Deep copy the filled 2D list
-        new_wall.filled = [row.copy() for row in self.filled]
+        """Create an optimized copy of this wall."""
+        new_wall = Wall.__new__(Wall)
+        # Optimize copying of 2D boolean array - use list comprehension for speed
+        new_wall.filled = [row[:] for row in self.filled]
         return new_wall
 
 
@@ -363,17 +364,18 @@ class PlayerBoard:
         return False
 
     def copy(self) -> "PlayerBoard":
-        """Create a copy of this player board."""
-        new_board = PlayerBoard()
+        """Create an optimized copy of this player board."""
+        # Use __new__ to avoid __init__ overhead
+        new_board = PlayerBoard.__new__(PlayerBoard)
 
-        # Copy pattern lines
-        new_board.pattern_lines = [line.copy() for line in self.pattern_lines]
+        # Copy pattern lines - use list comprehension for type safety
+        new_board.pattern_lines = [self.pattern_lines[i].copy() for i in range(5)]
 
         # Copy wall
         new_board.wall = self.wall.copy()
 
-        # Copy floor line
-        new_board.floor_line = self.floor_line.copy()
+        # Shallow copy floor line - tiles are immutable
+        new_board.floor_line = list(self.floor_line)
 
         # Copy score
         new_board.score = self.score
