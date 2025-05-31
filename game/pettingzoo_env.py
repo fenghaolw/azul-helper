@@ -372,6 +372,7 @@ class AzulAECEnv(AECEnv):
         source_encoded = action.source + 1  # -1 -> 0, 0-8 -> 1-9
 
         # Handle color encoding - convert to integer
+        color_value: Union[str, int, TileColor]
         if hasattr(action.color, "value"):
             # TileColor enum case
             color_value = action.color.value
