@@ -157,8 +157,54 @@ class GameState:
         return actions
 
     def is_action_legal(self, action: Action, player_id: Optional[int] = None) -> bool:
-        """Check if an action is legal."""
-        return action in self.get_legal_actions(player_id)
+        """Check if an action is legal - optimized to avoid generating all legal actions."""
+        if player_id is None:
+            player_id = self.current_player
+
+        if self.game_over:
+            return False
+
+        # Validate player_id
+        if player_id < 0 or player_id >= self.num_players:
+            return False
+
+        player = self.players[player_id]
+
+        # Check if source is valid and has the specified color
+        if action.source == -1:
+            # Taking from center
+            available_colors = self.factory_area.center.get_available_colors()
+            if action.color not in available_colors:
+                return False
+            # Get tiles that would be taken
+            test_tiles = [
+                tile
+                for tile in self.factory_area.center.tiles
+                if tile.color == action.color
+            ]
+        else:
+            # Taking from factory
+            if action.source < 0 or action.source >= len(self.factory_area.factories):
+                return False
+            factory = self.factory_area.factories[action.source]
+            available_colors = factory.get_available_colors()
+            if action.color not in available_colors:
+                return False
+            # Get tiles that would be taken
+            test_tiles = [tile for tile in factory.tiles if tile.color == action.color]
+
+        # Check if destination is valid
+        if action.destination == -1:
+            # Floor line - always valid if we can take tiles
+            return len(test_tiles) > 0
+        elif 0 <= action.destination <= 4:
+            # Pattern line - check if we can place tiles there
+            return len(test_tiles) > 0 and player.can_place_tiles_on_pattern_line(
+                action.destination, test_tiles
+            )
+        else:
+            # Invalid destination
+            return False
 
     def apply_action(self, action: Action) -> bool:
         """Apply an action and return True if successful."""
