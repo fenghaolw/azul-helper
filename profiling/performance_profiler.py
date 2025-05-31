@@ -359,9 +359,9 @@ def create_profiled_mcts(profiler: AzulProfiler):
             with profiler.time_operation("mcts.action_selection"):
                 return super()._select_action(node)
 
-        def _expand_and_evaluate(self, node):
+        def _expand_and_evaluate(self, node, legal_actions=None):
             with profiler.time_operation("mcts.expand_and_evaluate"):
-                return super()._expand_and_evaluate(node)
+                return super()._expand_and_evaluate(node, legal_actions)
 
         def _backpropagate(self, path, leaf, value):
             with profiler.time_operation("mcts.backpropagate"):

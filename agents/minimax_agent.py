@@ -224,7 +224,7 @@ class MinimaxAgent:
 
                     # Create a copy of the game state and apply the action
                     new_state = game_state.copy()
-                    if not new_state.apply_action(action):
+                    if not new_state.apply_action(action, skip_validation=True):
                         continue
 
                     # Evaluate this move with minimax

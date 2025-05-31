@@ -132,7 +132,7 @@ class SelfPlayEngine:
                 )
 
             # Apply action
-            success = game_state.apply_action(action)
+            success = game_state.apply_action(action, skip_validation=True)
             if not success:
                 if self.verbose:
                     print(f"Invalid action applied: {action}")
