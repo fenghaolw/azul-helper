@@ -135,12 +135,12 @@ class AzulAECEnv(AECEnv):
         self._agent_selector = agent_selector(self.agents)
         self.agent_selection = self._agent_selector.next()
 
-    def step(self, action: Union[int, Action]) -> None:
+    def step(self, action: int) -> None:
         """
         Execute one step in the environment.
 
         Args:
-            action: Action to execute (either integer or Action object)
+            action: Integer action from the action space (0-499)
         """
         if self.agent_selection is None:
             return
@@ -158,11 +158,8 @@ class AzulAECEnv(AECEnv):
         # Clear instantaneous rewards for all agents
         self.rewards = {agent: 0.0 for agent in self.agents}
 
-        # Convert action if necessary
-        if isinstance(action, int):
-            action_obj = self._decode_action(action)
-        else:
-            action_obj = action
+        # Convert integer action to Action object
+        action_obj = self._decode_action(action)
 
         # Handle invalid action
         if action_obj is None or self.game_state is None:

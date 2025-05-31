@@ -61,9 +61,9 @@ class Factory:
         return taken, []
 
     def copy(self) -> "Factory":
-        """Create a copy of this factory."""
-        new_factory = Factory()
-        new_factory.tiles = self.tiles.copy()
+        """Create an optimized copy of this factory."""
+        new_factory = Factory.__new__(Factory)
+        new_factory.tiles = list(self.tiles)  # Shallow copy - tiles are immutable
         return new_factory
 
 
@@ -134,11 +134,11 @@ class CenterArea:
         return f"Center({tiles_str})"
 
     def copy(self) -> "CenterArea":
-        """Create a copy of this center area."""
-        new_center = CenterArea()
-        new_center.tiles = self.tiles.copy()
+        """Create an optimized copy of this center area."""
+        new_center = CenterArea.__new__(CenterArea)
+        new_center.tiles = list(self.tiles)  # Shallow copy - tiles are immutable
         new_center.has_first_player_marker = self.has_first_player_marker
-        # No need to copy _first_player_marker as it's a shared instance
+        # Reuse the shared first player marker instance
         new_center._first_player_marker = self._first_player_marker
         return new_center
 
@@ -240,9 +240,14 @@ class FactoryArea:
         return taken, remaining
 
     def copy(self) -> "FactoryArea":
-        """Create a copy of this factory area."""
+        """Create an optimized copy of this factory area."""
         new_area = FactoryArea.__new__(FactoryArea)
         new_area.num_factories = self.num_factories
-        new_area.factories = [factory.copy() for factory in self.factories]
+
+        # Copy factories - use list comprehension for type safety
+        new_area.factories = [
+            self.factories[i].copy() for i in range(self.num_factories)
+        ]
+
         new_area.center = self.center.copy()
         return new_area

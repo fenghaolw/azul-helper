@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, List
 
 if TYPE_CHECKING:
     from typing import TypeVar
@@ -20,6 +20,9 @@ class TileColor(Enum):
 
 class Tile:
     """Represents a single tile in the Azul game."""
+
+    # Tile pool for reusing tile instances (significant memory optimization)
+    _tile_pool: Dict[TileColor, "Tile"] = {}
 
     def __init__(self, color: TileColor):
         self.color = color
@@ -44,8 +47,18 @@ class Tile:
         return self.color == TileColor.FIRST_PLAYER
 
     @classmethod
+    def get_tile(cls, color: TileColor) -> "Tile":
+        """Get a tile instance from the pool (optimization for memory usage)."""
+        if color not in cls._tile_pool:
+            cls._tile_pool[color] = cls(color)
+        return cls._tile_pool[color]
+
+    @classmethod
     def create_standard_tiles(cls) -> List["Tile"]:
-        """Create the standard set of tiles for Azul (20 of each color)."""
+        """Create the standard set of tiles for Azul (20 of each color).
+
+        Now uses tile pooling for better memory efficiency.
+        """
         tiles = []
         for color in [
             TileColor.BLUE,
@@ -54,10 +67,12 @@ class Tile:
             TileColor.BLACK,
             TileColor.WHITE,
         ]:
-            tiles.extend([cls(color) for _ in range(20)])
+            # Reuse the same tile instance 20 times - tiles are immutable
+            tile_instance = cls.get_tile(color)
+            tiles.extend([tile_instance] * 20)
         return tiles
 
     @classmethod
     def create_first_player_marker(cls) -> "Tile":
         """Create the first player marker tile."""
-        return cls(TileColor.FIRST_PLAYER)
+        return cls.get_tile(TileColor.FIRST_PLAYER)

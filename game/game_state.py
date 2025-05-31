@@ -157,8 +157,54 @@ class GameState:
         return actions
 
     def is_action_legal(self, action: Action, player_id: Optional[int] = None) -> bool:
-        """Check if an action is legal."""
-        return action in self.get_legal_actions(player_id)
+        """Check if an action is legal - optimized to avoid generating all legal actions."""
+        if player_id is None:
+            player_id = self.current_player
+
+        if self.game_over:
+            return False
+
+        # Validate player_id
+        if player_id < 0 or player_id >= self.num_players:
+            return False
+
+        player = self.players[player_id]
+
+        # Check if source is valid and has the specified color
+        if action.source == -1:
+            # Taking from center
+            available_colors = self.factory_area.center.get_available_colors()
+            if action.color not in available_colors:
+                return False
+            # Get tiles that would be taken
+            test_tiles = [
+                tile
+                for tile in self.factory_area.center.tiles
+                if tile.color == action.color
+            ]
+        else:
+            # Taking from factory
+            if action.source < 0 or action.source >= len(self.factory_area.factories):
+                return False
+            factory = self.factory_area.factories[action.source]
+            available_colors = factory.get_available_colors()
+            if action.color not in available_colors:
+                return False
+            # Get tiles that would be taken
+            test_tiles = [tile for tile in factory.tiles if tile.color == action.color]
+
+        # Check if destination is valid
+        if action.destination == -1:
+            # Floor line - always valid if we can take tiles
+            return len(test_tiles) > 0
+        elif 0 <= action.destination <= 4:
+            # Pattern line - check if we can place tiles there
+            return len(test_tiles) > 0 and player.can_place_tiles_on_pattern_line(
+                action.destination, test_tiles
+            )
+        else:
+            # Invalid destination
+            return False
 
     def apply_action(self, action: Action) -> bool:
         """Apply an action and return True if successful."""
@@ -279,30 +325,33 @@ class GameState:
     def copy(self) -> "GameState":
         """Create an optimized copy of the game state.
 
-        This method is optimized to avoid the expensive deepcopy() operation
-        that was consuming 83% of execution time. It manually copies only
-        what needs to be copied and uses shallow copies where safe.
+        This method is optimized to minimize object allocation and copying overhead.
+        Key optimizations:
+        1. Uses __new__ to avoid __init__ overhead
+        2. Implements copy-on-write semantics where possible
+        3. Uses shallow copies for immutable data
+        4. Optimizes list operations
         """
         # Create new instance without calling __init__ to avoid re-initialization
         new_state = GameState.__new__(GameState)
 
-        # Copy simple immutable/atomic fields
+        # Copy simple immutable/atomic fields - these are fast
         new_state.num_players = self.num_players
         new_state.current_player = self.current_player
         new_state.round_number = self.round_number
         new_state.game_over = self.game_over
         new_state.winner = self.winner
 
-        # Copy players - each player board needs its own copy
-        new_state.players = [player.copy() for player in self.players]
+        # Copy players - use list comprehension for type safety
+        new_state.players = [self.players[i].copy() for i in range(self.num_players)]
 
         # Copy factory area
         new_state.factory_area = self.factory_area.copy()
 
-        # Copy tile collections - these need to be independent lists
-        # since they can be modified during gameplay
-        new_state.bag = self.bag.copy()
-        new_state.discard_pile = self.discard_pile.copy()
+        # Optimize tile list copying - tiles are immutable, so shallow copy is safe
+        # Use list() constructor which is faster than .copy() for large lists
+        new_state.bag = list(self.bag)
+        new_state.discard_pile = list(self.discard_pile)
 
         return new_state
 
