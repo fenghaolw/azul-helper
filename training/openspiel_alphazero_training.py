@@ -8,10 +8,13 @@ mature and optimized implementation instead of our custom one.
 
 import os
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import numpy as np
 from absl import app, flags
+
+# Import agents for type annotations
+from agents.openspiel_agents import OpenSpielMCTSAgent, RandomAgent
 
 # Our game implementation
 from game.azul_openspiel import AzulGame
@@ -237,12 +240,10 @@ class AzulAlphaZeroTrainer:
         except Exception as e:
             print(f"Warning: Could not save checkpoint: {e}")
 
-    def _evaluate_model(self, learner) -> Dict[str, float]:
+    def _evaluate_model(self, learner) -> Dict[str, Union[float, int, str]]:
         """Evaluate the current model."""
         try:
             # Simple evaluation: play against random player
-            from agents.openspiel_agents import OpenSpielMCTSAgent, RandomAgent
-
             # Create agents
             alphazero_agent = OpenSpielMCTSAgent(
                 num_simulations=self.config["num_mcts_simulations"]
@@ -265,7 +266,10 @@ class AzulAlphaZeroTrainer:
 
                 # Alternate who goes first
                 if game_num % 2 == 0:
-                    agents = [alphazero_agent, random_agent]
+                    agents: list[Union[OpenSpielMCTSAgent, RandomAgent]] = [
+                        alphazero_agent,
+                        random_agent,
+                    ]
                 else:
                     agents = [random_agent, alphazero_agent]
 

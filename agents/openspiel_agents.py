@@ -23,10 +23,10 @@ class OpenSpielMCTSAgent:
 
     def __init__(
         self,
-        num_simulations: int = 1000,
-        uct_c: float = 2.0,
+        num_simulations: int = 100,
+        uct_c: float = 1.4,
         max_memory: int = 1000000,
-        solve: bool = True,
+        solve: bool = False,
         seed: Optional[int] = None,
         evaluator: Optional[Any] = None,
     ):
@@ -37,9 +37,9 @@ class OpenSpielMCTSAgent:
             num_simulations: Number of MCTS simulations per move
             uct_c: UCT exploration constant
             max_memory: Maximum memory for search tree
-            solve: Whether to use MCTS-Solver
+            solve: Whether to use MCTS-Solver (slower but more accurate)
             seed: Random seed
-            evaluator: Custom evaluator (if None, uses random rollouts)
+            evaluator: Custom evaluator (if None, uses RandomRolloutEvaluator)
         """
         self.num_simulations = num_simulations
         self.uct_c = uct_c
@@ -52,7 +52,7 @@ class OpenSpielMCTSAgent:
 
         # Create evaluator if not provided
         if evaluator is None:
-            # Use random rollout evaluator as default
+            # Use random rollout evaluator (reliable and proven)
             evaluator = mcts.RandomRolloutEvaluator(n_rollouts=1)
 
         # Create MCTS bot
@@ -364,7 +364,10 @@ class RandomAgent:
         if not legal_actions:
             raise ValueError("No legal actions available")
 
-        return np.random.choice(legal_actions)
+        # Use random.choice instead of np.random.choice for Action objects
+        import random
+
+        return random.choice(legal_actions)
 
     def get_action_probabilities(self, state: GameState) -> np.ndarray:
         """Get uniform probabilities over legal actions."""

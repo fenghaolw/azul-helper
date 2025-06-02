@@ -88,7 +88,7 @@ class AzulGame(pyspiel.Game):
 
     def utility_sum(self) -> float:
         """Return the sum of utilities (0 for zero-sum games)."""
-        return 0.0 if self._num_players == 2 else None
+        return 0.0
 
     def observation_tensor_shape(self) -> List[int]:
         """Return the shape of the observation tensor."""
