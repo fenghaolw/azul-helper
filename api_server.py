@@ -168,7 +168,7 @@ def initialize_agent(
     # Try to initialize MCTS agent
     try:
         # Initialize neural network
-        neural_network = AzulNeuralNetwork(network_config=network_config)
+        neural_network = AzulNeuralNetwork(config_name=network_config, device="auto")
         print(f"✅ Initialized neural network: {neural_network.get_model_info()}")
 
         # Initialize MCTS agent
