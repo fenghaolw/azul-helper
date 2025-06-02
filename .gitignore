@@ -340,3 +340,8 @@ evaluation_results/
 .env.production
 config/secrets.yaml
 secrets.json
+
+# OpenSpiel
+# We only need the local copy of OpenSpiel because we are patching it for Apple Silicon
+# Once https://github.com/google-deepmind/open_spiel/pull/1335 is merged, we can remove the local copy
+open_spiel/

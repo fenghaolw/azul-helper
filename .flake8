@@ -55,6 +55,7 @@ exclude =
     dist,
     tests,
     examples,
+    open_spiel,
     *.egg-info,
     *node_modules*
 

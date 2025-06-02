@@ -91,6 +91,7 @@ extend-exclude = '''
   | \.venv
   | build
   | dist
+  | open_spiel
 )/
 '''
 

@@ -6,6 +6,11 @@ pettingzoo>=1.24.0
 # Required for neural networks and MCTS
 torch>=1.9.0
 
+# OpenSpiel integration for MCTS and AlphaZero
+# Note: Install from source on Apple Silicon using the fixed abseil version
+# See docs/OPENSPIEL_MIGRATION.md for installation instructions
+open-spiel>=1.6
+
 # Training monitoring
 tensorboard>=2.10.0
 
