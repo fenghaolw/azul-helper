@@ -1,12 +1,14 @@
 # Core dependencies
 numpy>=1.21.0
 typing-extensions>=4.0.0
+
+# Game environment
 pettingzoo>=1.24.0
 
-# Required for neural networks and MCTS
-torch>=1.9.0
+# Neural networks (for any future training)
+tensorflow>=2.12.0  # Required by OpenSpiel
 
-# OpenSpiel integration for MCTS and AlphaZero
+# OpenSpiel integration for MCTS and AlphaZero (primary AI engine)
 # Note: Install from source on Apple Silicon using the fixed abseil version
 # See docs/OPENSPIEL_MIGRATION.md for installation instructions
 open-spiel>=1.6
