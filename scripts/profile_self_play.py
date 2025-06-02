@@ -16,7 +16,7 @@ from typing import Optional
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.mcts import MCTSAgent
+from agents.openspiel_agents import OpenSpielMCTSAgent as MCTSAgent
 from profiling.openspiel_profiler import (
     OpenSpielProfiler,
     create_profiled_agent,

@@ -20,21 +20,19 @@ from flask_cors import CORS
 
 from agents.heuristic_agent import HeuristicAgent
 from agents.improved_heuristic_agent import ImprovedHeuristicAgent
-from agents.mcts import MCTSAgent
 from agents.minimax_agent import MinimaxAgent, MinimaxConfig
+from agents.openspiel_agents import OpenSpielMCTSAgent
 from game.game_state import Action, GameState, TileColor
 from game.tile import Tile
-from training.neural_network import AzulNeuralNetwork
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for webapp integration
 
 # Global agent instances
-agent: Optional[MCTSAgent] = None
+mcts_agent: Optional[OpenSpielMCTSAgent] = None
 heuristic_agent: Optional[HeuristicAgent] = None
 improved_heuristic_agent: Optional[ImprovedHeuristicAgent] = None
 minimax_agent: Optional[MinimaxAgent] = None
-neural_network: Optional[AzulNeuralNetwork] = None
 current_agent_type: str = "minimax"  # Changed default to minimax
 
 
@@ -122,7 +120,7 @@ def initialize_agent(
     minimax_config: Optional[dict] = None,
 ) -> tuple:
     """Initialize the appropriate agent type."""
-    global agent, heuristic_agent, improved_heuristic_agent, minimax_agent, neural_network, current_agent_type
+    global mcts_agent, heuristic_agent, improved_heuristic_agent, minimax_agent, current_agent_type
 
     current_agent_type = agent_type
 
@@ -148,46 +146,39 @@ def initialize_agent(
     print(f"✅ Initialized minimax agent (difficulty: {minimax_difficulty})")
 
     if agent_type == "heuristic":
-        agent = None
-        neural_network = None
+        mcts_agent = None
         print("🧠 Using heuristic agent only")
         return heuristic_agent, None
 
     if agent_type == "improved_heuristic":
-        agent = None
-        neural_network = None
+        mcts_agent = None
         print("🚀 Using improved heuristic agent only")
         return improved_heuristic_agent, None
 
     if agent_type == "minimax":
-        agent = None
-        neural_network = None
+        mcts_agent = None
         print("🎯 Using minimax agent only")
         return minimax_agent, None
 
     # Try to initialize MCTS agent
     try:
-        # Initialize neural network
-        neural_network = AzulNeuralNetwork(config_name=network_config, device="auto")
-        print(f"✅ Initialized neural network: {neural_network.get_model_info()}")
-
-        # Initialize MCTS agent
-        agent = MCTSAgent(
-            neural_network=neural_network,
+        # Note: OpenSpiel MCTS doesn't require neural networks, it uses random rollouts
+        # Initialize OpenSpiel MCTS agent
+        mcts_agent = OpenSpielMCTSAgent(
             num_simulations=simulations,
-            c_puct=1.4,
-            temperature=1.0,
-            dirichlet_epsilon=0.0,  # Disable for deterministic play
+            uct_c=1.4,  # UCT exploration constant
+            solve=False,  # Don't use MCTS-Solver for speed
+            seed=None,  # Use random seed
         )
 
-        print(f"🤖 Initialized MCTS agent with {simulations} simulations")
+        print(f"🤖 Initialized OpenSpiel MCTS agent with {simulations} simulations")
 
         if agent_type == "mcts":
-            print("🎯 Using MCTS agent only")
+            print("🎯 Using OpenSpiel MCTS agent only")
         else:  # auto
-            print("⚡ Using MCTS agent with heuristic fallback")
+            print("⚡ Using OpenSpiel MCTS agent with heuristic fallback")
 
-        return agent, neural_network
+        return mcts_agent, None
 
     except Exception as e:
         print(f"⚠️  Error initializing MCTS agent: {e}")
@@ -196,8 +187,7 @@ def initialize_agent(
             print("❌ MCTS agent required but failed to initialize")
             return None, None
         else:  # auto fallback
-            agent = None
-            neural_network = None
+            mcts_agent = None
             print("🔄 Falling back to heuristic agent")
             return heuristic_agent, None
 
@@ -210,13 +200,13 @@ def get_active_agent() -> Optional[Any]:
         return improved_heuristic_agent
     elif current_agent_type == "minimax":
         return minimax_agent
-    elif current_agent_type == "mcts" and agent:
-        return agent
+    elif current_agent_type == "mcts" and mcts_agent:
+        return mcts_agent
     else:  # auto mode - prefer minimax, then MCTS, then improved heuristic
         return (
             minimax_agent
             if minimax_agent
-            else (agent if agent else improved_heuristic_agent)
+            else (mcts_agent if mcts_agent else improved_heuristic_agent)
         )
 
 
@@ -398,7 +388,7 @@ def health_check():
     active_agent = get_active_agent()
     agent_type = "none"
 
-    if active_agent == agent:
+    if active_agent == mcts_agent:
         agent_type = "mcts"
     elif active_agent == minimax_agent:
         agent_type = "minimax"
@@ -418,10 +408,9 @@ def health_check():
         {
             "status": "healthy",
             "agent_initialized": active_agent is not None,
-            "neural_network_available": neural_network is not None,
             "current_agent_type": current_agent_type,
             "active_agent_type": agent_type,
-            "mcts_available": agent is not None,
+            "mcts_available": mcts_agent is not None,
             "minimax_available": minimax_agent is not None,
             "heuristic_available": heuristic_agent is not None,
             "server": server_info,
@@ -442,7 +431,7 @@ def get_agent_info():
         "current_agent_type": current_agent_type,
         "active_agent": (
             "mcts"
-            if active_agent == agent
+            if active_agent == mcts_agent
             else (
                 "minimax"
                 if active_agent == minimax_agent
@@ -453,16 +442,14 @@ def get_agent_info():
                 )
             )
         ),
-        "neural_network_available": neural_network is not None,
     }
 
-    if active_agent == agent and agent:
+    if active_agent == mcts_agent:
         info.update(
             {
-                "simulations": str(agent.mcts.num_simulations),
-                "exploration_constant": str(agent.mcts.c_puct),
-                "temperature": str(agent.mcts.temperature),
-                "algorithm": "MCTS",
+                "simulations": str(mcts_agent.num_simulations),
+                "exploration_constant": str(mcts_agent.uct_c),
+                "algorithm": "OpenSpiel MCTS",
             }
         )
     elif active_agent == minimax_agent:
@@ -485,10 +472,6 @@ def get_agent_info():
         info["algorithm"] = stats.get("algorithm", "Heuristic")
         info["features"] = stats.get("features", "Unknown")
 
-    if neural_network:
-        nn_info = neural_network.get_model_info()
-        info["neural_network_info"] = nn_info
-
     return jsonify(info)
 
 
@@ -507,7 +490,6 @@ def get_best_move():
 
         # Extract parameters
         gamestate_data = data.get("gameState")
-        thinking_time = data.get("thinkingTime", 2000)  # milliseconds
 
         if not gamestate_data:
             return jsonify({"error": "No game state provided"}), 400
@@ -522,17 +504,16 @@ def get_best_move():
         # Get the best move
         start_time = time.time()
         try:
-            if active_agent == agent:  # MCTS agent
-                # Adjust agent simulations based on thinking time
-                # Rough estimate: 1000 simulations per second
-                estimated_simulations = max(100, min(5000, thinking_time))
-                agent.mcts.num_simulations = estimated_simulations
+            if active_agent == mcts_agent:  # MCTS agent
+                # OpenSpiel MCTS doesn't dynamically adjust simulations during runtime
+                # We use the pre-configured simulation count
+                action = mcts_agent.select_action(game_state, deterministic=True)
 
-                action = agent.select_action(game_state)  # type: ignore[arg-type]
-                nodes_evaluated = getattr(
-                    agent.mcts, "nodes_evaluated", estimated_simulations
+                # OpenSpiel MCTS doesn't expose nodes_evaluated, approximate with simulations
+                nodes_evaluated = mcts_agent.num_simulations
+                algorithm_info = (
+                    f"OpenSpiel MCTS ({mcts_agent.num_simulations} simulations)"
                 )
-                algorithm_info = f"MCTS ({agent.mcts.num_simulations} simulations)"
                 agent_type_name = "mcts"
 
             elif active_agent == improved_heuristic_agent:  # Improved Heuristic agent
@@ -567,9 +548,7 @@ def get_best_move():
                 "nodesEvaluated": nodes_evaluated,
                 "searchTime": search_time,
                 "simulations": (
-                    getattr(active_agent.mcts, "num_simulations", 0)
-                    if hasattr(active_agent, "mcts")
-                    else 0
+                    mcts_agent.num_simulations if active_agent == mcts_agent else 0
                 ),
                 "algorithm": algorithm_info,
                 "agent_type": agent_type_name,
@@ -614,7 +593,7 @@ def configure_agent():
                 "agent_type": agent_type,
                 "active_agent": (
                     "mcts"
-                    if active_agent == agent
+                    if active_agent == mcts_agent
                     else (
                         "minimax"
                         if active_agent == minimax_agent

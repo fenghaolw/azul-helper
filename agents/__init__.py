@@ -1,65 +1,41 @@
-"""Agents module for Azul RL."""
+"""Agents module for Azul RL - Now using OpenSpiel implementations."""
 
-from agents.checkpoint_agent import CheckpointAgent, create_checkpoint_agent
 from agents.heuristic_agent import HeuristicAgent, create_heuristic_agent
 from agents.improved_heuristic_agent import (
     ImprovedHeuristicAgent,
     create_improved_heuristic_agent,
 )
-from agents.mcts import MCTS, GameState, MCTSAgent, MCTSNode, NeuralNetwork
 from agents.minimax_agent import MinimaxAgent, create_minimax_agent
+
+# OpenSpiel-based agents (the only MCTS implementations we support)
+from agents.openspiel_agents import RandomAgent  # Use OpenSpiel's RandomAgent directly
 from agents.openspiel_agents import (
     OpenSpielAlphaZeroAgent,
     OpenSpielMCTSAgent,
 )
-from agents.openspiel_agents import RandomAgent as OpenSpielRandomAgent
-from agents.random_agent import RandomAgent, create_random_agent
 
-# OpenSpiel-based agents
-try:
-    from agents.openspiel_agents import (
-        OpenSpielAlphaZeroAgent,
-        OpenSpielMCTSAgent,
-    )
-    from agents.openspiel_agents import RandomAgent as OpenSpielRandomAgent
+# Import game types
+from game.game_state import GameState
 
-    OPENSPIEL_AVAILABLE = True
-except ImportError:
-    OPENSPIEL_AVAILABLE = False
-    OpenSpielMCTSAgent = None
-    OpenSpielAlphaZeroAgent = None
-    OpenSpielRandomAgent = None
+# For convenience, provide direct aliases to the OpenSpiel implementations
+MCTSAgent = OpenSpielMCTSAgent
+AlphaZeroAgent = OpenSpielAlphaZeroAgent
 
 __all__ = [
-    "MCTS",
-    "MCTSNode",
-    "MCTSAgent",
+    # Core game types
     "GameState",
-    "NeuralNetwork",
-    "RandomAgent",
-    "create_random_agent",
+    # MCTS implementations (OpenSpiel only)
+    "MCTSAgent",  # Alias to OpenSpielMCTSAgent
+    "AlphaZeroAgent",  # Alias to OpenSpielAlphaZeroAgent
+    # OpenSpiel agents (full names)
+    "OpenSpielMCTSAgent",
+    "OpenSpielAlphaZeroAgent",
+    "RandomAgent",  # OpenSpiel RandomAgent
+    # Other agents
     "HeuristicAgent",
     "create_heuristic_agent",
     "ImprovedHeuristicAgent",
     "create_improved_heuristic_agent",
-    "CheckpointAgent",
-    "create_checkpoint_agent",
     "MinimaxAgent",
     "create_minimax_agent",
-    "OpenSpielMCTSAgent",
-    "OpenSpielAlphaZeroAgent",
-    "OpenSpielRandomAgent",
 ]
-
-# Add OpenSpiel agents if available
-if OPENSPIEL_AVAILABLE:
-    __all__.extend(
-        [
-            "OpenSpielMCTSAgent",
-            "OpenSpielAlphaZeroAgent",
-            "OpenSpielRandomAgent",
-            "OPENSPIEL_AVAILABLE",
-        ]
-    )
-else:
-    __all__.append("OPENSPIEL_AVAILABLE")

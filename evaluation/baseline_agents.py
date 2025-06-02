@@ -1,9 +1,8 @@
 """
 Baseline agents for evaluation purposes.
 
-This module provides various baseline agents that can be used to evaluate
-the performance of trained models. These include random agents, heuristic
-agents, and wrapper for previous model checkpoints.
+This module provides standardized baseline agents that can be used
+for comparing the performance of new agents and training iterations.
 """
 
 import random
@@ -11,9 +10,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from agents.checkpoint_agent import CheckpointAgent
 from agents.heuristic_agent import HeuristicAgent
-from agents.random_agent import RandomAgent
+from agents.openspiel_agents import RandomAgent
 from game.game_state import Action, GameState, TileColor
 
 
@@ -74,31 +72,44 @@ class RandomBaselineAgent(BaselineAgent):
 
     def __init__(self, player_id: int = 0, seed: Optional[int] = None):
         super().__init__(player_id, "RandomAgent")
-        self.random_agent = RandomAgent(player_id, seed)
+        # OpenSpiel RandomAgent only takes seed parameter
+        self.random_agent = RandomAgent(seed=seed)
+        self.nodes_evaluated = 0
+        self.total_time_taken = 0.0
+        self.total_moves = 0
 
     def select_action(self, game_state: GameState) -> Action:
         """Select action using the random agent."""
+        start_time = time.time()
+
         action = self.random_agent.select_action(game_state)
 
-        # Copy statistics from random agent
-        self.nodes_evaluated = self.random_agent.nodes_evaluated
-        self.total_time_taken = self.random_agent.total_time_taken
-        self.total_moves = self.random_agent.total_moves
+        # Update our own statistics since OpenSpiel RandomAgent doesn't track them
+        self.total_time_taken += time.time() - start_time
+        self.total_moves += 1
+        self.nodes_evaluated += 1  # Random agent evaluates 1 "node" per decision
 
         return action
 
     def get_stats(self) -> Dict[str, Any]:
         """Get combined statistics."""
-        return self.random_agent.get_stats()
+        base_stats = super().get_stats()
+        random_stats = self.random_agent.get_stats()
+
+        # Merge the statistics
+        base_stats.update(random_stats)
+        return base_stats
 
     def reset_stats(self):
-        """Reset statistics for both agents."""
+        """Reset statistics."""
         super().reset_stats()
-        self.random_agent.reset_stats()
 
     def get_info(self) -> Dict[str, Any]:
         """Get agent information for evaluation metadata."""
-        return self.random_agent.get_info()
+        info = super().get_info()
+        info["description"] = "OpenSpiel RandomAgent for baseline comparison"
+        info.update(self.random_agent.get_stats())
+        return info
 
 
 class HeuristicBaselineAgent(BaselineAgent):
@@ -152,47 +163,12 @@ class HeuristicBaselineAgent(BaselineAgent):
         return info
 
 
-class CheckpointBaselineAgent(BaselineAgent):
-    """
-    Wrapper for CheckpointAgent to use as baseline with consistent interface.
-    """
-
-    def __init__(self, checkpoint_path: str, player_id: int = 0):
-        super().__init__(player_id, "CheckpointAgent")
-        self.checkpoint_agent = CheckpointAgent(checkpoint_path, player_id)
-        self.name = self.checkpoint_agent.name  # Use the checkpoint's name
-
-    def select_action(self, game_state: GameState) -> Action:
-        """Select action using the checkpoint agent."""
-        action = self.checkpoint_agent.select_action(game_state)
-
-        # Copy statistics from checkpoint agent
-        self.nodes_evaluated = self.checkpoint_agent.nodes_evaluated
-        self.total_time_taken = self.checkpoint_agent.total_time_taken
-        self.total_moves = self.checkpoint_agent.total_moves
-
-        return action
-
-    def get_stats(self) -> Dict[str, Any]:
-        """Get combined statistics."""
-        return self.checkpoint_agent.get_stats()
-
-    def reset_stats(self):
-        """Reset statistics for both agents."""
-        super().reset_stats()
-        self.checkpoint_agent.reset_stats()
-
-    def get_info(self) -> Dict[str, Any]:
-        """Get agent information for evaluation metadata."""
-        return self.checkpoint_agent.get_info()
-
-
 def create_baseline_agent(agent_type: str, **kwargs) -> BaselineAgent:
     """
     Factory function to create baseline agents.
 
     Args:
-        agent_type: Type of baseline agent ('random', 'heuristic', 'checkpoint')
+        agent_type: Type of baseline agent ('random', 'heuristic')
         **kwargs: Additional arguments for specific agent types
 
     Returns:
@@ -204,11 +180,7 @@ def create_baseline_agent(agent_type: str, **kwargs) -> BaselineAgent:
         return RandomBaselineAgent(**kwargs)
     elif agent_type == "heuristic":
         return HeuristicBaselineAgent(**kwargs)
-    elif agent_type == "checkpoint":
-        if "checkpoint_path" not in kwargs:
-            raise ValueError("checkpoint_path is required for checkpoint agents")
-        return CheckpointBaselineAgent(**kwargs)
     else:
         raise ValueError(
-            f"Unknown baseline agent type: {agent_type}. Available types: 'random', 'heuristic', 'checkpoint'"
+            f"Unknown baseline agent type: {agent_type}. Available types: 'random', 'heuristic'"
         )

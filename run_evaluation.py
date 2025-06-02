@@ -428,55 +428,32 @@ def run_mcts_vs_heuristic(
     model_path: Optional[str] = None,
     network_config: Optional[str] = None,
 ):
-    """Run evaluation: MCTS Agent vs Heuristic Agent."""
-    print(f"Running MCTS vs Heuristic evaluation ({num_games} games)...")
+    """Run evaluation: OpenSpiel MCTS Agent vs Heuristic Agent."""
+    print(f"Running OpenSpiel MCTS vs Heuristic evaluation ({num_games} games)...")
     print("=" * 60)
 
-    from agents.mcts import MCTSAgent
-    from training.neural_network import AzulNeuralNetwork
+    from agents.openspiel_agents import OpenSpielMCTSAgent
 
-    # Determine network configuration
-    config_name = network_config or "medium"  # default
-    if not network_config and model_path:
-        # Try to infer configuration from model path
-        if "small" in model_path:
-            config_name = "small"
-        elif "large" in model_path:
-            config_name = "large"
-        elif "deep" in model_path:
-            config_name = "deep"
-    print(f"Using network configuration: {config_name}")
+    # Note: OpenSpiel MCTS uses random rollouts by default and doesn't require neural networks
+    # This makes it fast and reliable without needing pre-trained models
+    print("Using OpenSpiel MCTS with random rollout evaluator")
 
-    # Determine device
-    if torch.backends.mps.is_available():
-        device = "mps"  # Use Apple Silicon GPU
-        print("Using Apple Silicon GPU (MPS)")
-    elif torch.cuda.is_available():
-        device = "cuda"
-        print("Using CUDA GPU")
-    else:
-        device = "cpu"
-        print("Using CPU (MPS not available)")
-
-    # Create neural network for MCTS
-    neural_network = AzulNeuralNetwork(
-        config_name=config_name, model_path=model_path, device=device
+    # Create OpenSpiel MCTS agent
+    mcts_agent = OpenSpielMCTSAgent(
+        num_simulations=400,  # Good balance of strength and speed
+        uct_c=1.4,  # Standard UCT exploration
+        solve=False,  # Don't use MCTS-Solver for speed
+        seed=None,  # Random seed for evaluation variety
     )
-    print(f"MCTS Neural network info: {neural_network.get_model_info()}")
 
-    # Create MCTS agent with optimized parameters for faster inference
-    mcts_agent = MCTSAgent(
-        neural_network=neural_network,
-        num_simulations=50,  # Reduced from 100 for faster inference
-        c_puct=1.4,
-        temperature=0.0,  # Deterministic play for faster inference
-        dirichlet_epsilon=0.0,  # No noise for deterministic play
+    print(
+        f"✅ OpenSpiel MCTS agent created with {mcts_agent.num_simulations} simulations"
     )
 
     # Create evaluation config
     config = EvaluationConfig(
         num_games=num_games,
-        timeout_per_move=10.0,  # MCTS is slower than heuristic
+        timeout_per_move=5.0,  # OpenSpiel MCTS is fast
         verbose=True,
         use_fixed_seeds=True,
         random_seed=42,
@@ -494,7 +471,7 @@ def run_mcts_vs_heuristic(
 
     # Save results
     ensure_evaluation_dir()
-    filename = "evaluation_results/mcts_vs_heuristic.json"
+    filename = "evaluation_results/openspiel_mcts_vs_heuristic.json"
     save_evaluation_results(result, filename)
     print(f"   💾 Saved to {filename}")
 
@@ -504,15 +481,15 @@ def run_mcts_vs_heuristic(
 def run_detailed_mcts_evaluation(
     mcts_agent, baseline_agent, baseline_name, config, eval_config
 ):
-    """Run detailed evaluation with game-by-game progress tracking for MCTS."""
+    """Run detailed evaluation with game-by-game progress tracking for OpenSpiel MCTS."""
     start_time = time.time()
 
-    # Use generalized progress evaluator, tracking the test agent (MCTS)
+    # Use generalized progress evaluator, tracking the test agent (OpenSpiel MCTS)
     progress_evaluator = ProgressTrackingEvaluator(
         eval_config,
         tracked_agent=mcts_agent,
         tracked_agent_role="test",
-        tracked_agent_name="MCTSAgent",
+        tracked_agent_name="OpenSpielMCTSAgent",
         baseline_name=baseline_name,
     )
 
@@ -520,7 +497,7 @@ def run_detailed_mcts_evaluation(
         result = progress_evaluator.evaluate_agent(
             test_agent=mcts_agent,
             baseline_agent=baseline_agent,
-            test_agent_name="MCTSAgent",
+            test_agent_name="OpenSpielMCTSAgent",
             baseline_agent_name=baseline_name,
         )
 
@@ -530,18 +507,14 @@ def run_detailed_mcts_evaluation(
         print(f"✅ Completed {eval_config.num_games} games in {elapsed_time:.1f}s")
         print(f"⚡ Average time per game: {elapsed_time/eval_config.num_games:.2f}s")
 
-        # Get final MCTS statistics
-        final_stats = mcts_agent.get_stats()
-        if final_stats.get("nodes_evaluated", 0) > 0:
-            print(f"🧠 MCTS performance:")
-            print(f"   🔢 Total nodes evaluated: {final_stats['nodes_evaluated']:,}")
-            print(f"   🔍 Max depth reached: {final_stats['max_depth_reached']}")
-            print(
-                f"   ⚡ Nodes per game: {final_stats['nodes_evaluated'] / eval_config.num_games:.0f}"
-            )
-            print(
-                f"   🏃 Nodes per second: {final_stats['nodes_evaluated'] / elapsed_time:.0f}"
-            )
+        # Get final OpenSpiel MCTS statistics
+        print(f"🧠 OpenSpiel MCTS performance:")
+        print(f"   🔢 Simulations per move: {mcts_agent.num_simulations:,}")
+        print(f"   🎯 UCT exploration constant: {mcts_agent.uct_c}")
+        print(f"   ⚡ Average simulations per game: {mcts_agent.num_simulations:.0f}")
+        total_simulations = mcts_agent.num_simulations * eval_config.num_games
+        print(f"   🏃 Total simulations: {total_simulations:,}")
+        print(f"   📊 Simulations per second: {total_simulations / elapsed_time:.0f}")
 
         return result
 
