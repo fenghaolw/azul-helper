@@ -206,9 +206,14 @@ class GameState:
             # Invalid destination
             return False
 
-    def apply_action(self, action: Action) -> bool:
-        """Apply an action and return True if successful."""
-        if not self.is_action_legal(action):
+    def apply_action(self, action: Action, skip_validation: bool = False) -> bool:
+        """Apply an action and return True if successful.
+
+        Args:
+            action: The action to apply
+            skip_validation: If True, skip is_action_legal check (use when action is already validated)
+        """
+        if not skip_validation and not self.is_action_legal(action):
             return False
 
         player = self.players[self.current_player]

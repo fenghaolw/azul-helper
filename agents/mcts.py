@@ -416,13 +416,16 @@ class MCTS:
         # Create root node
         root = MCTSNode(root_state)
 
+        # Get legal actions once and reuse throughout search
+        root_legal_actions = root_state.get_legal_actions()
+
         # Add Dirichlet noise to root node for exploration (skip if deterministic)
         if self.temperature > 0:
-            self._add_dirichlet_noise(root)
+            self._add_dirichlet_noise(root, root_legal_actions)
         else:
             # For deterministic mode, just expand without noise
             if not root.is_expanded:
-                self._expand_and_evaluate(root)
+                self._expand_and_evaluate(root, root_legal_actions)
 
         # Track stats for this search
         max_depth_this_search = 0
@@ -438,8 +441,8 @@ class MCTS:
         if max_depth_this_search > self.max_depth_reached:
             self.max_depth_reached = max_depth_this_search
 
-        # Calculate action probabilities based on visit counts
-        action_probs = self._get_action_probabilities(root)
+        # Calculate action probabilities based on visit counts (reuse legal_actions)
+        action_probs = self._get_action_probabilities(root, root_legal_actions)
 
         # Cleanup resources if optimizations are enabled
         self.cleanup_search()
@@ -507,19 +510,23 @@ class MCTS:
 
         return best_action
 
-    def _expand_and_evaluate(self, node: MCTSNode) -> float:
+    def _expand_and_evaluate(
+        self, node: MCTSNode, legal_actions: Optional[List[Action]] = None
+    ) -> float:
         """
         Expand a node by creating children for all legal actions and evaluate with NN.
         Uses optimizations: state pooling, transposition table, and incremental updates.
 
         Args:
             node: Node to expand
+            legal_actions: Pre-computed legal actions for this node (optional, computed if None)
 
         Returns:
             Value from neural network evaluation
         """
-        # Get legal actions
-        legal_actions = node.state.get_legal_actions()
+        # Get legal actions if not provided (for child nodes during simulation)
+        if legal_actions is None:
+            legal_actions = node.state.get_legal_actions()
 
         # Check transposition table first (if optimizations enabled)
         if self.enable_optimizations and self.transposition_table:
@@ -571,7 +578,7 @@ class MCTS:
                     self.stats["states_allocated"] += 1
 
             try:
-                result = child_state.apply_action(action)
+                result = child_state.apply_action(action, skip_validation=True)
                 if isinstance(result, bool) and not result:
                     # Return state to pool if action failed
                     if self.enable_optimizations and self.state_pool:
@@ -609,7 +616,7 @@ class MCTS:
             self.stats["states_pooled"] += 1
 
             try:
-                result = child_state.apply_action(action)
+                result = child_state.apply_action(action, skip_validation=True)
                 if isinstance(result, bool) and not result:
                     # Return state to pool if action failed
                     self.state_pool.return_state(child_state)
@@ -641,7 +648,7 @@ class MCTS:
                 self.stats["states_allocated"] += 1
 
             try:
-                result = child_state.apply_action(action)
+                result = child_state.apply_action(action, skip_validation=True)
                 if isinstance(result, bool) and not result:
                     continue
                 elif not isinstance(result, bool):
@@ -678,7 +685,9 @@ class MCTS:
             node.Q += current_value
             current_value = -current_value  # Flip for next level up
 
-    def _get_action_probabilities(self, root: MCTSNode) -> np.ndarray:
+    def _get_action_probabilities(
+        self, root: MCTSNode, legal_actions: Optional[List[Action]] = None
+    ) -> np.ndarray:
         """
         Get action probabilities based on visit counts.
 
@@ -690,11 +699,13 @@ class MCTS:
 
         Args:
             root: Root node of search tree
+            legal_actions: Pre-computed legal actions (optional, computed if None)
 
         Returns:
             numpy array of probabilities for each legal action
         """
-        legal_actions = root.state.get_legal_actions()
+        if legal_actions is None:
+            legal_actions = root.state.get_legal_actions()
 
         if not legal_actions:
             return np.array([])
@@ -729,16 +740,19 @@ class MCTS:
 
         return probs
 
-    def _add_dirichlet_noise(self, root: MCTSNode) -> None:
+    def _add_dirichlet_noise(
+        self, root: MCTSNode, legal_actions: Optional[List[Action]] = None
+    ) -> None:
         """
         Add Dirichlet noise to root node for exploration.
 
         Args:
             root: Root node to add noise to
+            legal_actions: Pre-computed legal actions (optional, computed if None)
         """
         # First expand the root to get children
         if not root.is_expanded:
-            self._expand_and_evaluate(root)
+            self._expand_and_evaluate(root, legal_actions)
 
         if not root.children:
             return

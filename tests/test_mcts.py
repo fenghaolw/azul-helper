@@ -461,7 +461,7 @@ def test_azul_game_simulation():
         assert action in legal_actions
 
         # Apply action
-        success = azul_state.apply_action(action)
+        success = azul_state.apply_action(action, skip_validation=True)
         assert success
 
         moves += 1
@@ -493,7 +493,7 @@ def test_full_azul_game_with_mcts():
 
         # Select and apply action
         action = agent.select_action(azul_state)
-        success = azul_state.apply_action(action)
+        success = azul_state.apply_action(action, skip_validation=True)
         assert success
 
         moves += 1

@@ -108,7 +108,7 @@ def demonstrate_gameplay():
         print(f"Selected action: {action}")
 
         # Apply action
-        success = azul_state.apply_action(action)
+        success = azul_state.apply_action(action, skip_validation=True)
         if not success:
             print(f"Failed to apply action: {action}")
             break
