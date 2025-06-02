@@ -19,7 +19,14 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
-import torch
+
+# Optional TensorFlow import for GPU monitoring
+try:
+    import tensorflow as tf
+
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
 
 # Type variable for decorated functions
 F = TypeVar("F", bound=Callable[..., Any])
@@ -145,8 +152,15 @@ class AzulProfiler:
 
         # GPU memory tracking
         gpu_memory_before = None
-        if self.enable_gpu_profiling and torch.cuda.is_available():
-            gpu_memory_before = torch.cuda.memory_allocated() / 1024 / 1024  # MB
+        if self.enable_gpu_profiling and TF_AVAILABLE:
+            try:
+                gpus = tf.config.list_physical_devices("GPU")
+                if gpus:
+                    # TensorFlow doesn't provide memory_allocated like PyTorch
+                    # We'll track this differently or skip detailed memory tracking
+                    gpu_memory_before = 0  # Placeholder
+            except Exception:
+                gpu_memory_before = None
 
         try:
             yield
@@ -165,19 +179,24 @@ class AzulProfiler:
             # GPU memory tracking
             if (
                 self.enable_gpu_profiling
-                and torch.cuda.is_available()
+                and TF_AVAILABLE
                 and gpu_memory_before is not None
             ):
-                gpu_memory_after = torch.cuda.memory_allocated() / 1024 / 1024
-                gpu_memory_delta = gpu_memory_after - gpu_memory_before
-                self.stats.add_gpu_stats(
-                    name,
-                    {
-                        "gpu_memory_before_mb": gpu_memory_before,
-                        "gpu_memory_after_mb": gpu_memory_after,
-                        "gpu_memory_delta_mb": gpu_memory_delta,
-                    },
-                )
+                try:
+                    gpus = tf.config.list_physical_devices("GPU")
+                    if gpus:
+                        # TensorFlow memory tracking is different from PyTorch
+                        # For now, we'll just note that GPU was used
+                        self.stats.add_gpu_stats(
+                            name,
+                            {
+                                "gpu_used": True,
+                                "gpu_devices": len(gpus),
+                                "framework": "tensorflow",
+                            },
+                        )
+                except Exception:
+                    pass
 
     def profile_function(self, name: str):
         """Decorator for timing function calls."""
@@ -218,46 +237,52 @@ class AzulProfiler:
 
     def profile_gpu_utilization(self) -> Dict[str, Any]:
         """Profile GPU utilization if available."""
-        if not torch.cuda.is_available():
-            return {"gpu_available": False}
+        if not TF_AVAILABLE:
+            return {"gpu_available": False, "framework": "none"}
 
-        gpu_stats = {
-            "gpu_available": True,
-            "device_count": torch.cuda.device_count(),
-            "current_device": torch.cuda.current_device(),
-            "device_name": torch.cuda.get_device_name(),
-            "memory_allocated_mb": torch.cuda.memory_allocated() / 1024 / 1024,
-            "memory_reserved_mb": torch.cuda.memory_reserved() / 1024 / 1024,
-            "max_memory_allocated_mb": torch.cuda.max_memory_allocated() / 1024 / 1024,
-        }
-
-        # Try to get additional GPU info if available
         try:
-            import pynvml
+            gpus = tf.config.list_physical_devices("GPU")
+            if not gpus:
+                return {"gpu_available": False, "framework": "tensorflow"}
 
-            pynvml.nvmlInit()
-            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+            gpu_stats = {
+                "gpu_available": True,
+                "framework": "tensorflow",
+                "device_count": len(gpus),
+                "gpu_devices": [gpu.name for gpu in gpus],
+            }
 
-            gpu_stats.update(
-                {
-                    "gpu_utilization_percent": pynvml.nvmlDeviceGetUtilizationRates(
-                        handle
-                    ).gpu,
-                    "memory_utilization_percent": pynvml.nvmlDeviceGetUtilizationRates(
-                        handle
-                    ).memory,
-                    "temperature_c": pynvml.nvmlDeviceGetTemperature(
-                        handle, pynvml.NVML_TEMPERATURE_GPU
-                    ),
-                    "power_usage_w": pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0,
-                }
-            )
-        except ImportError:
-            gpu_stats["pynvml_available"] = False
+            # Try to get additional GPU info if available
+            try:
+                import pynvml
+
+                pynvml.nvmlInit()
+                handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+
+                gpu_stats.update(
+                    {
+                        "gpu_utilization_percent": pynvml.nvmlDeviceGetUtilizationRates(
+                            handle
+                        ).gpu,
+                        "memory_utilization_percent": pynvml.nvmlDeviceGetUtilizationRates(
+                            handle
+                        ).memory,
+                        "temperature_c": pynvml.nvmlDeviceGetTemperature(
+                            handle, pynvml.NVML_TEMPERATURE_GPU
+                        ),
+                        "power_usage_w": pynvml.nvmlDeviceGetPowerUsage(handle)
+                        / 1000.0,
+                    }
+                )
+            except ImportError:
+                gpu_stats["pynvml_available"] = False
+            except Exception as e:
+                gpu_stats["pynvml_error"] = str(e)
+
+            return gpu_stats
+
         except Exception as e:
-            gpu_stats["pynvml_error"] = str(e)
-
-        return gpu_stats
+            return {"gpu_available": False, "framework": "tensorflow", "error": str(e)}
 
     def get_summary(self) -> Dict[str, Any]:
         """Get complete profiling summary."""
@@ -272,10 +297,11 @@ class AzulProfiler:
         if gpu_util["gpu_available"]:
             print("\nCURRENT GPU STATUS:")
             print("-" * 40)
-            print(f"Device: {gpu_util['device_name']}")
-            print(f"Memory Allocated: {gpu_util['memory_allocated_mb']:.2f} MB")
-            print(f"Memory Reserved: {gpu_util['memory_reserved_mb']:.2f} MB")
-            print(f"Max Memory Used: {gpu_util['max_memory_allocated_mb']:.2f} MB")
+            print(f"Framework: {gpu_util['framework']}")
+            print(f"GPU Devices: {gpu_util['device_count']}")
+            if "gpu_devices" in gpu_util:
+                for i, device in enumerate(gpu_util["gpu_devices"]):
+                    print(f"  Device {i}: {device}")
 
             if "gpu_utilization_percent" in gpu_util:
                 print(f"GPU Utilization: {gpu_util['gpu_utilization_percent']}%")
@@ -283,7 +309,8 @@ class AzulProfiler:
                 print(f"Temperature: {gpu_util['temperature_c']}°C")
                 print(f"Power Usage: {gpu_util['power_usage_w']:.1f} W")
         else:
-            print("\nGPU: Not available")
+            framework = gpu_util.get("framework", "unknown")
+            print(f"\nGPU: Not available (Framework: {framework})")
 
 
 # Convenience functions for creating timed versions of key game operations
@@ -311,60 +338,21 @@ def create_profiled_game_state(profiler: AzulProfiler):
     return ProfiledGameState
 
 
-def create_profiled_neural_network(profiler: AzulProfiler):
-    """Create a neural network wrapper with profiled forward pass."""
+def create_profiled_openspiel_agent(profiler: AzulProfiler, original_agent):
+    """Create a profiled wrapper for OpenSpiel agents."""
 
-    class ProfiledNeuralNetwork:
-        def __init__(self, original_nn):
-            self.original_nn = original_nn
+    class ProfiledOpenSpielAgent:
+        def __init__(self, agent):
+            self.agent = agent
             self._profiler = profiler
 
-        def evaluate(self, state):
-            with self._profiler.time_operation("nn.forward_pass"):
-                # Also profile the state representation conversion
-                with self._profiler.time_operation("nn.state_conversion"):
-                    try:
-                        numerical_state = state.get_numerical_state()
-                        _ = numerical_state.get_flat_state_vector(normalize=True)
-                    except Exception as e:
-                        raise ValueError(
-                            f"Failed to get numerical state representation: {e}"
-                        )
-
-                # Profile the actual neural network inference
-                with self._profiler.time_operation("nn.inference"):
-                    return self.original_nn.evaluate(state)
+        def step(self, time_step, is_evaluation=False):
+            """Profile OpenSpiel agent step function."""
+            with self._profiler.time_operation("openspiel_agent.step"):
+                return self.agent.step(time_step, is_evaluation)
 
         def __getattr__(self, name):
-            # Delegate all other attributes to the original network
-            return getattr(self.original_nn, name)
+            # Delegate all other attributes to the original agent
+            return getattr(self.agent, name)
 
-    return ProfiledNeuralNetwork
-
-
-def create_profiled_mcts(profiler: AzulProfiler):
-    """Create an MCTS class with profiled simulation loop."""
-    from agents.mcts import MCTS as OriginalMCTS
-
-    class ProfiledMCTS(OriginalMCTS):
-        def search(self, root_state):
-            with profiler.time_operation("mcts.full_search"):
-                return super().search(root_state)
-
-        def _simulate_with_depth(self, root):
-            with profiler.time_operation("mcts.single_simulation"):
-                return super()._simulate_with_depth(root)
-
-        def _select_action(self, node):
-            with profiler.time_operation("mcts.action_selection"):
-                return super()._select_action(node)
-
-        def _expand_and_evaluate(self, node, legal_actions=None):
-            with profiler.time_operation("mcts.expand_and_evaluate"):
-                return super()._expand_and_evaluate(node, legal_actions)
-
-        def _backpropagate(self, path, leaf, value):
-            with profiler.time_operation("mcts.backpropagate"):
-                return super()._backpropagate(path, leaf, value)
-
-    return ProfiledMCTS
+    return ProfiledOpenSpielAgent(original_agent)

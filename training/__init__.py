@@ -1,24 +1,19 @@
-"""Training module for Azul RL."""
+"""
+Training module for Azul RL.
 
-from training.neural_network import (
-    AzulNetwork,
-    AzulNetworkConfig,
-    AzulNeuralNetwork,
-    create_azul_network,
-)
-from training.replay_buffer import Experience, ReplayBuffer
-from training.self_play import SelfPlayEngine
-from training.training_loop import AzulTrainer, TrainingConfig, create_training_config
+🚀 **Primary Training Method**: OpenSpiel AlphaZero
+Use `python training/openspiel_alphazero_training.py` for all training needs.
+
+The custom training infrastructure has been removed in favor of OpenSpiel's
+superior AlphaZero implementation.
+"""
+
+# Only keep utilities that are still useful
+from training.eta_tracker import ETATracker
+
+# Note: OpenSpiel AlphaZero training is available as a script:
+# python training/openspiel_alphazero_training.py
 
 __all__ = [
-    "AzulNetwork",
-    "AzulNetworkConfig",
-    "AzulNeuralNetwork",
-    "create_azul_network",
-    "ReplayBuffer",
-    "Experience",
-    "SelfPlayEngine",
-    "AzulTrainer",
-    "TrainingConfig",
-    "create_training_config",
+    "ETATracker",
 ]

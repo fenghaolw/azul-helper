@@ -8,7 +8,6 @@ against baselines through systematic game-based evaluation.
 from evaluation.agent_evaluator import AgentEvaluator
 from evaluation.baseline_agents import (
     BaselineAgent,
-    CheckpointBaselineAgent,
     HeuristicBaselineAgent,
     RandomBaselineAgent,
     create_baseline_agent,
@@ -25,7 +24,6 @@ from evaluation.utils import (
 __all__ = [
     "AgentEvaluator",
     "BaselineAgent",
-    "CheckpointBaselineAgent",
     "HeuristicBaselineAgent",
     "RandomBaselineAgent",
     "create_baseline_agent",

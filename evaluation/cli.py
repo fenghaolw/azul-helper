@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from agents.openspiel_agents import OpenSpielMCTSAgent as MCTSAgent
 from evaluation.agent_evaluator import AgentEvaluator
 from evaluation.baseline_agents import create_baseline_agent
 from evaluation.evaluation_config import EvaluationConfig
@@ -29,21 +30,22 @@ def create_test_agent(agent_type: str, **kwargs):
 
         return HeuristicAgent(**kwargs)
     elif agent_type == "mcts":
-        import torch
+        # OpenSpiel MCTS doesn't require neural networks
+        # Extract common MCTS parameters from kwargs and map to OpenSpiel parameters
+        num_simulations = kwargs.get("num_simulations", 400)
+        uct_c = kwargs.get(
+            "uct_c", kwargs.get("c_puct", 1.4)
+        )  # Map old c_puct to uct_c
+        solve = kwargs.get("solve", False)
 
-        from agents.mcts import MCTSAgent
-        from training.neural_network import AzulNeuralNetwork
+        # Remove parameters that don't apply to OpenSpiel MCTS
+        openspiel_kwargs = {
+            "num_simulations": num_simulations,
+            "uct_c": uct_c,
+            "solve": solve,
+        }
 
-        # Create a basic MCTS agent with default network
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        network = AzulNeuralNetwork(config_name="medium", device=str(device))
-        return MCTSAgent(neural_network=network, **kwargs)
-    elif agent_type == "checkpoint":
-        from evaluation.baseline_agents import CheckpointAgent
-
-        if "checkpoint_path" not in kwargs:
-            raise ValueError("checkpoint_path required for checkpoint agent")
-        return CheckpointAgent(**kwargs)
+        return MCTSAgent(**openspiel_kwargs)
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 

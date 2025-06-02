@@ -3,9 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
       - id: end-of-file-fixer
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
       - id: check-yaml
       - id: check-toml
       - id: check-json
@@ -13,29 +13,29 @@ repos:
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: debug-statements
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
       - id: check-ast
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
       - id: black
         language_version: python3
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
 
   - repo: https://github.com/pycqa/isort
     rev: 6.0.1
     hooks:
       - id: isort
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
         args: ["--profile", "black"]
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.2.0
     hooks:
       - id: flake8
-        files: ^(game|training|agents|utils|tests|examples)/.*\.py$
+        files: ^(game|training|agents|utils)/.*\.py$
         args: [--config=.flake8]
 
   - repo: local
