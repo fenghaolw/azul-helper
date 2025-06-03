@@ -22,15 +22,18 @@ class PatternLine:
         if tile_color == TileColor.FIRST_PLAYER:
             return False
 
-        # If line is empty, any color can be added
-        if not self.tiles:
-            return len(tiles) <= self.capacity
-
-        # If line has tiles, new tiles must be same color
-        if self.color != tile_color:
+        # Fast path: check capacity first (most likely constraint)
+        if len(tiles) > self.capacity:
             return False
 
-        return len(self.tiles) + len(tiles) <= self.capacity
+        # If line is empty, any valid color can be added
+        if not self.tiles:
+            return True
+
+        # If line has tiles, new tiles must be same color and fit
+        return (
+            self.color == tile_color and len(self.tiles) + len(tiles) <= self.capacity
+        )
 
     def add_tiles(self, tiles: List[Tile]) -> List[Tile]:
         """Add tiles to pattern line. Returns overflow tiles."""
@@ -117,25 +120,28 @@ class Wall:
         ],
     ]
 
+    # Precomputed lookup table: COLOR_COLUMNS[row][color] = column
+    # This avoids the expensive linear search in can_place_tile
+    COLOR_COLUMNS = [
+        {color: col for col, color in enumerate(row)} for row in WALL_PATTERN
+    ]
+
     def __init__(self):
         # Track which positions are filled
         self.filled = [[False for _ in range(5)] for _ in range(5)]
 
     def can_place_tile(self, row: int, color: TileColor) -> bool:
         """Check if a tile of given color can be placed in the row."""
+        # Early bounds check with single comparison
         if row < 0 or row >= 5:
             return False
 
-        # Find the column for this color in this row
-        col = None
-        for c, wall_color in enumerate(self.WALL_PATTERN[row]):
-            if wall_color == color:
-                col = c
-                break
-
-        if col is None:
+        # Use precomputed lookup table - get() with default for safety
+        col = self.COLOR_COLUMNS[row].get(color, -1)
+        if col == -1:
             return False
 
+        # Direct array access - fastest check
         return not self.filled[row][col]
 
     def place_tile(self, row: int, color: TileColor) -> int:
@@ -144,12 +150,8 @@ class Wall:
         if row < 0 or row >= 5:
             return 0
 
-        col = None
-        for c, wall_color in enumerate(self.WALL_PATTERN[row]):
-            if wall_color == color:
-                col = c
-                break
-
+        # Use precomputed lookup table instead of linear search
+        col = self.COLOR_COLUMNS[row].get(color)
         if col is None:
             return 0
 
@@ -259,18 +261,34 @@ class PlayerBoard:
         self, line_index: int, tiles: List[Tile]
     ) -> bool:
         """Check if tiles can be placed on the specified pattern line."""
-        if line_index < 0 or line_index >= 5:
+        # Early bounds check
+        if line_index < 0 or line_index >= 5 or not tiles:
             return False
 
-        if not tiles:
-            return False
-
-        # Check if this color can eventually go on the wall
         color = tiles[0].color
-        if not self.wall.can_place_tile(line_index, color):
+        pattern_line = self.pattern_lines[line_index]
+
+        # Fast inline pattern line validation (avoid method call overhead)
+        tile_color = color
+
+        # Can't add first player marker to pattern lines
+        if tile_color == TileColor.FIRST_PLAYER:
             return False
 
-        return self.pattern_lines[line_index].can_add_tiles(tiles)
+        # If line is empty, check capacity and wall
+        if not pattern_line.tiles:
+            if len(tiles) > pattern_line.capacity:
+                return False
+        else:
+            # If line has tiles, new tiles must be same color and fit
+            if (
+                pattern_line.color != tile_color
+                or len(pattern_line.tiles) + len(tiles) > pattern_line.capacity
+            ):
+                return False
+
+        # Only check wall constraint after pattern line validation passes
+        return self.wall.can_place_tile(line_index, color)
 
     def place_tiles_on_pattern_line(
         self, line_index: int, tiles: List[Tile]

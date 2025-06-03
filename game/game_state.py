@@ -1,5 +1,5 @@
 import random
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, cast
 
 if TYPE_CHECKING:
     from game.state_representation import AzulStateRepresentation
@@ -22,9 +22,14 @@ class Action:
         self.source = source
         self.color = color
         self.destination = destination
+        # Precompute hash for better performance in MCTS tree operations
+        self._hash = hash((source, color.value, destination))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Action):
+            return False
+        # Fast path: compare hash first (most likely to differ)
+        if hasattr(other, "_hash") and self._hash != other._hash:
             return False
         return (
             self.source == other.source
@@ -33,7 +38,7 @@ class Action:
         )
 
     def __hash__(self) -> int:
-        return hash((self.source, self.color, self.destination))
+        return self._hash
 
     def __repr__(self) -> str:
         source_str = "center" if self.source == -1 else f"factory_{self.source}"
@@ -48,28 +53,27 @@ class GameState:
         if num_players < 2 or num_players > 4:
             raise ValueError("Number of players must be between 2 and 4")
 
-        self.num_players = num_players
-        self.players: List[PlayerBoard] = [PlayerBoard() for _ in range(num_players)]
-        self.factory_area = FactoryArea(num_players)
-
-        # Game state
-        self.current_player = 0
-        self.round_number = 1
-        self.game_over = False
-        self.winner: Optional[int] = None
-
-        # Tile management
-        self.bag: List[Tile] = []
-        self.discard_pile: List[Tile] = (
-            []
-        )  # All discarded tiles go here (lid of the game box)
-
-        # Random seed for reproducibility
+        # Set random seed if provided
         if seed is not None:
             random.seed(seed)
 
+        self.num_players = num_players
+        self.current_player = 0
+        self.game_over = False
+        self.winner: Optional[int] = None
+        self.round_number = 1
+
+        # Initialize game components
+        self.players = [PlayerBoard() for _ in range(num_players)]
+        self.factory_area = FactoryArea(num_players)
+        self.discard_pile: List[Tile] = []
+
+        # Set up initial game state
         self._initialize_tiles()
         self._start_new_round()
+
+        # Default first player to 0 for the first round
+        # For the first round, it defaults to 0 from __init__
 
     def _initialize_tiles(self) -> None:
         """Initialize the bag with all tiles."""
@@ -91,6 +95,32 @@ class GameState:
 
         # Note: current_player is already set in _end_round for subsequent rounds
         # For the first round, it defaults to 0 from __init__
+
+    def _get_tiles_from_source(
+        self, source: int, color: TileColor
+    ) -> Optional[List[Tile]]:
+        """Helper method to get tiles from a source. Returns None if invalid."""
+        if source == -1:
+            # Taking from center - optimized tile filtering
+            center_tiles = self.factory_area.center.tiles
+            if not center_tiles:
+                return None
+            # Use list comprehension for better performance than generator + list()
+            test_tiles = [tile for tile in center_tiles if tile.color == color]
+            return test_tiles if test_tiles else None
+        else:
+            # Taking from factory - validate bounds first with early exit
+            factories = self.factory_area.factories
+            if source < 0 or source >= len(factories):
+                return None
+
+            factory_tiles = factories[source].tiles
+            if not factory_tiles:
+                return None
+
+            # Use list comprehension for better performance
+            test_tiles = [tile for tile in factory_tiles if tile.color == color]
+            return test_tiles if test_tiles else None
 
     def get_legal_actions(self, player_id: Optional[int] = None) -> List[Action]:
         """Get all legal actions for the current player."""
@@ -125,39 +155,86 @@ class GameState:
                 self._end_game()
                 return []
 
-        for source, color in available_moves:
-            # For each destination (pattern lines + floor line)
-            for dest in range(-1, 5):  # -1 = floor, 0-4 = pattern lines
-                if dest == -1:
-                    # Can always place on floor line
-                    actions.append(Action(source, color, dest))
-                else:
-                    # Check if can place on pattern line
-                    # Get tiles that would be taken
-                    if source == -1:
-                        # Simulate taking from center
-                        test_tiles = [
-                            tile
-                            for tile in self.factory_area.center.tiles
-                            if tile.color == color
-                        ]
-                    else:
-                        # Simulate taking from factory
-                        test_tiles = [
-                            tile
-                            for tile in self.factory_area.factories[source].tiles
-                            if tile.color == color
-                        ]
+        # Pre-cache wall validation for all colors to avoid repeated lookups
+        wall_cache: Dict[int, Dict[TileColor, bool]] = {}
+        for line_idx in range(5):
+            wall_cache[line_idx] = {}
+            for color in [
+                TileColor.BLUE,
+                TileColor.YELLOW,
+                TileColor.RED,
+                TileColor.BLACK,
+                TileColor.WHITE,
+            ]:
+                wall_cache[line_idx][color] = player.wall.can_place_tile(
+                    line_idx, color
+                )
 
-                    if test_tiles and player.can_place_tiles_on_pattern_line(
-                        dest, test_tiles
+        # Cache pattern line data to avoid repeated attribute access
+        pattern_line_cache = []
+        for i in range(5):
+            pl = player.pattern_lines[i]
+            pattern_line_cache.append(
+                {
+                    "capacity": pl.capacity,
+                    "tiles_count": len(pl.tiles),
+                    "color": pl.color,  # This can be None
+                    "is_empty": not pl.tiles,
+                }
+            )
+
+        # Cache tile source lookups
+        tile_cache = {}
+        for source, color in available_moves:
+            if (source, color) not in tile_cache:
+                tile_cache[(source, color)] = self._get_tiles_from_source(source, color)
+
+        for source, color in available_moves:
+            # Use cached tiles
+            test_tiles = tile_cache[(source, color)]
+            if not test_tiles:
+                continue  # Skip if no tiles of this color available
+
+            # Floor line is always valid
+            actions.append(Action(source, color, -1))
+
+            # Check pattern lines (0-4) with optimized validation using cached data
+            tiles_count = len(test_tiles)
+
+            for dest in range(5):
+                # Fast wall check first (most likely to eliminate invalid moves)
+                if not wall_cache[dest][color]:
+                    continue
+
+                # Use cached pattern line data
+                pl_data = pattern_line_cache[dest]
+
+                # Pattern line validation (fully inlined and optimized)
+                if color == TileColor.FIRST_PLAYER:
+                    continue
+
+                # If line is empty, check capacity only
+                if pl_data["is_empty"]:
+                    # capacity is guaranteed to be int, tiles_count is guaranteed to be int
+                    capacity = cast(int, pl_data["capacity"])
+                    if tiles_count <= capacity:
+                        actions.append(Action(source, color, dest))
+                else:
+                    # If line has tiles, check color and capacity
+                    # Pattern line color is guaranteed to be non-None when not empty
+                    pl_color = pl_data["color"]
+                    tiles_count_cached = cast(int, pl_data["tiles_count"])
+                    capacity_cached = cast(int, pl_data["capacity"])
+                    if (
+                        pl_color == color
+                        and tiles_count_cached + tiles_count <= capacity_cached
                     ):
                         actions.append(Action(source, color, dest))
 
         return actions
 
     def is_action_legal(self, action: Action, player_id: Optional[int] = None) -> bool:
-        """Check if an action is legal - optimized to avoid generating all legal actions."""
+        """Check if an action is legal - optimized version."""
         if player_id is None:
             player_id = self.current_player
 
@@ -168,43 +245,35 @@ class GameState:
         if player_id < 0 or player_id >= self.num_players:
             return False
 
-        player = self.players[player_id]
-
-        # Check if source is valid and has the specified color
-        if action.source == -1:
-            # Taking from center
-            available_colors = self.factory_area.center.get_available_colors()
-            if action.color not in available_colors:
-                return False
-            # Get tiles that would be taken
-            test_tiles = [
-                tile
-                for tile in self.factory_area.center.tiles
-                if tile.color == action.color
-            ]
-        else:
-            # Taking from factory
-            if action.source < 0 or action.source >= len(self.factory_area.factories):
-                return False
-            factory = self.factory_area.factories[action.source]
-            available_colors = factory.get_available_colors()
-            if action.color not in available_colors:
-                return False
-            # Get tiles that would be taken
-            test_tiles = [tile for tile in factory.tiles if tile.color == action.color]
-
-        # Check if destination is valid
+        # Fast validation for floor line (always valid if source/color valid)
         if action.destination == -1:
-            # Floor line - always valid if we can take tiles
-            return len(test_tiles) > 0
-        elif 0 <= action.destination <= 4:
-            # Pattern line - check if we can place tiles there
-            return len(test_tiles) > 0 and player.can_place_tiles_on_pattern_line(
+            # Check if source has the color directly without creating color sets
+            if action.source == -1:
+                return any(
+                    tile.color == action.color
+                    for tile in self.factory_area.center.tiles
+                )
+            else:
+                if action.source < 0 or action.source >= len(
+                    self.factory_area.factories
+                ):
+                    return False
+                return any(
+                    tile.color == action.color
+                    for tile in self.factory_area.factories[action.source].tiles
+                )
+
+        # For pattern lines, we need the actual tiles to check capacity
+        if 0 <= action.destination <= 4:
+            test_tiles = self._get_tiles_from_source(action.source, action.color)
+            if not test_tiles:
+                return False
+            return self.players[player_id].can_place_tiles_on_pattern_line(
                 action.destination, test_tiles
             )
-        else:
-            # Invalid destination
-            return False
+
+        # Invalid destination
+        return False
 
     def apply_action(self, action: Action, skip_validation: bool = False) -> bool:
         """Apply an action and return True if successful.
@@ -332,31 +401,49 @@ class GameState:
 
         This method is optimized to minimize object allocation and copying overhead.
         Key optimizations:
-        1. Uses __new__ to avoid __init__ overhead
-        2. Implements copy-on-write semantics where possible
-        3. Uses shallow copies for immutable data
-        4. Optimizes list operations
+        1. Uses __new__ to avoid __init__ overhead completely
+        2. Direct attribute assignment without validation
+        3. Optimized shallow copying for immutable data
         """
         # Create new instance without calling __init__ to avoid re-initialization
         new_state = GameState.__new__(GameState)
 
-        # Copy simple immutable/atomic fields - these are fast
+        # Copy simple immutable/atomic fields - these are fast direct assignments
         new_state.num_players = self.num_players
         new_state.current_player = self.current_player
         new_state.round_number = self.round_number
         new_state.game_over = self.game_over
         new_state.winner = self.winner
 
-        # Copy players - use list comprehension for type safety
-        new_state.players = [self.players[i].copy() for i in range(self.num_players)]
+        # Optimized player copying - avoid any loops or list comprehensions
+        if self.num_players == 2:
+            new_state.players = [self.players[0].copy(), self.players[1].copy()]
+        elif self.num_players == 3:
+            new_state.players = [
+                self.players[0].copy(),
+                self.players[1].copy(),
+                self.players[2].copy(),
+            ]
+        elif self.num_players == 4:
+            new_state.players = [
+                self.players[0].copy(),
+                self.players[1].copy(),
+                self.players[2].copy(),
+                self.players[3].copy(),
+            ]
+        else:
+            # Fallback for unusual cases
+            new_state.players = [
+                self.players[i].copy() for i in range(self.num_players)
+            ]
 
         # Copy factory area
         new_state.factory_area = self.factory_area.copy()
 
         # Optimize tile list copying - tiles are immutable, so shallow copy is safe
-        # Use list() constructor which is faster than .copy() for large lists
-        new_state.bag = list(self.bag)
-        new_state.discard_pile = list(self.discard_pile)
+        # Use slice copy which is faster than list() constructor for small-medium lists
+        new_state.bag = self.bag[:]
+        new_state.discard_pile = self.discard_pile[:]
 
         return new_state
 

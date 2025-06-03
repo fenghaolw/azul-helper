@@ -59,7 +59,7 @@ class AzulGame(pyspiel.Game):
                 provides_factored_observation_string=False,
             ),
             pyspiel.GameInfo(
-                num_distinct_actions=self._calculate_max_actions(),
+                num_distinct_actions=180,
                 max_chance_outcomes=100,  # Max tiles that can be drawn
                 num_players=self._num_players,
                 min_utility=-100.0,  # Approximate minimum score
@@ -70,20 +70,16 @@ class AzulGame(pyspiel.Game):
             params or {},
         )
 
-    def _calculate_max_actions(self) -> int:
-        """Calculate the maximum number of distinct actions possible."""
-        # 5 factories + 1 center = 6 sources
-        # 5 colors
-        # 5 pattern lines + 1 floor = 6 destinations
-        return 6 * 5 * 6
-
     def new_initial_state(self) -> "AzulState":
         """Create a new initial state."""
         return AzulState(self, self._num_players, self._seed)
 
     def num_distinct_actions(self) -> int:
-        """Return the number of distinct actions."""
-        return self._calculate_max_actions()
+        """The maximum number of distinct actions in the game."""
+        # 5 factories + 1 center = 6 sources
+        # 5 colors
+        # 5 pattern lines + 1 floor = 6 destinations
+        return 180
 
     def num_players(self) -> int:
         """Return the number of players."""
@@ -116,57 +112,38 @@ class AzulGame(pyspiel.Game):
 
 
 class AzulState(pyspiel.State):
-    """OpenSpiel-compatible Azul state implementation."""
+    """OpenSpiel state wrapper for Azul game."""
+
+    # Color to index mapping for efficient conversion
+    _COLOR_TO_IDX = {
+        TileColor.BLUE: 0,
+        TileColor.YELLOW: 1,
+        TileColor.RED: 2,
+        TileColor.BLACK: 3,
+        TileColor.WHITE: 4,
+        TileColor.FIRST_PLAYER: 5,
+    }
+
+    # Index to color mapping for reverse conversion
+    _IDX_TO_COLOR = {v: k for k, v in _COLOR_TO_IDX.items()}
 
     def __init__(self, game: AzulGame, num_players: int, seed: Optional[int] = None):
-        super().__init__(game)
+        pyspiel.State.__init__(self, game)
         self._game_state = GameState(num_players, seed)
-        self._action_mapping = self._build_action_mapping()
-        self._reverse_action_mapping = {v: k for k, v in self._action_mapping.items()}
-
-    def _build_action_mapping(self) -> Dict[Action, int]:
-        """Build mapping from Azul Actions to OpenSpiel action integers."""
-        mapping = {}
-        action_id = 0
-
-        # Map all possible actions to integers
-        # Source: -1 (center), 0-4 (factories)
-        # Color: all TileColor enum values
-        # Destination: -1 (floor), 0-4 (pattern lines)
-        for source in range(-1, 5):  # -1 for center, 0-4 for factories
-            for color in TileColor:
-                for dest in range(-1, 5):  # -1 for floor, 0-4 for pattern lines
-                    action = Action(source, color, dest)
-                    mapping[action] = action_id
-                    action_id += 1
-
-        return mapping
-
-    def _azul_action_to_int(self, action: Action) -> int:
-        """Convert Azul Action to OpenSpiel integer action."""
-        # Create a comparable action key
-        action_key = Action(action.source, action.color, action.destination)
-        if action_key in self._action_mapping:
-            return self._action_mapping[action_key]
-        else:
-            # If exact action not found, try to find a match by attributes
-            for mapped_action, action_id in self._action_mapping.items():
-                if (
-                    mapped_action.source == action.source
-                    and mapped_action.color == action.color
-                    and mapped_action.destination == action.destination
-                ):
-                    return action_id
-            raise ValueError(f"Action {action} not found in mapping")
 
     def _int_to_azul_action(self, action_int: int) -> Action:
-        """Convert OpenSpiel integer action to Azul Action."""
-        if action_int in self._reverse_action_mapping:
-            return self._reverse_action_mapping[action_int]
-        else:
-            raise ValueError(
-                f"Action integer {action_int} not found in reverse mapping"
-            )
+        """Convert OpenSpiel integer action to Azul Action using direct calculation."""
+        # Reverse the formula: source_idx * 36 + color_idx * 6 + dest_idx
+        source_idx = action_int // 36
+        remainder = action_int % 36
+        color_idx = remainder // 6
+        dest_idx = remainder % 6
+
+        source = source_idx - 1  # 0 becomes -1, 1-5 becomes 0-4
+        color = self._IDX_TO_COLOR[color_idx]
+        destination = dest_idx - 1  # 0 becomes -1, 1-5 becomes 0-4
+
+        return Action(source, color, destination)
 
     def current_player(self) -> int:
         """Return the current player."""
@@ -183,7 +160,17 @@ class AzulState(pyspiel.State):
             return []
 
         azul_actions = self._game_state.get_legal_actions(player)
-        return [self._azul_action_to_int(action) for action in azul_actions]
+
+        # Batch convert actions using list comprehension for efficiency
+        action_ints = []
+        for action in azul_actions:
+            source_idx = action.source + 1
+            dest_idx = action.destination + 1
+            color_idx = self._COLOR_TO_IDX[action.color]
+            action_int = source_idx * 36 + color_idx * 6 + dest_idx
+            action_ints.append(action_int)
+
+        return action_ints
 
     def legal_actions_mask(self, player: Optional[int] = None) -> np.ndarray:
         """Return a boolean mask indicating which actions are legal."""
@@ -287,16 +274,12 @@ class AzulState(pyspiel.State):
 
     def clone(self) -> "AzulState":
         """Create a copy of this state."""
-        # Create new state efficiently by bypassing expensive action mapping rebuild
+        # Create new state efficiently
         new_state = AzulState.__new__(AzulState)
         pyspiel.State.__init__(new_state, self.get_game())
 
         # Copy the game state
         new_state._game_state = self._game_state.copy()
-
-        # Reuse the same action mappings (they're immutable for the game)
-        new_state._action_mapping = self._action_mapping
-        new_state._reverse_action_mapping = self._reverse_action_mapping
 
         return new_state
 

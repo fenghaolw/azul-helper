@@ -358,8 +358,8 @@ class TestDataTypeConsistency:
         print("✓ Float type consistency verified")
 
     def test_enum_consistency(self):
-        """Test that enums work consistently."""
-        # Test TileColor enum
+        """Test that enums behave consistently."""
+
         colors = [
             TileColor.BLUE,
             TileColor.YELLOW,
@@ -371,14 +371,21 @@ class TestDataTypeConsistency:
         for color in colors:
             assert isinstance(color, TileColor)
             assert hasattr(color, "value")
-            assert isinstance(color.value, str)
+            assert isinstance(color.value, int)  # Changed to int for IntEnum
 
-        # Test that enum values are consistent
-        assert TileColor.BLUE.value == "blue"
-        assert TileColor.YELLOW.value == "yellow"
-        assert TileColor.RED.value == "red"
-        assert TileColor.BLACK.value == "black"
-        assert TileColor.WHITE.value == "white"
+        # Test that enum values are consistent - updated for IntEnum
+        assert TileColor.BLUE.value == 0
+        assert TileColor.YELLOW.value == 1
+        assert TileColor.RED.value == 2
+        assert TileColor.BLACK.value == 3
+        assert TileColor.WHITE.value == 4
+
+        # Test string representation works correctly
+        assert str(TileColor.BLUE) == "blue"
+        assert str(TileColor.YELLOW) == "yellow"
+        assert str(TileColor.RED) == "red"
+        assert str(TileColor.BLACK) == "black"
+        assert str(TileColor.WHITE) == "white"
 
         print("✓ Enum consistency verified")
 
