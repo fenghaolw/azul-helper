@@ -38,6 +38,14 @@ def create_agent(agent_type: str, **kwargs):
     elif agent_type == "improved_heuristic":
         return ImprovedHeuristicAgent(**kwargs)
     elif agent_type == "random":
+        # Create descriptive name for random agent
+        seed = kwargs.get("seed", None)
+        name = kwargs.get("name", None)
+        if name is None:
+            name = f"RandomAgent"
+            if seed is not None:
+                name += f"_S{seed}"
+        kwargs["name"] = name
         return RandomAgent(**kwargs)
     elif agent_type == "mcts":
         # OpenSpiel MCTS - filter parameters to only those supported
@@ -52,6 +60,16 @@ def create_agent(agent_type: str, **kwargs):
         name = kwargs.get("name", None)
         max_memory = kwargs.get("max_memory", 1000000)
         evaluator = kwargs.get("evaluator", None)
+
+        # Create descriptive name if not provided
+        if name is None:
+            name = f"MCTS_N{num_simulations}"
+            if uct_c != 1.4:
+                name += f"_C{uct_c:.1f}"
+            if solve:
+                name += "_Solve"
+            if seed is not None:
+                name += f"_S{seed}"
 
         # Create with only supported parameters
         openspiel_kwargs = {
@@ -73,6 +91,13 @@ def create_agent(agent_type: str, **kwargs):
         player_id = kwargs.get("player_id", 0)
         name = kwargs.get("name", None)
 
+        # Create descriptive name if not provided
+        if name is None:
+            name = f"MinimaxAgent_D{max_depth}"
+            if time_limit != 1.0:
+                name += f"_T{time_limit:.1f}s"
+
+        kwargs["name"] = name
         return MinimaxAgent(
             player_id=player_id, time_limit=time_limit, max_depth=max_depth, name=name
         )
@@ -85,6 +110,17 @@ def create_agent(agent_type: str, **kwargs):
         player_id = kwargs.get("player_id", 0)
         name = kwargs.get("name", None)
 
+        # Create descriptive name if not provided
+        if name is None:
+            name = f"OpenSpielMinimax_D{depth}"
+            if not enable_alpha_beta:
+                name += "_NoAB"
+            if time_limit is not None:
+                name += f"_T{time_limit:.1f}s"
+            if seed is not None:
+                name += f"_S{seed}"
+
+        kwargs["name"] = name
         return OpenSpielMinimaxAgent(
             depth=depth,
             enable_alpha_beta=enable_alpha_beta,
@@ -303,19 +339,22 @@ Examples:
   # Quick evaluation
   python -m evaluation.cli quick --test-agent heuristic
 
-  # Full evaluation with custom settings
+  # Full evaluation with custom settings and parameters
   python -m evaluation.cli evaluate \\
-    --agent-a mcts --agent-b random \\
+    --agent-a mcts --agent-a-args "num_simulations=200,uct_c=2.0" \\
+    --agent-b random --agent-b-args "seed=123" \\
     --num-games 100 --output results.json
 
-  # Verbose evaluation (show progress)
+  # Minimax with custom depth and time limit
   python -m evaluation.cli evaluate \\
-    --agent-a mcts --agent-b random \\
-    --num-games 50 --verbose
+    --agent-a minimax --agent-a-args "max_depth=3,time_limit=0.5" \\
+    --agent-b heuristic --num-games 50 --verbose
 
-  # Tournament between multiple agents
+  # Tournament with custom agent names and parameters
   python -m evaluation.cli tournament \\
-    --agents "MCTS:mcts" "Heuristic:heuristic" "Random:random" \\
+    --agents "FastMinimax:minimax:max_depth=2,time_limit=0.3" \\
+             "SlowMinimax:minimax:max_depth=4,time_limit=1.0" \\
+             "SmartHeuristic:heuristic" \\
     --output tournament_results
 
   # Generate summary of results

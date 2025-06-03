@@ -287,8 +287,8 @@ def format_evaluation_results(result, detailed: bool = False) -> str:
         f"AGENT EVALUATION RESULTS",
         "=" * 60,
         "",
-        f"Test Agent: {result.test_agent_name}",
-        f"Baseline Agent: {result.baseline_agent_name}",
+        f"Agent A: {result.test_agent_name}",
+        f"Agent B: {result.baseline_agent_name}",
         f"Evaluation Time: {result.timestamp}",
         f"Games Played: {result.games_played}",
         "",
@@ -324,8 +324,8 @@ def format_evaluation_results(result, detailed: bool = False) -> str:
                 f"    Min/Max decision time: {thinking_analysis.baseline_agent_min_thinking_time:.3f}s / {thinking_analysis.baseline_agent_max_thinking_time:.3f}s",
                 "",
                 "THINKING TIME COMPARISON:",
-                f"  Ratio (Test/Baseline): {thinking_analysis.thinking_time_ratio:.2f}x",
-                f"  {'Test agent thinks longer' if thinking_analysis.test_agent_thinks_longer else 'Baseline agent thinks longer'}",
+                f"  Ratio ({result.test_agent_name}/{result.baseline_agent_name}): {thinking_analysis.thinking_time_ratio:.2f}x",
+                f"  {result.test_agent_name + ' thinks longer' if thinking_analysis.test_agent_thinks_longer else result.baseline_agent_name + ' thinks longer'}",
                 f"  Time difference: {thinking_analysis.total_thinking_time_difference:+.2f}s total",
             ]
         )
@@ -369,8 +369,8 @@ def format_evaluation_results(result, detailed: bool = False) -> str:
                 "",
                 "DETAILED STATISTICS:",
                 f"  Configuration: {result.config.num_games} games, {result.config.timeout_per_move}s timeout",
-                f"  Test Agent Info: {result.test_agent_info}",
-                f"  Baseline Agent Info: {result.baseline_agent_info}",
+                f"  {result.test_agent_name} Info: {result.test_agent_info}",
+                f"  {result.baseline_agent_name} Info: {result.baseline_agent_info}",
             ]
         )
 
@@ -385,13 +385,15 @@ def format_evaluation_results(result, detailed: bool = False) -> str:
         for i, game_result in enumerate(
             result.game_results[:10]
         ):  # Show first 10 games
-            winner_name = (
-                result.test_agent_name
-                if game_result.winner == 0
-                else result.baseline_agent_name
-            )
+            if game_result.winner == 0:
+                winner_text = f"{result.test_agent_name} wins"
+            elif game_result.winner == 1:
+                winner_text = f"{result.baseline_agent_name} wins"
+            else:
+                winner_text = "Draw"
+
             lines.append(
-                f"  Game {game_result.game_id + 1}: {winner_name} wins "
+                f"  Game {game_result.game_id + 1}: {winner_text} "
                 f"({game_result.final_scores[0]}-{game_result.final_scores[1]}) "
                 f"in {game_result.num_rounds} rounds"
             )

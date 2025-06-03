@@ -72,6 +72,7 @@ class GameResult:
     winner: int  # Player index of winner
     final_scores: List[int]  # Final scores for all players
     num_rounds: int
+    total_moves: int  # Total number of moves made in the game
     game_duration: float  # seconds
     agent_stats: Dict[str, Any]  # Per-agent statistics
 
@@ -166,6 +167,7 @@ class EvaluationResult:
                     "winner": gr.winner,
                     "final_scores": gr.final_scores,
                     "num_rounds": gr.num_rounds,
+                    "total_moves": gr.total_moves,
                     "game_duration": gr.game_duration,
                     "agent_stats": gr.agent_stats,
                     "timeout_occurred": gr.timeout_occurred,
@@ -190,6 +192,7 @@ class EvaluationResult:
                     winner=gr_data["winner"],
                     final_scores=gr_data["final_scores"],
                     num_rounds=gr_data["num_rounds"],
+                    total_moves=gr_data["total_moves"],
                     game_duration=gr_data["game_duration"],
                     agent_stats=gr_data["agent_stats"],
                     timeout_occurred=gr_data.get("timeout_occurred", False),

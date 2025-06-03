@@ -287,8 +287,17 @@ class AzulState(pyspiel.State):
 
     def clone(self) -> "AzulState":
         """Create a copy of this state."""
-        new_state = AzulState(self.get_game(), self._game_state.num_players)
+        # Create new state efficiently by bypassing expensive action mapping rebuild
+        new_state = AzulState.__new__(AzulState)
+        pyspiel.State.__init__(new_state, self.get_game())
+
+        # Copy the game state
         new_state._game_state = self._game_state.copy()
+
+        # Reuse the same action mappings (they're immutable for the game)
+        new_state._action_mapping = self._action_mapping
+        new_state._reverse_action_mapping = self._reverse_action_mapping
+
         return new_state
 
 

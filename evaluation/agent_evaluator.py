@@ -19,6 +19,7 @@ from evaluation.utils import (
     get_evaluation_timestamp,
 )
 from game.game_state import GameState, create_game
+from training.eta_tracker import ETATracker
 
 if TYPE_CHECKING:
     from evaluation.evaluation_config import ThinkingTimeAnalysis
@@ -86,13 +87,6 @@ class AgentEvaluator:
             test_agent_name = test_agent.name
         if baseline_agent_name is None:
             baseline_agent_name = baseline_agent.name
-
-        if self.config.verbose:
-            print(f"Starting evaluation: {test_agent_name} vs {baseline_agent_name}")
-            print(
-                f"Configuration: {self.config.num_games} games, "
-                f"{self.config.timeout_per_move}s timeout"
-            )
 
         # Reset agent statistics
         baseline_agent.reset_stats()
@@ -241,17 +235,23 @@ class AgentEvaluator:
         baseline_agent: Any,
         games_to_play: List[Dict[str, Any]],
     ) -> List[GameResult]:
-        """Run games sequentially in the main thread."""
+        """Run games sequentially (single-threaded)."""
         results = []
 
-        # Show initial progress message
-        if len(games_to_play) > 1:
+        # Initialize ETA tracker for verbose mode
+        eta_tracker = None
+        if self.config.verbose and len(games_to_play) > 1:
+            eta_tracker = ETATracker(
+                total_iterations=len(games_to_play),
+                moving_average_window=min(10, len(games_to_play)),
+                enable_phase_tracking=False,
+            )
             print(f"Playing {len(games_to_play)} games...")
 
         for i, game_config in enumerate(games_to_play):
-            # Always show progress every 10 games (regardless of verbose setting)
-            if (i + 1) % 10 == 0:
-                print(f"Completed {i + 1}/{len(games_to_play)} games")
+            # Start iteration tracking
+            if eta_tracker:
+                eta_tracker.start_iteration(i + 1)
 
             try:
                 result = self._run_single_game(test_agent, baseline_agent, game_config)
@@ -259,15 +259,37 @@ class AgentEvaluator:
 
                 # Show per-game status in verbose mode
                 if self.config.verbose:
-                    winner_name = (
-                        "Test"
-                        if result.winner == 0
-                        else "Baseline" if result.winner == 1 else "Draw"
-                    )
+                    if result.winner == 0:
+                        winner_name = test_agent.name
+                        result_str = "wins"
+                    elif result.winner == 1:
+                        winner_name = baseline_agent.name
+                        result_str = "wins"
+                    else:
+                        winner_name = "Draw"
+                        result_str = ""
+
                     score_str = f"({result.final_scores[0]}-{result.final_scores[1]})"
-                    print(
-                        f"  Game {result.game_id + 1}: {winner_name} wins {score_str} in {result.num_rounds} rounds"
-                    )
+                    game_time_str = f"{result.game_duration:.1f}s"
+
+                    if result_str:
+                        base_msg = f"  Game {result.game_id + 1}: {winner_name} {result_str} {score_str} in {result.num_rounds} rounds, {result.total_moves} moves ({game_time_str})"
+                    else:
+                        base_msg = f"  Game {result.game_id + 1}: {winner_name} {score_str} in {result.num_rounds} rounds, {result.total_moves} moves ({game_time_str})"
+
+                    # Add ETA information every few games
+                    if eta_tracker and (i + 1) % max(1, len(games_to_play) // 10) == 0:
+                        eta_estimates = eta_tracker.get_eta_estimates()
+                        if eta_estimates["best_estimate"]:
+                            eta_str = eta_tracker.format_time_display(
+                                eta_estimates["best_estimate"]
+                            )
+                            progress_pct = ((i + 1) / len(games_to_play)) * 100
+                            base_msg += (
+                                f" | Progress: {progress_pct:.1f}% | ETA: {eta_str}"
+                            )
+
+                    print(base_msg)
 
             except Exception as e:
                 # Create error result
@@ -276,6 +298,7 @@ class AgentEvaluator:
                     winner=-1,
                     final_scores=[0, 0],
                     num_rounds=0,
+                    total_moves=0,
                     game_duration=0.0,
                     agent_stats={},
                     error_log=str(e),
@@ -286,9 +309,23 @@ class AgentEvaluator:
                 if self.config.verbose:
                     print(f"Error in game {game_config['game_id']}: {e}")
 
+            # End iteration tracking
+            if eta_tracker:
+                eta_tracker.end_iteration()
+
         # Show completion message
         if len(games_to_play) > 1:
-            print(f"Completed all {len(games_to_play)} games!")
+            if eta_tracker:
+                summary = eta_tracker.get_progress_summary()
+                elapsed_str = eta_tracker.format_time_display(summary["elapsed_time"])
+                avg_game_str = eta_tracker.format_time_display(
+                    summary["avg_iteration_time"]
+                )
+                print(
+                    f"Completed all {len(games_to_play)} games in {elapsed_str} (avg: {avg_game_str} per game)"
+                )
+            else:
+                print(f"Completed all {len(games_to_play)} games!")
 
         return results
 
@@ -301,8 +338,15 @@ class AgentEvaluator:
         """Run games in parallel using multiple workers."""
         results = []
 
-        # Show initial progress message
-        if len(games_to_play) > 1:
+        # Initialize ETA tracker for verbose mode
+        eta_tracker = None
+        start_time = time.time()
+        if self.config.verbose and len(games_to_play) > 1:
+            eta_tracker = ETATracker(
+                total_iterations=len(games_to_play),
+                moving_average_window=min(10, len(games_to_play)),
+                enable_phase_tracking=False,
+            )
             print(
                 f"Playing {len(games_to_play)} games using {self.config.num_workers} workers..."
             )
@@ -322,23 +366,48 @@ class AgentEvaluator:
             completed = 0
             for future in as_completed(future_to_game):
                 game_config = future_to_game[future]
+
+                # Update ETA tracker
+                if eta_tracker:
+                    eta_tracker.start_iteration(completed + 1)
+
                 try:
                     result = future.result()
                     results.append(result)
 
                     # Show per-game status in verbose mode
                     if self.config.verbose:
-                        winner_name = (
-                            "Test"
-                            if result.winner == 0
-                            else "Baseline" if result.winner == 1 else "Draw"
-                        )
+                        if result.winner == 0:
+                            winner_name = test_agent.name
+                            result_str = "wins"
+                        elif result.winner == 1:
+                            winner_name = baseline_agent.name
+                            result_str = "wins"
+                        else:
+                            winner_name = "Draw"
+                            result_str = ""
+
+                        if result.winner == 0:
+                            winner_name = test_agent.name
+                            result_str = "wins"
+                        elif result.winner == 1:
+                            winner_name = baseline_agent.name
+                            result_str = "wins"
+                        else:
+                            winner_name = "Draw"
+                            result_str = ""
+
                         score_str = (
                             f"({result.final_scores[0]}-{result.final_scores[1]})"
                         )
-                        print(
-                            f"  Game {result.game_id + 1}: {winner_name} wins {score_str} in {result.num_rounds} rounds"
-                        )
+                        game_time_str = f"{result.game_duration:.1f}s"
+
+                        if result_str:
+                            base_msg = f"  Game {result.game_id + 1}: {winner_name} {result_str} {score_str} in {result.num_rounds} rounds, {result.total_moves} moves ({game_time_str})"
+                        else:
+                            base_msg = f"  Game {result.game_id + 1}: {winner_name} {score_str} in {result.num_rounds} rounds, {result.total_moves} moves ({game_time_str})"
+
+                        print(base_msg)
 
                 except Exception as e:
                     # Create error result
@@ -347,6 +416,7 @@ class AgentEvaluator:
                         winner=-1,
                         final_scores=[0, 0],
                         num_rounds=0,
+                        total_moves=0,
                         game_duration=0.0,
                         agent_stats={},
                         error_log=str(e),
@@ -358,13 +428,40 @@ class AgentEvaluator:
                         print(f"Error in game {game_config['game_id']}: {e}")
 
                 completed += 1
-                # Always show progress every 10 games (regardless of verbose setting)
+
+                # End iteration tracking
+                if eta_tracker:
+                    eta_tracker.end_iteration()
+
+                # Show progress with ETA every 10 games (regardless of verbose setting)
                 if completed % 10 == 0:
-                    print(f"Completed {completed}/{len(games_to_play)} games")
+                    if eta_tracker:
+                        eta_estimates = eta_tracker.get_eta_estimates()
+                        if eta_estimates["best_estimate"]:
+                            eta_str = eta_tracker.format_time_display(
+                                eta_estimates["best_estimate"]
+                            )
+                            progress_pct = (completed / len(games_to_play)) * 100
+                            print(
+                                f"Completed {completed}/{len(games_to_play)} games ({progress_pct:.1f}%) | ETA: {eta_str}"
+                            )
+                        else:
+                            print(f"Completed {completed}/{len(games_to_play)} games")
+                    else:
+                        print(f"Completed {completed}/{len(games_to_play)} games")
 
         # Show completion message
         if len(games_to_play) > 1:
-            print(f"Completed all {len(games_to_play)} games!")
+            if eta_tracker:
+                total_time = time.time() - start_time
+                total_time_str = eta_tracker.format_time_display(total_time)
+                avg_game_time = total_time / len(games_to_play)
+                avg_game_str = eta_tracker.format_time_display(avg_game_time)
+                print(
+                    f"Completed all {len(games_to_play)} games in {total_time_str} (avg: {avg_game_str} per game)"
+                )
+            else:
+                print(f"Completed all {len(games_to_play)} games!")
 
         # Sort results by game_id to maintain order
         results.sort(key=lambda r: r.game_id)
@@ -573,6 +670,7 @@ class AgentEvaluator:
             winner=winner,
             final_scores=adjusted_scores,
             num_rounds=game.round_number,
+            total_moves=move_count,
             game_duration=game_duration,
             agent_stats=agent_stats,
             move_history=move_history,
