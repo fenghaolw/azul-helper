@@ -24,7 +24,6 @@ from open_spiel.python.algorithms import mcts
 from open_spiel.python.algorithms.alpha_zero import evaluator as az_evaluator
 from open_spiel.python.algorithms.alpha_zero import model as az_model
 
-
 # Global variables to store the shared evaluator (PERFORMANCE FIX!)
 _shared_nn_evaluator = None
 _shared_azul_game = None
@@ -33,31 +32,31 @@ _shared_azul_game = None
 def create_neural_network_evaluator():
     """Create a neural network evaluator for more realistic profiling."""
     global _shared_nn_evaluator, _shared_azul_game
-    
+
     # Return cached evaluator if already created (MAJOR PERFORMANCE FIX!)
     if _shared_nn_evaluator is not None and _shared_azul_game is not None:
         print("♻️  Reusing existing neural network evaluator (performance optimization)")
         return _shared_nn_evaluator, _shared_azul_game
-    
+
     print("🔧 Creating neural network evaluator (first time only)...")
-    
+
     # Create game instance
     azul_game = AzulGame({"deterministic_mode": False})
-    
+
     try:
         # Create a neural network model matching the user's exact configuration
         # ResNet with 256 width, 6 depth - this should be much slower
         model = az_model.Model.build_model(
             "resnet",  # ResNet instead of MLP - much more expensive!
             azul_game.observation_tensor_shape(),  # [16, 16, 4]
-            azul_game.num_distinct_actions(),      # 180 actions
-            nn_width=256,      # 256 width (vs 128 before)
-            nn_depth=6,        # 6 depth (vs 4 before) 
+            azul_game.num_distinct_actions(),  # 180 actions
+            nn_width=256,  # 256 width (vs 128 before)
+            nn_depth=6,  # 6 depth (vs 4 before)
             weight_decay=1e-4,
             learning_rate=1e-3,
             path=None,  # No checkpoint path for default model
         )
-        
+
         if model is not None:
             # Create AlphaZero evaluator with the neural network
             evaluator = az_evaluator.AlphaZeroEvaluator(
@@ -68,24 +67,24 @@ def create_neural_network_evaluator():
             print(f"   Model: ResNet, Width: 256, Depth: 6")
             print(f"   Observation shape: {azul_game.observation_tensor_shape()}")
             print(f"   Action space size: {azul_game.num_distinct_actions()}")
-            
+
             # Cache for future use (PERFORMANCE FIX!)
             _shared_nn_evaluator = evaluator
             _shared_azul_game = azul_game
-            
+
             return evaluator, azul_game
         else:
             raise Exception("Model creation returned None")
-            
+
     except Exception as e:
         print(f"⚠️  Failed to create ResNet neural network evaluator: {e}")
         print("Falling back to random rollout evaluator for comparison")
-        
+
         # Cache the fallback too
         fallback_evaluator = mcts.RandomRolloutEvaluator(n_rollouts=1)
         _shared_nn_evaluator = fallback_evaluator
         _shared_azul_game = azul_game
-        
+
         return fallback_evaluator, azul_game
 
 
@@ -97,10 +96,10 @@ def profile_mcts_components():
 
     # Setup
     game_state = GameState(num_players=2, seed=42)
-    
+
     # Create neural network evaluator ONCE (PERFORMANCE FIX!)
     evaluator, azul_game = create_neural_network_evaluator()
-    
+
     openspiel_state = AzulState(azul_game, game_state.num_players)
     openspiel_state._game_state = game_state.copy()
 
@@ -117,7 +116,7 @@ def profile_mcts_components():
     avg_time = sum(times) / len(times)
     print(f"   Average evaluator time: {avg_time:.3f}ms")
     print(f"   Min: {min(times):.3f}ms, Max: {max(times):.3f}ms")
-    
+
     # Compare with random rollout for reference
     print("\n1b. Comparison with RandomRolloutEvaluator:")
     random_evaluator = mcts.RandomRolloutEvaluator(n_rollouts=1)
@@ -131,7 +130,9 @@ def profile_mcts_components():
 
     avg_time_random = sum(times) / len(times)
     print(f"   Average random evaluator time: {avg_time_random:.3f}ms")
-    print(f"   Neural network is {avg_time/avg_time_random:.1f}x slower than random rollouts")
+    print(
+        f"   Neural network is {avg_time/avg_time_random:.1f}x slower than random rollouts"
+    )
 
     # Time state cloning (used heavily in MCTS)
     print("\n2. Testing state cloning performance:")
@@ -182,7 +183,7 @@ def profile_neural_network_mcts():
     print("=" * 60)
 
     game_state = GameState(num_players=2, seed=42)
-    
+
     # Create neural network evaluator ONCE (PERFORMANCE FIX!)
     evaluator, azul_game = create_neural_network_evaluator()
 
@@ -214,7 +215,7 @@ def profile_neural_network_mcts():
             test_state = openspiel_state.clone()
             try:
                 start_time = time.perf_counter()
-                result = mcts_bot.step_with_policy(test_state)
+                mcts_bot.step_with_policy(test_state)
                 end_time = time.perf_counter()
                 times.append((end_time - start_time) * 1000)
             except Exception as e:
@@ -226,10 +227,12 @@ def profile_neural_network_mcts():
             time_per_sim = avg_time / sim_count
             print(f"   Average total time: {avg_time:.3f}ms")
             print(f"   Time per simulation: {time_per_sim:.3f}ms")
-            
+
             # Calculate efficiency metrics
             if sim_count >= 10:
-                efficiency = (10 / sim_count) * 100  # Efficiency compared to 10 simulations
+                efficiency = (
+                    10 / sim_count
+                ) * 100  # Efficiency compared to 10 simulations
                 print(f"   Scaling efficiency: {efficiency:.1f}% (vs 10 simulations)")
 
 
@@ -240,7 +243,7 @@ def profile_rollout_performance():
     print("=" * 60)
 
     game_state = GameState(num_players=2, seed=42)
-    
+
     # Create both types of evaluators (reuse NN evaluator)
     nn_evaluator, azul_game = create_neural_network_evaluator()
     random_evaluator = mcts.RandomRolloutEvaluator(n_rollouts=1)
@@ -261,7 +264,7 @@ def profile_rollout_performance():
     avg_nn_time = sum(nn_times) / len(nn_times)
     print(f"   Average NN evaluation time: {avg_nn_time:.3f}ms")
 
-    # Time random rollout evaluation  
+    # Time random rollout evaluation
     print("\nTesting Random Rollout evaluation performance:")
     random_times = []
     for i in range(100):  # More iterations for random rollouts
@@ -273,7 +276,7 @@ def profile_rollout_performance():
 
     avg_random_time = sum(random_times) / len(random_times)
     print(f"   Average random evaluation time: {avg_random_time:.3f}ms")
-    
+
     print(f"\n📊 Performance Comparison:")
     print(f"   Neural Network: {avg_nn_time:.3f}ms per evaluation")
     print(f"   Random Rollout: {avg_random_time:.3f}ms per evaluation")
@@ -302,10 +305,10 @@ def profile_with_reduced_simulations():
         try:
             # PERFORMANCE FIX: Reuse the same evaluator instead of creating new one!
             agent = OpenSpielMCTSAgent(
-                num_simulations=sim_count, 
-                uct_c=1.4, 
+                num_simulations=sim_count,
+                uct_c=1.4,
                 solve=False,
-                evaluator=nn_evaluator  # Reuse shared evaluator!
+                evaluator=nn_evaluator,  # Reuse shared evaluator!
             )
 
             # Adjust number of test iterations based on simulation count
@@ -327,14 +330,16 @@ def profile_with_reduced_simulations():
                 time_per_sim = avg_time / sim_count
                 print(f"    Average total time: {avg_time:.3f}ms")
                 print(f"    Time per simulation: {time_per_sim:.3f}ms")
-                
+
                 # Show scaling compared to base case
                 if sim_count == 10:
                     base_time_per_sim = time_per_sim
-                elif sim_count > 10 and 'base_time_per_sim' in locals():
+                elif sim_count > 10 and "base_time_per_sim" in locals():
                     scaling_factor = base_time_per_sim / time_per_sim
-                    print(f"    Scaling factor vs 10 sims: {scaling_factor:.1f}x faster per sim")
-                    
+                    print(
+                        f"    Scaling factor vs 10 sims: {scaling_factor:.1f}x faster per sim"
+                    )
+
         except Exception as e:
             print(f"    NN evaluator failed: {e}")
 
@@ -342,10 +347,14 @@ def profile_with_reduced_simulations():
         if sim_count <= 100:
             print("  Random Rollout Evaluator:")
             try:
-                agent = OpenSpielMCTSAgent(num_simulations=sim_count, uct_c=1.4, solve=False)
+                agent = OpenSpielMCTSAgent(
+                    num_simulations=sim_count, uct_c=1.4, solve=False
+                )
 
                 times = []
-                for i in range(5 if sim_count <= 20 else 3):  # Fewer iterations for higher counts
+                for i in range(
+                    5 if sim_count <= 20 else 3
+                ):  # Fewer iterations for higher counts
                     try:
                         start_time = time.perf_counter()
                         agent.select_action(game_state, deterministic=True)
@@ -372,7 +381,7 @@ def profile_mcts_tree_operations():
     print("=" * 60)
 
     game_state = GameState(num_players=2, seed=42)
-    
+
     # Create neural network evaluator ONCE (PERFORMANCE FIX!)
     evaluator, azul_game = create_neural_network_evaluator()
 
@@ -422,14 +431,14 @@ def profile_with_cprofile_focused():
     print("=" * 60)
 
     game_state = GameState(num_players=2, seed=42)
-    
+
     # Create neural network evaluator ONCE (PERFORMANCE FIX!)
     evaluator, azul_game = create_neural_network_evaluator()
-    
+
     # Use higher simulation count to see amortization effects
     agent = OpenSpielMCTSAgent(
         num_simulations=100,  # Higher count to see scaling effects
-        evaluator=evaluator   # Reuse shared evaluator!
+        evaluator=evaluator,  # Reuse shared evaluator!
     )
 
     # Profile single MCTS selection with higher simulation count
