@@ -10,7 +10,7 @@ import random
 import time
 import traceback
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from evaluation.evaluation_config import EvaluationConfig, EvaluationResult, GameResult
 from evaluation.utils import (
@@ -19,6 +19,9 @@ from evaluation.utils import (
     get_evaluation_timestamp,
 )
 from game.game_state import GameState, create_game
+
+if TYPE_CHECKING:
+    from evaluation.evaluation_config import ThinkingTimeAnalysis
 
 
 class AgentEvaluator:
@@ -241,13 +244,31 @@ class AgentEvaluator:
         """Run games sequentially in the main thread."""
         results = []
 
+        # Show initial progress message
+        if len(games_to_play) > 1:
+            print(f"Playing {len(games_to_play)} games...")
+
         for i, game_config in enumerate(games_to_play):
-            if self.config.verbose and (i + 1) % 10 == 0:
+            # Always show progress every 10 games (regardless of verbose setting)
+            if (i + 1) % 10 == 0:
                 print(f"Completed {i + 1}/{len(games_to_play)} games")
 
             try:
                 result = self._run_single_game(test_agent, baseline_agent, game_config)
                 results.append(result)
+
+                # Show per-game status in verbose mode
+                if self.config.verbose:
+                    winner_name = (
+                        "Test"
+                        if result.winner == 0
+                        else "Baseline" if result.winner == 1 else "Draw"
+                    )
+                    score_str = f"({result.final_scores[0]}-{result.final_scores[1]})"
+                    print(
+                        f"  Game {result.game_id + 1}: {winner_name} wins {score_str} in {result.num_rounds} rounds"
+                    )
+
             except Exception as e:
                 # Create error result
                 error_result = GameResult(
@@ -265,6 +286,10 @@ class AgentEvaluator:
                 if self.config.verbose:
                     print(f"Error in game {game_config['game_id']}: {e}")
 
+        # Show completion message
+        if len(games_to_play) > 1:
+            print(f"Completed all {len(games_to_play)} games!")
+
         return results
 
     def _run_games_parallel(
@@ -275,6 +300,12 @@ class AgentEvaluator:
     ) -> List[GameResult]:
         """Run games in parallel using multiple workers."""
         results = []
+
+        # Show initial progress message
+        if len(games_to_play) > 1:
+            print(
+                f"Playing {len(games_to_play)} games using {self.config.num_workers} workers..."
+            )
 
         # Use ThreadPoolExecutor for I/O bound tasks or ProcessPoolExecutor for CPU bound
         # For now, using ThreadPoolExecutor as it's simpler for shared objects
@@ -294,6 +325,21 @@ class AgentEvaluator:
                 try:
                     result = future.result()
                     results.append(result)
+
+                    # Show per-game status in verbose mode
+                    if self.config.verbose:
+                        winner_name = (
+                            "Test"
+                            if result.winner == 0
+                            else "Baseline" if result.winner == 1 else "Draw"
+                        )
+                        score_str = (
+                            f"({result.final_scores[0]}-{result.final_scores[1]})"
+                        )
+                        print(
+                            f"  Game {result.game_id + 1}: {winner_name} wins {score_str} in {result.num_rounds} rounds"
+                        )
+
                 except Exception as e:
                     # Create error result
                     error_result = GameResult(
@@ -312,8 +358,13 @@ class AgentEvaluator:
                         print(f"Error in game {game_config['game_id']}: {e}")
 
                 completed += 1
-                if self.config.verbose and completed % 10 == 0:
+                # Always show progress every 10 games (regardless of verbose setting)
+                if completed % 10 == 0:
                     print(f"Completed {completed}/{len(games_to_play)} games")
+
+        # Show completion message
+        if len(games_to_play) > 1:
+            print(f"Completed all {len(games_to_play)} games!")
 
         # Sort results by game_id to maintain order
         results.sort(key=lambda r: r.game_id)
@@ -348,6 +399,16 @@ class AgentEvaluator:
         agents[game_config["test_agent_player"]] = test_agent
         agents[game_config["baseline_agent_player"]] = baseline_agent
 
+        # Track thinking times for each agent
+        thinking_times: Dict[str, List[float]] = {
+            "test_agent": [],
+            "baseline_agent": [],
+        }
+        total_thinking_time: Dict[str, float] = {
+            "test_agent": 0.0,
+            "baseline_agent": 0.0,
+        }
+
         # Track move history if requested
         move_history: Optional[List[Dict[str, Any]]] = (
             [] if self.config.save_game_replays else None
@@ -372,8 +433,17 @@ class AgentEvaluator:
                     error_log = f"Total game timeout: {total_game_time:.2f}s > {max_game_time:.2f}s"
                     break
 
-                # Get action with timeout
+                # Determine which agent type this is for thinking time tracking
+                agent_type = (
+                    "test_agent"
+                    if current_player == game_config["test_agent_player"]
+                    else "baseline_agent"
+                )
+
+                # Get action with timeout and thinking time tracking
                 move_start_time = time.time()
+                thinking_start_time = time.time()
+
                 try:
                     if self.config.deterministic_evaluation and hasattr(
                         agent, "select_action"
@@ -385,6 +455,12 @@ class AgentEvaluator:
                             action = agent.select_action(game)
                     else:
                         action = agent.select_action(game)
+
+                    # Record thinking time
+                    thinking_end_time = time.time()
+                    thinking_duration = thinking_end_time - thinking_start_time
+                    thinking_times[agent_type].append(thinking_duration)
+                    total_thinking_time[agent_type] += thinking_duration
 
                     # Check for move timeout
                     move_duration = time.time() - move_start_time
@@ -405,6 +481,8 @@ class AgentEvaluator:
                                 "player": current_player,
                                 "action": str(action),
                                 "game_state_summary": f"Round {game.round_number}",
+                                "thinking_time": thinking_duration,
+                                "agent_type": agent_type,
                             }
                         )
 
@@ -461,7 +539,33 @@ class AgentEvaluator:
         agent_stats = {}
         if hasattr(test_agent, "get_stats"):
             agent_stats["test_agent"] = test_agent.get_stats()
+        else:
+            agent_stats["test_agent"] = {}
+
         agent_stats["baseline_agent"] = baseline_agent.get_stats()
+
+        # Add thinking time statistics to agent stats
+        agent_stats["test_agent"]["thinking_times"] = thinking_times["test_agent"]
+        agent_stats["test_agent"]["total_thinking_time"] = total_thinking_time[
+            "test_agent"
+        ]
+        agent_stats["test_agent"]["average_thinking_time"] = total_thinking_time[
+            "test_agent"
+        ] / max(1, len(thinking_times["test_agent"]))
+        agent_stats["test_agent"]["num_decisions"] = len(thinking_times["test_agent"])
+
+        agent_stats["baseline_agent"]["thinking_times"] = thinking_times[
+            "baseline_agent"
+        ]
+        agent_stats["baseline_agent"]["total_thinking_time"] = total_thinking_time[
+            "baseline_agent"
+        ]
+        agent_stats["baseline_agent"]["average_thinking_time"] = total_thinking_time[
+            "baseline_agent"
+        ] / max(1, len(thinking_times["baseline_agent"]))
+        agent_stats["baseline_agent"]["num_decisions"] = len(
+            thinking_times["baseline_agent"]
+        )
 
         # Create result
         return GameResult(
@@ -489,6 +593,138 @@ class AgentEvaluator:
             info["name"] = agent.name
 
         return info
+
+    def analyze_thinking_times(
+        self, evaluation_result: EvaluationResult
+    ) -> "ThinkingTimeAnalysis":
+        """
+        Analyze thinking time statistics from evaluation results.
+
+        Args:
+            evaluation_result: The evaluation result to analyze
+
+        Returns:
+            ThinkingTimeAnalysis object containing thinking time analysis
+        """
+        from evaluation.evaluation_config import ThinkingTimeAnalysis
+
+        analysis = ThinkingTimeAnalysis()
+
+        # Aggregate stats across all games
+        for game_result in evaluation_result.game_results:
+            if "test_agent" in game_result.agent_stats:
+                test_stats = game_result.agent_stats["test_agent"]
+                if "thinking_times" in test_stats and isinstance(
+                    test_stats["thinking_times"], list
+                ):
+                    thinking_times = test_stats["thinking_times"]
+                    if thinking_times:
+                        total_thinking_time = test_stats.get("total_thinking_time", 0.0)
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.test_agent_total_thinking_time += float(
+                                total_thinking_time
+                            )
+                        analysis.test_agent_total_decisions += len(thinking_times)
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.test_agent_thinking_time_per_game.append(
+                                float(total_thinking_time)
+                            )
+
+                        # Only process if thinking_times contains numbers
+                        numeric_times = [
+                            t for t in thinking_times if isinstance(t, (int, float))
+                        ]
+                        if numeric_times:
+                            if analysis.test_agent_min_thinking_time == 0.0:
+                                analysis.test_agent_min_thinking_time = min(
+                                    numeric_times
+                                )
+                            else:
+                                analysis.test_agent_min_thinking_time = min(
+                                    analysis.test_agent_min_thinking_time,
+                                    min(numeric_times),
+                                )
+                            analysis.test_agent_max_thinking_time = max(
+                                analysis.test_agent_max_thinking_time,
+                                max(numeric_times),
+                            )
+
+            if "baseline_agent" in game_result.agent_stats:
+                baseline_stats = game_result.agent_stats["baseline_agent"]
+                if "thinking_times" in baseline_stats and isinstance(
+                    baseline_stats["thinking_times"], list
+                ):
+                    thinking_times = baseline_stats["thinking_times"]
+                    if thinking_times:
+                        total_thinking_time = baseline_stats.get(
+                            "total_thinking_time", 0.0
+                        )
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.baseline_agent_total_thinking_time += float(
+                                total_thinking_time
+                            )
+                        analysis.baseline_agent_total_decisions += len(thinking_times)
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.baseline_agent_thinking_time_per_game.append(
+                                float(total_thinking_time)
+                            )
+
+                        # Only process if thinking_times contains numbers
+                        numeric_times = [
+                            t for t in thinking_times if isinstance(t, (int, float))
+                        ]
+                        if numeric_times:
+                            if analysis.baseline_agent_min_thinking_time == 0.0:
+                                analysis.baseline_agent_min_thinking_time = min(
+                                    numeric_times
+                                )
+                            else:
+                                analysis.baseline_agent_min_thinking_time = min(
+                                    analysis.baseline_agent_min_thinking_time,
+                                    min(numeric_times),
+                                )
+                            analysis.baseline_agent_max_thinking_time = max(
+                                analysis.baseline_agent_max_thinking_time,
+                                max(numeric_times),
+                            )
+
+        # Calculate averages
+        if analysis.test_agent_total_decisions > 0:
+            analysis.test_agent_average_thinking_time = (
+                analysis.test_agent_total_thinking_time
+                / analysis.test_agent_total_decisions
+            )
+
+        if analysis.test_agent_thinking_time_per_game:
+            analysis.test_agent_average_thinking_time_per_game = sum(
+                analysis.test_agent_thinking_time_per_game
+            ) / len(analysis.test_agent_thinking_time_per_game)
+
+        if analysis.baseline_agent_total_decisions > 0:
+            analysis.baseline_agent_average_thinking_time = (
+                analysis.baseline_agent_total_thinking_time
+                / analysis.baseline_agent_total_decisions
+            )
+
+        if analysis.baseline_agent_thinking_time_per_game:
+            analysis.baseline_agent_average_thinking_time_per_game = sum(
+                analysis.baseline_agent_thinking_time_per_game
+            ) / len(analysis.baseline_agent_thinking_time_per_game)
+
+        # Add comparison metrics
+        analysis.test_agent_thinks_longer = (
+            analysis.test_agent_average_thinking_time
+            > analysis.baseline_agent_average_thinking_time
+        )
+        analysis.thinking_time_ratio = analysis.test_agent_average_thinking_time / max(
+            analysis.baseline_agent_average_thinking_time, 1e-6
+        )
+        analysis.total_thinking_time_difference = (
+            analysis.test_agent_total_thinking_time
+            - analysis.baseline_agent_total_thinking_time
+        )
+
+        return analysis
 
     def quick_evaluation(
         self,

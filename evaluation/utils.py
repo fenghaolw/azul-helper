@@ -10,10 +10,151 @@ import math
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from scipy import stats
+
+if TYPE_CHECKING:
+    from evaluation.evaluation_config import ThinkingTimeAnalysis
+
+
+def _analyze_thinking_times_from_result(result) -> Optional["ThinkingTimeAnalysis"]:
+    """
+    Analyze thinking time statistics from evaluation results.
+
+    Args:
+        result: EvaluationResult object
+
+    Returns:
+        ThinkingTimeAnalysis object, or None if no thinking time data
+    """
+    from evaluation.evaluation_config import ThinkingTimeAnalysis
+
+    analysis = ThinkingTimeAnalysis()
+    has_thinking_data = False
+
+    # Aggregate stats across all games
+    for game_result in result.game_results:
+        if hasattr(game_result, "agent_stats") and game_result.agent_stats:
+            if "test_agent" in game_result.agent_stats:
+                test_stats = game_result.agent_stats["test_agent"]
+                if "thinking_times" in test_stats and isinstance(
+                    test_stats["thinking_times"], list
+                ):
+                    thinking_times = test_stats["thinking_times"]
+                    if thinking_times:
+                        has_thinking_data = True
+                        total_thinking_time = test_stats.get("total_thinking_time", 0.0)
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.test_agent_total_thinking_time += float(
+                                total_thinking_time
+                            )
+                        analysis.test_agent_total_decisions += len(thinking_times)
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.test_agent_thinking_time_per_game.append(
+                                float(total_thinking_time)
+                            )
+
+                        # Only process if thinking_times contains numbers
+                        numeric_times = [
+                            t for t in thinking_times if isinstance(t, (int, float))
+                        ]
+                        if numeric_times:
+                            if analysis.test_agent_min_thinking_time == 0.0:
+                                analysis.test_agent_min_thinking_time = min(
+                                    numeric_times
+                                )
+                            else:
+                                analysis.test_agent_min_thinking_time = min(
+                                    analysis.test_agent_min_thinking_time,
+                                    min(numeric_times),
+                                )
+                            analysis.test_agent_max_thinking_time = max(
+                                analysis.test_agent_max_thinking_time,
+                                max(numeric_times),
+                            )
+
+            if "baseline_agent" in game_result.agent_stats:
+                baseline_stats = game_result.agent_stats["baseline_agent"]
+                if "thinking_times" in baseline_stats and isinstance(
+                    baseline_stats["thinking_times"], list
+                ):
+                    thinking_times = baseline_stats["thinking_times"]
+                    if thinking_times:
+                        has_thinking_data = True
+                        total_thinking_time = baseline_stats.get(
+                            "total_thinking_time", 0.0
+                        )
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.baseline_agent_total_thinking_time += float(
+                                total_thinking_time
+                            )
+                        analysis.baseline_agent_total_decisions += len(thinking_times)
+                        if isinstance(total_thinking_time, (int, float)):
+                            analysis.baseline_agent_thinking_time_per_game.append(
+                                float(total_thinking_time)
+                            )
+
+                        # Only process if thinking_times contains numbers
+                        numeric_times = [
+                            t for t in thinking_times if isinstance(t, (int, float))
+                        ]
+                        if numeric_times:
+                            if analysis.baseline_agent_min_thinking_time == 0.0:
+                                analysis.baseline_agent_min_thinking_time = min(
+                                    numeric_times
+                                )
+                            else:
+                                analysis.baseline_agent_min_thinking_time = min(
+                                    analysis.baseline_agent_min_thinking_time,
+                                    min(numeric_times),
+                                )
+                            analysis.baseline_agent_max_thinking_time = max(
+                                analysis.baseline_agent_max_thinking_time,
+                                max(numeric_times),
+                            )
+
+    if not has_thinking_data:
+        return None
+
+    # Calculate averages
+    if analysis.test_agent_total_decisions > 0:
+        analysis.test_agent_average_thinking_time = (
+            analysis.test_agent_total_thinking_time
+            / analysis.test_agent_total_decisions
+        )
+
+    if analysis.test_agent_thinking_time_per_game:
+        analysis.test_agent_average_thinking_time_per_game = sum(
+            analysis.test_agent_thinking_time_per_game
+        ) / len(analysis.test_agent_thinking_time_per_game)
+
+    if analysis.baseline_agent_total_decisions > 0:
+        analysis.baseline_agent_average_thinking_time = (
+            analysis.baseline_agent_total_thinking_time
+            / analysis.baseline_agent_total_decisions
+        )
+
+    if analysis.baseline_agent_thinking_time_per_game:
+        analysis.baseline_agent_average_thinking_time_per_game = sum(
+            analysis.baseline_agent_thinking_time_per_game
+        ) / len(analysis.baseline_agent_thinking_time_per_game)
+
+    # Add comparison metrics
+    analysis.test_agent_thinks_longer = (
+        analysis.test_agent_average_thinking_time
+        > analysis.baseline_agent_average_thinking_time
+    )
+    analysis.thinking_time_ratio = analysis.test_agent_average_thinking_time / max(
+        analysis.baseline_agent_average_thinking_time, 1e-6
+    )
+    analysis.total_thinking_time_difference = (
+        analysis.test_agent_total_thinking_time
+        - analysis.baseline_agent_total_thinking_time
+    )
+
+    return analysis
 
 
 def calculate_win_rate(wins: int, total_games: int) -> float:
@@ -161,6 +302,34 @@ def format_evaluation_results(result, detailed: bool = False) -> str:
         f"  Average Game Duration: {result.average_game_duration:.1f}s",
     ]
 
+    # Add thinking time analysis if available
+    thinking_analysis = _analyze_thinking_times_from_result(result)
+    if thinking_analysis and (
+        thinking_analysis.test_agent_total_decisions > 0
+        or thinking_analysis.baseline_agent_total_decisions > 0
+    ):
+        lines.extend(
+            [
+                "",
+                "THINKING TIME ANALYSIS:",
+                f"  {result.test_agent_name}:",
+                f"    Average per decision: {thinking_analysis.test_agent_average_thinking_time:.3f}s",
+                f"    Total decisions: {thinking_analysis.test_agent_total_decisions}",
+                f"    Total thinking time: {thinking_analysis.test_agent_total_thinking_time:.2f}s",
+                f"    Min/Max decision time: {thinking_analysis.test_agent_min_thinking_time:.3f}s / {thinking_analysis.test_agent_max_thinking_time:.3f}s",
+                f"  {result.baseline_agent_name}:",
+                f"    Average per decision: {thinking_analysis.baseline_agent_average_thinking_time:.3f}s",
+                f"    Total decisions: {thinking_analysis.baseline_agent_total_decisions}",
+                f"    Total thinking time: {thinking_analysis.baseline_agent_total_thinking_time:.2f}s",
+                f"    Min/Max decision time: {thinking_analysis.baseline_agent_min_thinking_time:.3f}s / {thinking_analysis.baseline_agent_max_thinking_time:.3f}s",
+                "",
+                "THINKING TIME COMPARISON:",
+                f"  Ratio (Test/Baseline): {thinking_analysis.thinking_time_ratio:.2f}x",
+                f"  {'Test agent thinks longer' if thinking_analysis.test_agent_thinks_longer else 'Baseline agent thinks longer'}",
+                f"  Time difference: {thinking_analysis.total_thinking_time_difference:+.2f}s total",
+            ]
+        )
+
     # Add confidence interval if available
     if result.confidence_interval:
         lower, upper = result.confidence_interval
@@ -229,6 +398,42 @@ def format_evaluation_results(result, detailed: bool = False) -> str:
 
         if len(result.game_results) > 10:
             lines.append(f"  ... and {len(result.game_results) - 10} more games")
+
+        # Add detailed thinking time statistics if available
+        if thinking_analysis and detailed:
+            lines.extend(
+                [
+                    "",
+                    "DETAILED THINKING TIME ANALYSIS:",
+                    f"  {result.test_agent_name} thinking time per game:",
+                ]
+            )
+
+            test_times = thinking_analysis.test_agent_thinking_time_per_game[:10]
+            for i, time_per_game in enumerate(test_times):
+                lines.append(f"    Game {i+1}: {time_per_game:.3f}s")
+
+            if len(thinking_analysis.test_agent_thinking_time_per_game) > 10:
+                lines.append(
+                    f"    ... and {len(thinking_analysis.test_agent_thinking_time_per_game) - 10} more games"
+                )
+
+            lines.extend(
+                [
+                    f"  {result.baseline_agent_name} thinking time per game:",
+                ]
+            )
+
+            baseline_times = thinking_analysis.baseline_agent_thinking_time_per_game[
+                :10
+            ]
+            for i, time_per_game in enumerate(baseline_times):
+                lines.append(f"    Game {i+1}: {time_per_game:.3f}s")
+
+            if len(thinking_analysis.baseline_agent_thinking_time_per_game) > 10:
+                lines.append(
+                    f"    ... and {len(thinking_analysis.baseline_agent_thinking_time_per_game) - 10} more games"
+                )
 
     lines.append("\n" + "=" * 60)
 

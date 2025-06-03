@@ -116,7 +116,12 @@ def cmd_evaluate(args):
 
     # Create agents
     try:
+        if args.verbose:
+            print(f"Creating {args.agent_a} agent...")
         agent_a = create_agent(args.agent_a, **parse_agent_args(args.agent_a_args))
+
+        if args.verbose:
+            print(f"Creating {args.agent_b} agent...")
         agent_b = create_agent(args.agent_b, **parse_agent_args(args.agent_b_args))
     except Exception as e:
         print(f"Error creating agents: {e}")
@@ -126,6 +131,12 @@ def cmd_evaluate(args):
     evaluator = AgentEvaluator(config)
 
     try:
+        if args.verbose:
+            print(f"Starting evaluation: {agent_a.name} vs {agent_b.name}")
+            print(
+                f"Configuration: {config.num_games} games, {config.timeout_per_move}s timeout"
+            )
+
         result = evaluator.evaluate_agent(
             test_agent=agent_a,
             baseline_agent=agent_b,
@@ -140,7 +151,8 @@ def cmd_evaluate(args):
         if args.output:
             ensure_evaluation_dir(str(Path(args.output).parent))
             save_evaluation_results(result, args.output)
-            print(f"\nResults saved to: {args.output}")
+            if args.verbose:
+                print(f"\nResults saved to: {args.output}")
 
         return 0
 
@@ -296,6 +308,11 @@ Examples:
     --agent-a mcts --agent-b random \\
     --num-games 100 --output results.json
 
+  # Verbose evaluation (show progress)
+  python -m evaluation.cli evaluate \\
+    --agent-a mcts --agent-b random \\
+    --num-games 50 --verbose
+
   # Tournament between multiple agents
   python -m evaluation.cli tournament \\
     --agents "MCTS:mcts" "Heuristic:heuristic" "Random:random" \\
@@ -374,7 +391,7 @@ Examples:
         "--detailed", action="store_true", help="Show detailed results"
     )
     eval_parser.add_argument(
-        "--verbose", action="store_true", default=True, help="Verbose output"
+        "--verbose", action="store_true", help="Enable verbose output"
     )
     eval_parser.add_argument("--output", help="Output file for results")
 
@@ -399,7 +416,7 @@ Examples:
         "--no-fixed-seeds", action="store_true", help="Disable fixed seeds"
     )
     tournament_parser.add_argument(
-        "--verbose", action="store_true", default=True, help="Verbose output"
+        "--verbose", action="store_true", help="Enable verbose output"
     )
     tournament_parser.add_argument("--output", help="Output file base name for results")
 
