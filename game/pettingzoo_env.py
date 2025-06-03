@@ -380,7 +380,7 @@ class AzulAECEnv(AECEnv):
             # Direct value case (could be TileColor, str, or int)
             color_value = action.color
 
-        # Convert color string to index if needed
+        # Convert color to index
         color_encoded: int
         if isinstance(color_value, str):
             color_map: Dict[str, int] = {
@@ -395,19 +395,11 @@ class AzulAECEnv(AECEnv):
             else:
                 color_encoded = 0
         elif isinstance(color_value, TileColor):
-            # Handle TileColor enum directly - convert string value to index
-            color_string = color_value.value
-            color_map_for_enum: Dict[str, int] = {
-                "blue": 0,
-                "yellow": 1,
-                "red": 2,
-                "black": 3,
-                "white": 4,
-            }
-            if color_string in color_map_for_enum:
-                color_encoded = color_map_for_enum[color_string]
-            else:
-                color_encoded = 0
+            # Handle TileColor enum directly - use integer value
+            color_encoded = int(color_value.value)
+        elif isinstance(action.color, TileColor):
+            # Handle TileColor enum directly - use integer value
+            color_encoded = int(action.color.value)
         else:
             # Already an integer
             color_encoded = int(color_value)

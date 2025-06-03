@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import IntEnum
 from typing import TYPE_CHECKING, Dict, List
 
 if TYPE_CHECKING:
@@ -7,15 +7,30 @@ if TYPE_CHECKING:
     T = TypeVar("T", bound="Tile")
 
 
-class TileColor(Enum):
-    """Enum representing the different tile colors in Azul."""
+class TileColor(IntEnum):
+    """Enum representing the different tile colors in Azul.
 
-    BLUE = "blue"
-    YELLOW = "yellow"
-    RED = "red"
-    BLACK = "black"
-    WHITE = "white"
-    FIRST_PLAYER = "first_player"  # Special first player marker
+    Using IntEnum for better performance - faster hashing and comparisons.
+    """
+
+    BLUE = 0
+    YELLOW = 1
+    RED = 2
+    BLACK = 3
+    WHITE = 4
+    FIRST_PLAYER = 5  # Special first player marker
+
+    def __str__(self) -> str:
+        """Return string representation for compatibility."""
+        names = {
+            0: "blue",
+            1: "yellow",
+            2: "red",
+            3: "black",
+            4: "white",
+            5: "first_player",
+        }
+        return names[self.value]
 
 
 class Tile:
@@ -36,10 +51,10 @@ class Tile:
         return hash(self.color)
 
     def __repr__(self) -> str:
-        return f"Tile({self.color.value})"
+        return f"Tile({str(self.color)})"
 
     def __str__(self) -> str:
-        return self.color.value
+        return str(self.color)
 
     @property
     def is_first_player_marker(self) -> bool:
