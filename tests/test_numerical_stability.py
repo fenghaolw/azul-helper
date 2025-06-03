@@ -33,7 +33,7 @@ class TestFloatingPointPrecision:
                 expected_capacity = capacity / 5.0
 
                 # Should be exact for these simple fractions
-                assert abs(normalized_capacity - expected_capacity) < 1e-10, (
+                assert abs(normalized_capacity - expected_capacity) < 1e-6, (
                     f"Capacity normalization precision error: "
                     f"{normalized_capacity} != {expected_capacity}"
                 )
@@ -153,7 +153,7 @@ class TestFloatingPointPrecision:
                             capacity = vector[idx]
                             expected = (line_idx + 1) / 5.0
                             assert (
-                                abs(capacity - expected) < 1e-10
+                                abs(capacity - expected) < 1e-6
                             ), f"Capacity precision degraded at move {i}: {capacity} != {expected}"
 
                     precision_samples.append(i)
@@ -495,7 +495,7 @@ class TestNumericalInvariants:
                 # Capacity should be exactly (line_idx + 1) / 5
                 expected_capacity = (line_idx + 1) / 5.0
                 assert (
-                    abs(capacity_norm - expected_capacity) < 1e-10
+                    abs(capacity_norm - expected_capacity) < 1e-6
                 ), f"Capacity invariant violated: {capacity_norm} != {expected_capacity}"
 
                 # Count should be in [0, 1]

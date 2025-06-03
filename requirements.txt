@@ -5,16 +5,19 @@ typing-extensions>=4.0.0
 # Game environment
 pettingzoo>=1.24.0
 
-# Neural networks (for any future training)
-tensorflow>=2.12.0  # Required by OpenSpiel
+# Neural networks - SPECIFIC VERSIONS REQUIRED FOR OPENSPIEL RESNET COMPATIBILITY
+# These versions are required to avoid "as_list() is not defined on an unknown TensorShape" error
+# when using ResNet with OpenSpiel's AlphaZero implementation
+tensorflow==2.13.0
+keras==2.13.1
 
 # OpenSpiel integration for MCTS and AlphaZero (primary AI engine)
 # Note: Install from source on Apple Silicon using the fixed abseil version
 # See docs/OPENSPIEL_MIGRATION.md for installation instructions
 open-spiel>=1.6
 
-# Training monitoring
-tensorboard>=2.10.0
+# Training monitoring - compatible version with TensorFlow 2.13.0
+tensorboard>=2.13.0,<2.14.0
 
 # Web API server
 flask>=2.0.0

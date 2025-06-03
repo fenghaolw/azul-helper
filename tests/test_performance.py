@@ -644,6 +644,9 @@ class TestPerformanceRegression:
         operation_times = defaultdict(list)
 
         for run in range(num_runs):
+            # Set random seed for this run
+            np.random.seed(42 + run)
+
             # Game creation
             start_time = time.time()
             game = GameState(num_players=3, seed=42 + run)

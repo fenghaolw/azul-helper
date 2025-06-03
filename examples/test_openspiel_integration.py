@@ -214,6 +214,51 @@ def compare_agents():
     print("✓ Agent comparison complete\n")
 
 
+def test_mcts_vs_random_both_positions():
+    """Test MCTS vs Random in both player positions."""
+    print("=== Testing MCTS vs Random in Both Positions ===")
+
+    # Create agents
+    mcts_agent = OpenSpielMCTSAgent(num_simulations=200, uct_c=1.4)
+    random_agent = RandomAgent(seed=42)
+
+    # Test both positions
+    for test_position in [0, 1]:
+        print(f"\nTesting MCTS as Player {test_position}:")
+
+        # Create game with fixed seed
+        game_state = GameState(num_players=2, seed=42)
+
+        # Set up agents based on test position
+        agents = [None, None]
+        agents[test_position] = mcts_agent
+        agents[1 - test_position] = random_agent
+
+        moves = 0
+        max_moves = 200
+
+        while not game_state.game_over and moves < max_moves:
+            current_player = game_state.current_player
+            agent = agents[current_player]
+
+            # Select action
+            action = agent.select_action(game_state, deterministic=True)
+
+            # Apply action
+            game_state.apply_action(action)
+            moves += 1
+
+        if game_state.game_over:
+            scores = game_state.get_scores()
+            print(f"Final scores: {scores}")
+            winner = np.argmax(scores)
+            print(f"Winner: Player {winner} ({type(agents[winner]).__name__})")
+        else:
+            print("Game did not complete within move limit")
+
+    print("\n✓ MCTS vs Random position test completed")
+
+
 def main():
     """Run all tests."""
     print("Testing OpenSpiel Integration with Azul\n")
@@ -223,6 +268,7 @@ def main():
         test_game_simulation()
         test_mcts_agent()
         compare_agents()
+        test_mcts_vs_random_both_positions()
 
         print("🎉 All tests passed! OpenSpiel integration is working correctly.")
         print("\nNext steps:")

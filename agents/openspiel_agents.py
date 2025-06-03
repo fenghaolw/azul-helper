@@ -240,8 +240,12 @@ class OpenSpielMCTSAgent(AzulAgent):
         self.solve = solve
         self.seed = seed
 
+        # Set random seed if provided
+        if seed is not None:
+            np.random.seed(seed)
+
         # Create game instance with stochastic mode for proper chance node handling
-        self._azul_game = AzulGame({"deterministic_mode": False})
+        self._azul_game = AzulGame({"deterministic_mode": False, "seed": seed})
 
         # Create evaluator
         if evaluator is None:
