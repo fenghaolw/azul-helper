@@ -216,12 +216,20 @@ class AzulState(pyspiel.State):
             return [0.0] * self._game_state.num_players
 
         scores = self._game_state.get_scores()
+        max_score = max(scores)
+        winners = [i for i, score in enumerate(scores) if score == max_score]
+
         if self._game_state.num_players == 2:
-            # Zero-sum: normalize so that utilities sum to 0
-            return [scores[0] - scores[1], scores[1] - scores[0]]
+            # Zero-sum: winner gets 1.0, loser gets -1.0
+            if len(winners) == 1:
+                return [1.0 if i == winners[0] else -1.0 for i in range(2)]
+            else:
+                # Draw
+                return [0.0, 0.0]
         else:
-            # Multi-player: return raw scores
-            return [float(score) for score in scores]
+            # Multi-player: winners get 1.0, others get -1.0/(n-1)
+            n = len(scores)
+            return [1.0 if i in winners else -1.0 / (n - 1) for i in range(n)]
 
     def rewards(self) -> List[float]:
         """Return the immediate rewards."""
