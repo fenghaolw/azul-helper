@@ -59,7 +59,7 @@ class AzulGame(pyspiel.Game):
                 provides_factored_observation_string=False,
             ),
             pyspiel.GameInfo(
-                num_distinct_actions=180,
+                num_distinct_actions=180,  # Optimized encoding with exact action space
                 max_chance_outcomes=100,  # Max tiles that can be drawn
                 num_players=self._num_players,
                 min_utility=-100.0,  # Approximate minimum score
@@ -76,9 +76,10 @@ class AzulGame(pyspiel.Game):
 
     def num_distinct_actions(self) -> int:
         """The maximum number of distinct actions in the game."""
-        # 5 factories + 1 center = 6 sources
-        # 5 colors
-        # 5 pattern lines + 1 floor = 6 destinations
+        # 6 sources (center + 5 factories)
+        # 5 colors (first_player token is not explicitly chosen)
+        # 6 destinations (floor + 5 pattern lines)
+        # Optimized encoding: 6 * 5 * 6 = 180 actions exactly
         return 180
 
     def num_players(self) -> int:
@@ -99,8 +100,8 @@ class AzulGame(pyspiel.Game):
 
     def observation_tensor_shape(self) -> List[int]:
         """Return the shape of the observation tensor."""
-        # This will be calculated based on state representation
-        return [500]  # Placeholder - will be refined
+        # This matches the actual size returned by GameState.get_state_vector()
+        return [935]
 
     def information_state_tensor_shape(self) -> List[int]:
         """Return the shape of the information state tensor."""
@@ -114,14 +115,14 @@ class AzulGame(pyspiel.Game):
 class AzulState(pyspiel.State):
     """OpenSpiel state wrapper for Azul game."""
 
-    # Color to index mapping for efficient conversion
+    # Color to index mapping for efficient conversion (FIRST_PLAYER excluded from encoding)
     _COLOR_TO_IDX = {
         TileColor.BLUE: 0,
         TileColor.YELLOW: 1,
         TileColor.RED: 2,
         TileColor.BLACK: 3,
         TileColor.WHITE: 4,
-        TileColor.FIRST_PLAYER: 5,
+        # TileColor.FIRST_PLAYER: not included in encoding (never explicitly chosen)
     }
 
     # Index to color mapping for reverse conversion
@@ -132,10 +133,15 @@ class AzulState(pyspiel.State):
         self._game_state = GameState(num_players, seed)
 
     def _int_to_azul_action(self, action_int: int) -> Action:
-        """Convert OpenSpiel integer action to Azul Action using direct calculation."""
-        # Reverse the formula: source_idx * 36 + color_idx * 6 + dest_idx
-        source_idx = action_int // 36
-        remainder = action_int % 36
+        """Convert OpenSpiel integer action to Azul Action using optimized encoding."""
+        # Input validation
+        if not (0 <= action_int < 180):
+            raise ValueError(
+                f"Action integer {action_int} is out of valid range [0, 179]"
+            )
+        # Reverse the optimized formula: source_idx * 30 + color_idx * 6 + dest_idx
+        source_idx = action_int // 30
+        remainder = action_int % 30
         color_idx = remainder // 6
         dest_idx = remainder % 6
 
@@ -161,13 +167,14 @@ class AzulState(pyspiel.State):
 
         azul_actions = self._game_state.get_legal_actions(player)
 
-        # Batch convert actions using list comprehension for efficiency
+        # Batch convert actions using optimized encoding
         action_ints = []
         for action in azul_actions:
             source_idx = action.source + 1
             dest_idx = action.destination + 1
             color_idx = self._COLOR_TO_IDX[action.color]
-            action_int = source_idx * 36 + color_idx * 6 + dest_idx
+            # Optimized encoding: source_idx * 30 + color_idx * 6 + dest_idx
+            action_int = source_idx * 30 + color_idx * 6 + dest_idx
             action_ints.append(action_int)
 
         return action_ints
@@ -284,22 +291,4 @@ class AzulState(pyspiel.State):
         return new_state
 
 
-# Register the game with OpenSpiel
-pyspiel.register_game(
-    pyspiel.GameType(
-        short_name="azul",
-        long_name="Azul",
-        dynamics=pyspiel.GameType.Dynamics.SEQUENTIAL,
-        chance_mode=pyspiel.GameType.ChanceMode.EXPLICIT_STOCHASTIC,
-        information=pyspiel.GameType.Information.PERFECT_INFORMATION,
-        utility=pyspiel.GameType.Utility.ZERO_SUM,
-        reward_model=pyspiel.GameType.RewardModel.TERMINAL,
-        max_num_players=4,
-        min_num_players=2,
-        provides_information_state_string=True,
-        provides_information_state_tensor=True,
-        provides_observation_string=True,
-        provides_observation_tensor=True,
-    ),
-    AzulGame,
-)
+# Registration is handled by game/register_azul.py
