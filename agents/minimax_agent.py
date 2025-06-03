@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from agents.base_agent import AzulAgent
 from game.game_state import Action, GameState
 
 
@@ -97,13 +98,17 @@ class MinimaxConfig:
             )
 
 
-class MinimaxAgent:
+class MinimaxAgent(AzulAgent):
     """
     A minimax agent with alpha-beta pruning for Azul.
     """
 
     def __init__(
-        self, player_id: int = 0, config: Optional[MinimaxConfig] = None, **kwargs
+        self,
+        player_id: int = 0,
+        config: Optional[MinimaxConfig] = None,
+        name: Optional[str] = None,
+        **kwargs,
     ):
         """
         Initialize the minimax agent.
@@ -111,10 +116,9 @@ class MinimaxAgent:
         Args:
             player_id: The player ID this agent controls
             config: MinimaxConfig object with all settings
+            name: Optional name for the agent
             **kwargs: Legacy support - individual config parameters
         """
-        self.player_id = player_id
-
         # Handle legacy initialization and config merging
         if config is None:
             # Create config from kwargs for backward compatibility
@@ -128,22 +132,32 @@ class MinimaxAgent:
                 config.max_nodes = kwargs["max_nodes"]
                 config.adaptive_node_limit = False
 
+        # Initialize base class
+        agent_name = name or f"MinimaxAgent_D{config.max_depth or 'adaptive'}"
+        super().__init__(player_id, agent_name)
+
         self.config = config
 
         # Legacy property for backward compatibility
         self.time_limit = self.config.time_limit
 
-        # Performance tracking
-        self.nodes_evaluated: int = 0
+        # Additional performance tracking (beyond base class)
         self.max_depth_reached: int = 0
         self.move_scores: Dict[str, float] = {}  # For move ordering
 
-    def select_action(self, game_state: GameState) -> Action:
+    def _get_algorithm_name(self) -> str:
+        """Get the algorithm name for this agent."""
+        return "Minimax with Alpha-Beta Pruning"
+
+    def select_action(
+        self, game_state: GameState, deterministic: bool = True
+    ) -> Action:
         """
         Select the best action using minimax with iterative deepening.
 
         Args:
             game_state: Current game state
+            deterministic: Whether to select deterministically (minimax is inherently deterministic)
 
         Returns:
             Best action according to minimax search
@@ -631,35 +645,35 @@ class MinimaxAgent:
         return f"{action.source}_{action.color.value}_{action.destination}"
 
     def get_stats(self) -> dict:
-        """Get performance statistics."""
-        return {
-            "nodes_evaluated": self.nodes_evaluated,
-            "max_depth_reached": self.max_depth_reached,
-            "time_limit": self.config.time_limit,
-            "max_depth_configured": self.config.max_depth,
-            "adaptive_depth": self.config.adaptive_depth,
-            "iterative_deepening": self.config.enable_iterative_deepening,
-            "alpha_beta_pruning": self.config.enable_alpha_beta_pruning,
-            "move_ordering": self.config.enable_move_ordering,
-            "max_nodes_configured": self.config.max_nodes,
-        }
+        """Get runtime performance statistics."""
+        base_stats = super().get_stats()
+        base_stats.update(
+            {
+                "max_depth_reached": self.max_depth_reached,
+            }
+        )
+        return base_stats
 
     def get_info(self) -> dict:
-        """Get agent information."""
-        return {
-            "name": "MinimaxAgent",
-            "type": "minimax_alpha_beta",
-            "description": "Minimax agent with alpha-beta pruning and iterative deepening",
-            "config": {
-                "time_limit": self.config.time_limit,
-                "max_depth": self.config.max_depth,
-                "adaptive_depth": self.config.adaptive_depth,
-                "iterative_deepening": self.config.enable_iterative_deepening,
-                "alpha_beta_pruning": self.config.enable_alpha_beta_pruning,
-                "move_ordering": self.config.enable_move_ordering,
-                "max_nodes": self.config.max_nodes,
-            },
-        }
+        """Get static agent metadata."""
+        base_info = super().get_info()
+        base_info.update(
+            {
+                "algorithm": "Minimax with Alpha-Beta Pruning",
+                "type": "minimax_alpha_beta",
+                "description": "Minimax agent with alpha-beta pruning and iterative deepening",
+                "config": {
+                    "time_limit": self.config.time_limit,
+                    "max_depth": self.config.max_depth,
+                    "adaptive_depth": self.config.adaptive_depth,
+                    "iterative_deepening": self.config.enable_iterative_deepening,
+                    "alpha_beta_pruning": self.config.enable_alpha_beta_pruning,
+                    "move_ordering": self.config.enable_move_ordering,
+                    "max_nodes": self.config.max_nodes,
+                },
+            }
+        )
+        return base_info
 
     def update_config(self, **kwargs) -> None:
         """Update configuration parameters."""
@@ -677,7 +691,7 @@ class MinimaxAgent:
 
     def reset_stats(self):
         """Reset performance statistics."""
-        self.nodes_evaluated = 0
+        super().reset_stats()
         self.max_depth_reached = 0
         self.move_scores.clear()
 

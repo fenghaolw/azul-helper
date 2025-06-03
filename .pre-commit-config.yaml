@@ -1,11 +1,12 @@
+# Global exclude pattern - applies to all hooks (single source of truth)
+exclude: ^(open_spiel/|\.venv/|venv/|build/|dist/|\.eggs/|.*\.egg-info/|extension/node_modules/|examples/|tests/|profiling/|scripts/)
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        files: ^(game|training|agents|utils)/.*\.py$
       - id: end-of-file-fixer
-        files: ^(game|training|agents|utils)/.*\.py$
       - id: check-yaml
       - id: check-toml
       - id: check-json
@@ -13,52 +14,42 @@ repos:
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: debug-statements
-        files: ^(game|training|agents|utils)/.*\.py$
       - id: check-ast
-        files: ^(game|training|agents|utils)/.*\.py$
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
       - id: black
         language_version: python3
-        files: ^(game|training|agents|utils)/.*\.py$
 
   - repo: https://github.com/pycqa/isort
     rev: 6.0.1
     hooks:
       - id: isort
-        files: ^(game|training|agents|utils)/.*\.py$
-        args: ["--profile", "black"]
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.2.0
     hooks:
       - id: flake8
-        files: ^(game|training|agents|utils)/.*\.py$
-        args: [--config=.flake8]
-
-  - repo: local
-    hooks:
-      - id: mypy-modified
-        name: mypy (modified files only)
-        entry: python3 scripts/run_mypy.py
-        language: python
-        language_version: python3
-        pass_filenames: false
-        types: [python]
         additional_dependencies:
-          - mypy>=1.13.0
+          - flake8-pyproject>=1.2.0
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
           - types-requests>=2.28.0
           - types-setuptools>=57.4.0
           - types-PyYAML>=6.0.0
           - numpy>=1.20.0
           - torch>=1.9.0
 
+  - repo: local
+    hooks:
       - id: pytest-fast
         name: pytest (fast tests only)
         entry: python3 scripts/run_fast_tests.py
         language: system
         pass_filenames: false
-        files: ^tests/.*\.py$
         types: [python]

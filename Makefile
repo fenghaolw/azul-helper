@@ -38,7 +38,7 @@ lint:
 # Type checking
 type-check:
 	@echo "Running mypy..."
-	python3 scripts/run_mypy.py
+	python3 -m mypy .
 	@echo "✓ Type checking complete"
 
 # Testing

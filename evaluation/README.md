@@ -5,18 +5,20 @@ A comprehensive evaluation system for Azul AI agents that enables systematic per
 ## 🚀 Features
 
 ### Core Capabilities
-- **Head-to-Head Evaluation**: Pit any agent against baseline agents (random, heuristic, or previous checkpoints)
+- **Head-to-Head Evaluation**: Compare any two agents directly through gameplay
 - **Statistical Analysis**: Calculate win rates, confidence intervals, and statistical significance
 - **Tournament System**: Run round-robin tournaments between multiple agents
 - **Parallel Processing**: Support for multi-threaded evaluation for faster results
 - **Comprehensive Logging**: Detailed game logs, replay saving, and performance metrics
-- **Checkpoint Comparison**: Evaluate current models against previous training iterations
+- **Unified Architecture**: All agents inherit from a common base class for consistent behavior
 
-### Baseline Agents
+### Available Agent Types
 - **Random Agent**: Selects actions uniformly at random
-- **Simple Heuristic Agent**: Uses basic game knowledge and simple rules
-- **Full Heuristic Agent**: Sophisticated rule-based agent with strategic evaluation
-- **Checkpoint Agent**: Loads and uses previous model checkpoints
+- **Heuristic Agent**: Uses rule-based strategies with basic game knowledge
+- **Improved Heuristic Agent**: Advanced rule-based agent with sophisticated evaluation
+- **Minimax Agent**: Custom minimax with alpha-beta pruning and iterative deepening
+- **OpenSpiel Minimax Agent**: OpenSpiel's optimized minimax implementation
+- **MCTS Agent**: Monte Carlo Tree Search using OpenSpiel's implementation
 
 ### Statistical Features
 - **Confidence Intervals**: Wilson score intervals for win rate estimation
@@ -37,8 +39,8 @@ pip install scipy numpy torch
 ### Basic Evaluation
 
 ```python
-from evaluation import AgentEvaluator, EvaluationConfig, RandomAgent
-from agents.heuristic_agent import HeuristicAgent
+from evaluation import AgentEvaluator, EvaluationConfig
+from agents import HeuristicAgent, RandomAgent
 
 # Create configuration
 config = EvaluationConfig(
@@ -49,11 +51,11 @@ config = EvaluationConfig(
 
 # Create agents
 test_agent = HeuristicAgent()
-baseline_agent = RandomAgent()
+opponent_agent = RandomAgent()
 
 # Run evaluation
 evaluator = AgentEvaluator(config)
-result = evaluator.evaluate_agent(test_agent, baseline_agent)
+result = evaluator.evaluate_agent(test_agent, opponent_agent)
 
 # Print results
 print(result.summary())
@@ -67,13 +69,13 @@ python -m evaluation.cli quick --test-agent heuristic
 
 # Full evaluation
 python -m evaluation.cli evaluate \
-  --test-agent mcts --baseline-agent random \
+  --agent-a minimax --agent-b random \
   --num-games 100 --output results.json
 
 # Tournament
 python -m evaluation.cli tournament \
-  --agents "MCTS:mcts" "Heuristic:heuristic" \
-  --include-baselines --output tournament_results
+  --agents "MCTS:mcts" "Minimax:minimax" "Heuristic:heuristic" \
+  --output tournament_results
 ```
 
 ## 📊 Configuration Options
@@ -114,39 +116,20 @@ config = EvaluationConfig(
 
 ```python
 from evaluation import Tournament, EvaluationConfig
-from evaluation.baseline_agents import create_baseline_agent
+from agents import HeuristicAgent, MinimaxAgent, RandomAgent
 
 # Create tournament
 config = EvaluationConfig(num_games=50)
 tournament = Tournament(config)
 
 # Add agents
-tournament.add_agent(create_baseline_agent('random'), 'Random')
-tournament.add_agent(create_baseline_agent('heuristic'), 'Heuristic')
-tournament.add_agent(your_agent, 'YourAgent')
+tournament.add_agent(RandomAgent(), 'Random')
+tournament.add_agent(HeuristicAgent(), 'Heuristic')
+tournament.add_agent(MinimaxAgent(), 'Minimax')
 
 # Run tournament
 result = tournament.run_tournament()
 print(result.summary())
-```
-
-### Checkpoint Progression Tournament
-
-```python
-from evaluation.tournament import run_checkpoint_progression_tournament
-
-# Compare multiple training checkpoints
-checkpoint_paths = [
-    'models/checkpoint_100.pth',
-    'models/checkpoint_200.pth', 
-    'models/checkpoint_300.pth',
-]
-
-result = run_checkpoint_progression_tournament(
-    checkpoint_paths=checkpoint_paths,
-    checkpoint_names=['Early', 'Mid', 'Late'],
-    include_baselines=True
-)
 ```
 
 ## 📈 Statistical Analysis
@@ -161,51 +144,34 @@ result.p_value                    # Statistical significance
 result.is_statistically_significant  # Boolean result
 ```
 
-### Comparing Multiple Results
-
-```python
-from evaluation.utils import compare_agents
-
-# Load multiple evaluation results
-results_a = [load_evaluation_results('agent_a_1.json'), ...]
-results_b = [load_evaluation_results('agent_b_1.json'), ...]
-
-comparison = compare_agents(results_a, results_b, 'Agent A', 'Agent B')
-print(comparison)
-```
-
 ## 🎮 Agent Types
 
-### Creating Test Agents
+### Creating Agents
 
 ```python
-# Heuristic Agent
-from agents.heuristic_agent import HeuristicAgent
-agent = HeuristicAgent(player_id=0)
+# Available agent types
+from agents import (
+    HeuristicAgent,
+    ImprovedHeuristicAgent,
+    MinimaxAgent,
+    RandomAgent,
+    MCTSAgent,
+    OpenSpielMinimaxAgent
+)
 
-# MCTS Agent
-from agents.mcts import MCTSAgent
-from training.neural_network import AzulNetwork
-import torch
+# Heuristic agents
+heuristic_agent = HeuristicAgent(player_id=0)
+improved_agent = ImprovedHeuristicAgent(player_id=0)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-network = AzulNetwork(input_size=471, hidden_size=256, num_actions=1430, device=device)
-agent = MCTSAgent(neural_network=network)
-```
+# Minimax agents
+minimax_agent = MinimaxAgent(player_id=0, time_limit=2.0, max_depth=4)
+openspiel_minimax = OpenSpielMinimaxAgent(depth=4, enable_alpha_beta=True)
 
-### Creating Baseline Agents
+# MCTS agent
+mcts_agent = MCTSAgent(num_simulations=400, uct_c=1.4)
 
-```python
-from evaluation.baseline_agents import create_baseline_agent
-
-# Built-in baseline types
-random_agent = create_baseline_agent('random', seed=42)
-simple_agent = create_baseline_agent('simple_heuristic')
-heuristic_agent = create_baseline_agent('heuristic')
-
-# Checkpoint agent
-checkpoint_agent = create_baseline_agent('checkpoint', 
-                                       checkpoint_path='models/best_model.pth')
+# Random agent
+random_agent = RandomAgent(seed=42)
 ```
 
 ## 📁 Results and Output
@@ -252,17 +218,17 @@ python -m evaluation.cli quick --test-agent heuristic
 
 # Full evaluation with options
 python -m evaluation.cli evaluate \
-  --test-agent mcts \
-  --baseline-agent heuristic \
+  --agent-a mcts \
+  --agent-b minimax \
   --num-games 200 \
   --workers 4 \
   --output detailed_results.json
 
 # Tournament between agents
 python -m evaluation.cli tournament \
-  --agents "MyAgent:mcts:num_simulations=800" \
-  --agents "Baseline:heuristic" \
-  --include-baselines \
+  --agents "MyMCTS:mcts:num_simulations=800" \
+  --agents "Minimax:minimax:time_limit=2.0,max_depth=6" \
+  --agents "Heuristic:heuristic" \
   --num-games 100 \
   --output tournament_2024
 
@@ -270,16 +236,43 @@ python -m evaluation.cli tournament \
 python -m evaluation.cli summary evaluation_results/ --output summary.txt
 ```
 
-### Agent Specification Format
+### Supported Agent Types
+
+The following agent types are available in the CLI:
+
+- `heuristic` - Basic rule-based agent
+- `improved_heuristic` - Advanced rule-based agent
+- `minimax` - Custom minimax with alpha-beta pruning
+- `openspiel_minimax` - OpenSpiel's optimized minimax
+- `mcts` - Monte Carlo Tree Search
+- `random` - Random action selection
+
+### Agent Parameter Format
 
 For tournaments, specify agents using the format: `name:type[:arg1=val1,arg2=val2,...]`
 
 ```bash
 # Examples
---agents "MCTS_Fast:mcts:num_simulations=100,temperature=0.0"
---agents "Checkpoint_v2:checkpoint:checkpoint_path=models/v2.pth"
+--agents "MCTS_Fast:mcts:num_simulations=100,uct_c=1.0"
+--agents "Minimax_Deep:minimax:max_depth=6,time_limit=3.0"
 --agents "Random_Seed42:random:seed=42"
 ```
+
+### Common Agent Parameters
+
+#### Minimax Agent Parameters
+- `time_limit` - Maximum time per move (default: 1.0)
+- `max_depth` - Maximum search depth (default: 4)
+
+#### MCTS Agent Parameters
+- `num_simulations` - Number of MCTS simulations (default: 400)
+- `uct_c` - UCT exploration constant (default: 1.4)
+- `solve` - Use exact solver when possible (default: False)
+
+#### OpenSpiel Minimax Parameters
+- `depth` - Search depth (default: 4)
+- `enable_alpha_beta` - Use alpha-beta pruning (default: True)
+- `time_limit` - Optional time limit in seconds
 
 ## 📊 Example Use Cases
 
@@ -291,32 +284,20 @@ result = evaluator.quick_evaluation(my_agent, RandomAgent(), num_games=10)
 print(f"Quick test: {result.test_agent_win_rate:.1%} win rate")
 ```
 
-### 2. Model Validation
+### 2. Algorithm Comparison
 ```python
-# Thorough evaluation before deployment
-config = EvaluationConfig(
-    num_games=500,
-    num_workers=8,
-    confidence_interval=0.99
-)
+# Compare different algorithms
+config = EvaluationConfig(num_games=200, num_workers=4)
 evaluator = AgentEvaluator(config)
-result = evaluator.evaluate_agent(my_model, heuristic_baseline)
+
+# Compare minimax vs MCTS
+minimax_agent = MinimaxAgent(time_limit=2.0, max_depth=5)
+mcts_agent = MCTSAgent(num_simulations=500)
+
+result = evaluator.evaluate_agent(minimax_agent, mcts_agent)
 ```
 
-### 3. Training Progress Tracking
-```python
-# Compare against previous checkpoint
-from evaluation.baseline_agents import CheckpointAgent
-
-previous_model = CheckpointAgent('models/checkpoint_100.pth')
-current_model = my_current_model
-
-result = evaluator.evaluate_agent(current_model, previous_model)
-improvement = result.test_agent_win_rate > 0.5
-print(f"Model improved: {improvement}")
-```
-
-### 4. Hyperparameter Comparison
+### 3. Parameter Tuning
 ```python
 # Compare different configurations
 agents = {
@@ -334,21 +315,6 @@ result = tournament.run_tournament()
 
 ## 🔧 Advanced Features
 
-### Custom Baseline Agents
-
-```python
-from evaluation.baseline_agents import BaselineAgent
-
-class MyCustomBaseline(BaselineAgent):
-    def __init__(self):
-        super().__init__(name="CustomBaseline")
-    
-    def select_action(self, game_state):
-        # Your custom logic here
-        actions = game_state.get_legal_actions()
-        return actions[0]  # Simple example
-```
-
 ### Parallel Evaluation
 
 ```python
@@ -359,7 +325,6 @@ config = EvaluationConfig(
     timeout_per_move=10.0
 )
 
-# Each worker runs games independently
 evaluator = AgentEvaluator(config)
 result = evaluator.evaluate_agent(test_agent, baseline_agent)
 ```
@@ -386,7 +351,7 @@ print(f"Significant difference: {is_significant}")
 - Use at least 100 games for meaningful statistics
 - Enable position swapping for fair comparison
 - Use fixed seeds for reproducible results
-- Include multiple baseline types
+- Test multiple agent configurations
 
 ### 2. Statistical Considerations
 - Check confidence intervals, not just win rates
@@ -403,20 +368,20 @@ print(f"Significant difference: {is_significant}")
 ### 4. Result Analysis
 - Save all evaluation results for later analysis
 - Generate summary reports for multiple evaluations
-- Track performance over time with checkpoint evaluations
+- Track performance over time
 - Use tournaments to compare multiple approaches
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-**Agent Compatibility**: Ensure your agent has a `select_action(game_state)` method.
+**Agent Compatibility**: All agents inherit from `AzulAgent` base class with standardized interface.
 
 **Memory Issues**: Reduce `num_workers` or `num_games` for memory-constrained environments.
 
-**Timeout Errors**: Increase `timeout_per_move` for slower agents.
+**Timeout Errors**: Increase `timeout_per_move` for slower agents (especially minimax with deep search).
 
-**Checkpoint Loading**: Verify checkpoint file format and model architecture compatibility.
+**Import Errors**: Ensure all dependencies are installed: `pip install scipy numpy torch`
 
 ### Error Handling
 
@@ -426,29 +391,14 @@ The framework includes robust error handling:
 - Failed games are recorded with error messages
 - Evaluation continues even if individual games fail
 
-## 📚 Examples
-
-See `examples/evaluation_examples.py` for comprehensive usage examples, including:
-- Basic evaluation setup
-- Agent comparison workflows
-- Tournament organization
-- Statistical analysis
-- Configuration options
-- Checkpoint evaluation
-
-Run the examples:
-```bash
-python examples/evaluation_examples.py
-```
-
 ## 🤝 Integration
 
 The evaluation framework integrates seamlessly with:
 - **Training Pipeline**: Evaluate models during training
-- **Model Selection**: Compare different architectures
-- **Hyperparameter Tuning**: Systematic parameter evaluation
+- **Algorithm Development**: Compare different AI approaches
+- **Parameter Tuning**: Systematic parameter evaluation
 - **Research**: Reproducible experimental results
-- **Production**: Validate models before deployment
+- **Benchmarking**: Standard performance comparisons
 
 ## 📄 API Reference
 
@@ -457,7 +407,7 @@ The evaluation framework integrates seamlessly with:
 - `EvaluationConfig`: Configuration management
 - `EvaluationResult`: Result container with statistics
 - `Tournament`: Multi-agent tournament system
-- `BaselineAgent`: Base class for baseline implementations
+- `AzulAgent`: Base class for all agents
 
 ### Utility Functions
 - `format_evaluation_results()`: Human-readable result formatting

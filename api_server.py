@@ -465,12 +465,14 @@ def get_agent_info():
         info["config"] = config
     elif active_agent == improved_heuristic_agent:
         stats = improved_heuristic_agent.get_stats()
-        info["algorithm"] = stats.get("algorithm", "Improved Heuristic")
-        info["features"] = stats.get("features", "Unknown")
+        agent_info = improved_heuristic_agent.get_info()
+        info["algorithm"] = agent_info.get("algorithm", "Improved Heuristic")
+        info["features"] = agent_info.get("features", "Unknown")
     elif active_agent == heuristic_agent:
         stats = heuristic_agent.get_stats()
-        info["algorithm"] = stats.get("algorithm", "Heuristic")
-        info["features"] = stats.get("features", "Unknown")
+        agent_info = heuristic_agent.get_info()
+        info["algorithm"] = agent_info.get("algorithm", "Heuristic")
+        info["features"] = agent_info.get("features", "Unknown")
 
     return jsonify(info)
 
@@ -519,8 +521,9 @@ def get_best_move():
             elif active_agent == improved_heuristic_agent:  # Improved Heuristic agent
                 action = improved_heuristic_agent.select_action(game_state)  # type: ignore[union-attr]
                 stats = improved_heuristic_agent.get_stats()  # type: ignore[union-attr]
-                nodes_evaluated = stats["nodesEvaluated"]
-                algorithm_info = f"Improved Heuristic ({stats['algorithm']})"
+                agent_info = improved_heuristic_agent.get_info()  # type: ignore[union-attr]
+                nodes_evaluated = stats["nodes_evaluated"]
+                algorithm_info = f"Improved Heuristic ({agent_info['algorithm']})"
                 agent_type_name = "improved_heuristic"
 
             elif active_agent == minimax_agent:  # Minimax agent
@@ -534,8 +537,9 @@ def get_best_move():
             else:  # Original Heuristic agent
                 action = heuristic_agent.select_action(game_state)  # type: ignore[union-attr]
                 stats = heuristic_agent.get_stats()  # type: ignore[union-attr]
-                nodes_evaluated = stats["nodesEvaluated"]
-                algorithm_info = f"Heuristic ({stats['algorithm']})"
+                agent_info = heuristic_agent.get_info()  # type: ignore[union-attr]
+                nodes_evaluated = stats["nodes_evaluated"]
+                algorithm_info = f"Heuristic ({agent_info['algorithm']})"
                 agent_type_name = "heuristic"
 
             search_time = time.time() - start_time

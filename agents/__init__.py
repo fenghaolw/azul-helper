@@ -1,5 +1,6 @@
 """Agents module for Azul RL - Now using OpenSpiel implementations."""
 
+from agents.base_agent import AzulAgent
 from agents.heuristic_agent import HeuristicAgent, create_heuristic_agent
 from agents.improved_heuristic_agent import (
     ImprovedHeuristicAgent,
@@ -12,6 +13,7 @@ from agents.openspiel_agents import RandomAgent  # Use OpenSpiel's RandomAgent d
 from agents.openspiel_agents import (
     OpenSpielAlphaZeroAgent,
     OpenSpielMCTSAgent,
+    OpenSpielMinimaxAgent,
 )
 
 # Import game types
@@ -22,6 +24,8 @@ MCTSAgent = OpenSpielMCTSAgent
 AlphaZeroAgent = OpenSpielAlphaZeroAgent
 
 __all__ = [
+    # Base agent class
+    "AzulAgent",
     # Core game types
     "GameState",
     # MCTS implementations (OpenSpiel only)
@@ -30,6 +34,7 @@ __all__ = [
     # OpenSpiel agents (full names)
     "OpenSpielMCTSAgent",
     "OpenSpielAlphaZeroAgent",
+    "OpenSpielMinimaxAgent",
     "RandomAgent",  # OpenSpiel RandomAgent
     # Other agents
     "HeuristicAgent",

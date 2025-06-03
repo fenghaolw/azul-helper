@@ -6,7 +6,7 @@ the evaluation framework.
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
@@ -34,7 +34,7 @@ class EvaluationConfig:
     num_workers: int = 1  # Number of parallel workers for evaluation
 
     # Logging and output
-    verbose: bool = True
+    verbose: bool = False
     save_detailed_logs: bool = False
     save_game_replays: bool = False
 
@@ -265,3 +265,31 @@ class EvaluationResult:
             )
 
         return "\n".join(lines)
+
+
+@dataclass
+class ThinkingTimeAnalysis:
+    """Analysis of thinking time statistics for agents."""
+
+    # Test agent statistics
+    test_agent_total_thinking_time: float = 0.0
+    test_agent_average_thinking_time: float = 0.0
+    test_agent_min_thinking_time: float = 0.0
+    test_agent_max_thinking_time: float = 0.0
+    test_agent_total_decisions: int = 0
+    test_agent_thinking_time_per_game: List[float] = field(default_factory=list)
+    test_agent_average_thinking_time_per_game: float = 0.0
+
+    # Baseline agent statistics
+    baseline_agent_total_thinking_time: float = 0.0
+    baseline_agent_average_thinking_time: float = 0.0
+    baseline_agent_min_thinking_time: float = 0.0
+    baseline_agent_max_thinking_time: float = 0.0
+    baseline_agent_total_decisions: int = 0
+    baseline_agent_thinking_time_per_game: List[float] = field(default_factory=list)
+    baseline_agent_average_thinking_time_per_game: float = 0.0
+
+    # Comparison metrics
+    test_agent_thinks_longer: bool = False
+    thinking_time_ratio: float = 0.0
+    total_thinking_time_difference: float = 0.0

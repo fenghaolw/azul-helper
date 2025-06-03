@@ -15,31 +15,40 @@ This agent implements advanced strategic guidelines for better gameplay:
 import random
 from typing import List, Optional, Tuple
 
+from agents.base_agent import AzulAgent
 from game.game_state import Action, GameState, PlayerBoard, TileColor
 
 
-class ImprovedHeuristicAgent:
+class ImprovedHeuristicAgent(AzulAgent):
     """
     An improved heuristic-based agent for Azul that implements
     advanced strategic principles for competitive gameplay.
     """
 
-    def __init__(self, player_id: int = 0):
+    def __init__(self, player_id: int = 0, name: Optional[str] = None):
         """
         Initialize the improved heuristic agent.
 
         Args:
             player_id: The player ID this agent controls
+            name: Optional name for the agent
         """
-        self.player_id = player_id
+        super().__init__(player_id, name or "ImprovedHeuristicAgent")
         self.nodes_evaluated = 0
 
-    def select_action(self, game_state: GameState) -> Action:
+    def _get_algorithm_name(self) -> str:
+        """Get the algorithm name for this agent."""
+        return "Improved Heuristic-based"
+
+    def select_action(
+        self, game_state: GameState, deterministic: bool = False
+    ) -> Action:
         """
         Select the best action based on improved heuristic evaluation.
 
         Args:
             game_state: Current game state
+            deterministic: Whether to select deterministically (always True for heuristic)
 
         Returns:
             Best action according to improved heuristics
@@ -529,21 +538,23 @@ class ImprovedHeuristicAgent:
         return self.player_id != 0  # Assuming player 0 is usually first
 
     def get_stats(self) -> dict:
-        """Get statistics about the agent's last decision."""
-        return {
-            "nodesEvaluated": self.nodes_evaluated,
-            "algorithm": "Improved Heuristic-based",
-            "features": "Top row priority, Adjacency maximization, Column focus, Strategic blocking",
-        }
+        """Get runtime performance statistics."""
+        base_stats = super().get_stats()
+        # No additional runtime stats for improved heuristic agent beyond base class
+        return base_stats
 
     def get_info(self) -> dict:
-        """Get agent information for evaluation metadata."""
-        return {
-            "agent_type": self.__class__.__name__,
-            "algorithm": "Improved Heuristic-based",
-            "features": "Advanced strategic guidelines implementation",
-            "player_id": self.player_id,
-        }
+        """Get static agent metadata."""
+        base_info = super().get_info()
+        base_info.update(
+            {
+                "algorithm": "Improved Heuristic-based",
+                "features": "Advanced strategic heuristics, opponent blocking, turn order optimization",
+                "guidelines": "Top row priority, adjacency bonuses, column completion, strategic discarding",
+                "description": "Improved heuristic agent with advanced strategic principles",
+            }
+        )
+        return base_info
 
     def reset_stats(self):
         """Reset statistics."""

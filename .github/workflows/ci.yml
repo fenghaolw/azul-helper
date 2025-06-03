@@ -55,7 +55,7 @@ jobs:
 
     - name: Run type checking
       run: |
-        mypy --config-file=mypy.ini .
+        mypy .
 
     - name: Run tests
       run:
