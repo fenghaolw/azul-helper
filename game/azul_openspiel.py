@@ -100,8 +100,10 @@ class AzulGame(pyspiel.Game):
 
     def observation_tensor_shape(self) -> List[int]:
         """Return the shape of the observation tensor."""
-        # This matches the actual size returned by GameState.get_state_vector()
-        return [935]
+        # Use a shape that accommodates our full state vector (935 elements)
+        # We'll use a larger spatial dimension to avoid truncation
+        # 16x16x4 = 1024, which is larger than our state size of 935
+        return [16, 16, 4]
 
     def information_state_tensor_shape(self) -> List[int]:
         """Return the shape of the information state tensor."""
@@ -151,6 +153,14 @@ class AzulState(pyspiel.State):
 
         return Action(source, color, destination)
 
+    def _azul_action_to_int(self, action: Action) -> int:
+        """Convert Azul Action to OpenSpiel integer using optimized encoding."""
+        source_idx = action.source + 1  # -1 becomes 0, 0-4 becomes 1-5
+        dest_idx = action.destination + 1  # -1 becomes 0, 0-4 becomes 1-5
+        color_idx = self._COLOR_TO_IDX[action.color]
+        # Optimized encoding: source_idx * 30 + color_idx * 6 + dest_idx
+        return source_idx * 30 + color_idx * 6 + dest_idx
+
     def current_player(self) -> int:
         """Return the current player."""
         if self._game_state.game_over:
@@ -168,14 +178,7 @@ class AzulState(pyspiel.State):
         azul_actions = self._game_state.get_legal_actions(player)
 
         # Batch convert actions using optimized encoding
-        action_ints = []
-        for action in azul_actions:
-            source_idx = action.source + 1
-            dest_idx = action.destination + 1
-            color_idx = self._COLOR_TO_IDX[action.color]
-            # Optimized encoding: source_idx * 30 + color_idx * 6 + dest_idx
-            action_int = source_idx * 30 + color_idx * 6 + dest_idx
-            action_ints.append(action_int)
+        action_ints = [self._azul_action_to_int(action) for action in azul_actions]
 
         return action_ints
 
@@ -272,7 +275,13 @@ class AzulState(pyspiel.State):
 
         # Use the existing state vector representation
         state_vector = self._game_state.get_state_vector()
-        return np.array(state_vector, dtype=np.float32)
+
+        # Pad with zeros to match the expected size (16*16*4 = 1024)
+        target_size = 16 * 16 * 4  # 1024
+        padded_vector = np.pad(state_vector, (0, target_size - len(state_vector)))
+
+        # Return as a flattened tensor - the ResNet model will handle reshaping internally
+        return padded_vector.astype(np.float32)
 
     def information_state_tensor(self, player: Optional[int] = None) -> np.ndarray:
         """Return information state as tensor."""

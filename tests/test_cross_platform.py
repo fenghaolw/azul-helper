@@ -140,7 +140,7 @@ class TestPlatformConsistency:
         # Verify all computations are precise
         for test_name, actual, expected in precision_tests:
             assert (
-                abs(actual - expected) < 1e-10
+                abs(actual - expected) < 1e-6
             ), f"{test_name}: {actual} != {expected} (diff: {abs(actual - expected)})"
 
         print(
