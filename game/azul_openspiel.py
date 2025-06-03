@@ -26,12 +26,23 @@ class AzulGame(pyspiel.Game):
 
         self._seed = params.get("seed", None)
 
+        # Chance mode configuration for different algorithms
+        # - DETERMINISTIC: Required for OpenSpiel minimax (treats current state as deterministic)
+        # - EXPLICIT_STOCHASTIC: More accurate for MCTS/AlphaZero (models tile drawing randomness)
+        # The choice depends on the algorithm being used
+        use_deterministic = params.get("deterministic_mode", False)
+        self.chance_mode = (
+            pyspiel.GameType.ChanceMode.DETERMINISTIC
+            if use_deterministic
+            else pyspiel.GameType.ChanceMode.EXPLICIT_STOCHASTIC
+        )
+
         super().__init__(
             pyspiel.GameType(
                 short_name="azul",
                 long_name="Azul",
                 dynamics=pyspiel.GameType.Dynamics.SEQUENTIAL,
-                chance_mode=pyspiel.GameType.ChanceMode.EXPLICIT_STOCHASTIC,
+                chance_mode=self.chance_mode,
                 information=pyspiel.GameType.Information.PERFECT_INFORMATION,
                 utility=(
                     pyspiel.GameType.Utility.ZERO_SUM

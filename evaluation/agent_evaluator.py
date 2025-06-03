@@ -12,7 +12,6 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from evaluation.baseline_agents import BaselineAgent
 from evaluation.evaluation_config import EvaluationConfig, EvaluationResult, GameResult
 from evaluation.utils import (
     calculate_confidence_interval,
@@ -50,7 +49,7 @@ class AgentEvaluator:
     def evaluate_agent(
         self,
         test_agent: Any,
-        baseline_agent: BaselineAgent,
+        baseline_agent: Any,  # Changed from BaselineAgent to Any to accept AzulAgent
         test_agent_name: Optional[str] = None,
         baseline_agent_name: Optional[str] = None,
     ) -> EvaluationResult:
@@ -58,17 +57,30 @@ class AgentEvaluator:
         Evaluate a test agent against a baseline agent.
 
         Args:
-            test_agent: The agent to be evaluated (must have select_action method)
-            baseline_agent: The baseline agent for comparison
+            test_agent: The agent to be evaluated (must have select_action method and AzulAgent interface)
+            baseline_agent: The baseline agent for comparison (must have AzulAgent interface)
             test_agent_name: Name for the test agent (for reporting)
             baseline_agent_name: Name for the baseline agent (for reporting)
 
         Returns:
             Comprehensive evaluation results
         """
-        # Set default names
+        # Import AzulAgent here to avoid circular imports
+        from agents.base_agent import AzulAgent
+
+        # Check if agents implement the AzulAgent interface
+        if not isinstance(test_agent, AzulAgent):
+            raise TypeError(
+                f"test_agent must be an instance of AzulAgent, got {type(test_agent)}"
+            )
+        if not isinstance(baseline_agent, AzulAgent):
+            raise TypeError(
+                f"baseline_agent must be an instance of AzulAgent, got {type(baseline_agent)}"
+            )
+
+        # Set default names - now we can use the agent's name property
         if test_agent_name is None:
-            test_agent_name = getattr(test_agent, "name", test_agent.__class__.__name__)
+            test_agent_name = test_agent.name
         if baseline_agent_name is None:
             baseline_agent_name = baseline_agent.name
 
@@ -81,8 +93,7 @@ class AgentEvaluator:
 
         # Reset agent statistics
         baseline_agent.reset_stats()
-        if hasattr(test_agent, "reset_stats"):
-            test_agent.reset_stats()
+        test_agent.reset_stats()
 
         # Determine games to play
         games_to_play = self._plan_games()
@@ -224,7 +235,7 @@ class AgentEvaluator:
     def _run_games_sequential(
         self,
         test_agent: Any,
-        baseline_agent: BaselineAgent,
+        baseline_agent: Any,
         games_to_play: List[Dict[str, Any]],
     ) -> List[GameResult]:
         """Run games sequentially in the main thread."""
@@ -259,7 +270,7 @@ class AgentEvaluator:
     def _run_games_parallel(
         self,
         test_agent: Any,
-        baseline_agent: BaselineAgent,
+        baseline_agent: Any,
         games_to_play: List[Dict[str, Any]],
     ) -> List[GameResult]:
         """Run games in parallel using multiple workers."""
@@ -311,7 +322,7 @@ class AgentEvaluator:
     def _run_single_game(
         self,
         test_agent: Any,
-        baseline_agent: BaselineAgent,
+        baseline_agent: Any,
         game_config: Dict[str, Any],
     ) -> GameResult:
         """
@@ -482,7 +493,7 @@ class AgentEvaluator:
     def quick_evaluation(
         self,
         test_agent: Any,
-        baseline_agent: BaselineAgent,
+        baseline_agent: Any,
         num_games: int = 20,
         verbose: bool = True,
     ) -> EvaluationResult:

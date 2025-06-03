@@ -10,11 +10,17 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from agents import (  # Import from unified agents module
+    HeuristicAgent,
+    ImprovedHeuristicAgent,
+    MinimaxAgent,
+    OpenSpielMinimaxAgent,
+    RandomAgent,
+)
 from agents.openspiel_agents import OpenSpielMCTSAgent as MCTSAgent
 from evaluation.agent_evaluator import AgentEvaluator
-from evaluation.baseline_agents import create_baseline_agent
 from evaluation.evaluation_config import EvaluationConfig
-from evaluation.tournament import Tournament, run_baseline_comparison_tournament
+from evaluation.tournament import Tournament
 from evaluation.utils import (
     create_evaluation_summary,
     ensure_evaluation_dir,
@@ -23,31 +29,74 @@ from evaluation.utils import (
 )
 
 
-def create_test_agent(agent_type: str, **kwargs):
-    """Create a test agent of the specified type."""
-    if agent_type == "heuristic":
-        from agents.heuristic_agent import HeuristicAgent
+def create_agent(agent_type: str, **kwargs):
+    """Create an agent of the specified type."""
+    agent_type = agent_type.lower()
 
+    if agent_type == "heuristic":
         return HeuristicAgent(**kwargs)
+    elif agent_type == "improved_heuristic":
+        return ImprovedHeuristicAgent(**kwargs)
+    elif agent_type == "random":
+        return RandomAgent(**kwargs)
     elif agent_type == "mcts":
-        # OpenSpiel MCTS doesn't require neural networks
+        # OpenSpiel MCTS - filter parameters to only those supported
         # Extract common MCTS parameters from kwargs and map to OpenSpiel parameters
         num_simulations = kwargs.get("num_simulations", 400)
         uct_c = kwargs.get(
             "uct_c", kwargs.get("c_puct", 1.4)
         )  # Map old c_puct to uct_c
         solve = kwargs.get("solve", False)
+        seed = kwargs.get("seed", None)
+        player_id = kwargs.get("player_id", 0)
+        name = kwargs.get("name", None)
+        max_memory = kwargs.get("max_memory", 1000000)
+        evaluator = kwargs.get("evaluator", None)
 
-        # Remove parameters that don't apply to OpenSpiel MCTS
+        # Create with only supported parameters
         openspiel_kwargs = {
             "num_simulations": num_simulations,
             "uct_c": uct_c,
             "solve": solve,
+            "seed": seed,
+            "player_id": player_id,
+            "name": name,
+            "max_memory": max_memory,
+            "evaluator": evaluator,
         }
 
         return MCTSAgent(**openspiel_kwargs)
+    elif agent_type == "minimax":
+        # Custom minimax agent with alpha-beta pruning
+        time_limit = kwargs.get("time_limit", 1.0)
+        max_depth = kwargs.get("max_depth", 4)
+        player_id = kwargs.get("player_id", 0)
+        name = kwargs.get("name", None)
+
+        return MinimaxAgent(
+            player_id=player_id, time_limit=time_limit, max_depth=max_depth, name=name
+        )
+    elif agent_type == "openspiel_minimax":
+        # OpenSpiel minimax agent
+        depth = kwargs.get("depth", 4)
+        enable_alpha_beta = kwargs.get("enable_alpha_beta", True)
+        time_limit = kwargs.get("time_limit", None)
+        seed = kwargs.get("seed", None)
+        player_id = kwargs.get("player_id", 0)
+        name = kwargs.get("name", None)
+
+        return OpenSpielMinimaxAgent(
+            depth=depth,
+            enable_alpha_beta=enable_alpha_beta,
+            time_limit=time_limit,
+            seed=seed,
+            player_id=player_id,
+            name=name,
+        )
     else:
-        raise ValueError(f"Unknown agent type: {agent_type}")
+        raise ValueError(
+            f"Unknown agent type: {agent_type}. Available: heuristic, improved_heuristic, random, mcts, minimax, openspiel_minimax"
+        )
 
 
 def cmd_evaluate(args):
@@ -67,12 +116,8 @@ def cmd_evaluate(args):
 
     # Create agents
     try:
-        test_agent = create_test_agent(
-            args.test_agent, **parse_agent_args(args.test_agent_args)
-        )
-        baseline_agent = create_baseline_agent(
-            args.baseline_agent, **parse_agent_args(args.baseline_agent_args)
-        )
+        agent_a = create_agent(args.agent_a, **parse_agent_args(args.agent_a_args))
+        agent_b = create_agent(args.agent_b, **parse_agent_args(args.agent_b_args))
     except Exception as e:
         print(f"Error creating agents: {e}")
         return 1
@@ -82,10 +127,10 @@ def cmd_evaluate(args):
 
     try:
         result = evaluator.evaluate_agent(
-            test_agent=test_agent,
-            baseline_agent=baseline_agent,
-            test_agent_name=args.test_agent_name,
-            baseline_agent_name=args.baseline_agent_name,
+            test_agent=agent_a,
+            baseline_agent=agent_b,
+            test_agent_name=args.agent_a_name,
+            baseline_agent_name=args.agent_b_name,
         )
 
         # Print results
@@ -132,35 +177,12 @@ def cmd_tournament(args):
                 agent_type = parts[1]
                 agent_args = parse_agent_args(parts[2] if len(parts) > 2 else "")
 
-                if agent_type in [
-                    "random",
-                    "simple_heuristic",
-                    "heuristic",
-                    "checkpoint",
-                ]:
-                    agent = create_baseline_agent(agent_type, **agent_args)
-                else:
-                    agent = create_test_agent(agent_type, **agent_args)
+                agent = create_agent(agent_type, **agent_args)
 
                 agents[name] = agent
 
             except Exception as e:
                 print(f"Error creating agent {agent_spec}: {e}")
-                return 1
-
-    # Add baseline agents if requested
-    if args.include_baselines:
-        baseline_types = (
-            args.baseline_types.split(",")
-            if args.baseline_types
-            else ["random", "heuristic"]
-        )
-        for baseline_type in baseline_types:
-            try:
-                baseline_agent = create_baseline_agent(baseline_type.strip())
-                agents[f"{baseline_type.strip()}_baseline"] = baseline_agent
-            except Exception as e:
-                print(f"Error creating baseline {baseline_type}: {e}")
                 return 1
 
     if len(agents) < 2:
@@ -211,8 +233,9 @@ def cmd_quick(args):
 
     # Create agents
     try:
-        test_agent = create_test_agent(args.test_agent)
-        baseline_agent = create_baseline_agent(args.baseline_agent or "random")
+        test_agent = create_agent(args.test_agent)
+        # Default opponent is random agent
+        opponent_agent = create_agent(args.opponent or "random")
     except Exception as e:
         print(f"Error creating agents: {e}")
         return 1
@@ -221,8 +244,8 @@ def cmd_quick(args):
     evaluator = AgentEvaluator(config)
 
     try:
-        result = evaluator.quick_evaluation(
-            test_agent, baseline_agent, num_games=args.num_games or 10
+        result = evaluator.evaluate_agent(
+            test_agent=test_agent, baseline_agent=opponent_agent
         )
         print(result.summary())
         return 0
@@ -270,13 +293,13 @@ Examples:
 
   # Full evaluation with custom settings
   python -m evaluation.cli evaluate \\
-    --test-agent mcts --baseline-agent random \\
+    --agent-a mcts --agent-b random \\
     --num-games 100 --output results.json
 
   # Tournament between multiple agents
   python -m evaluation.cli tournament \\
-    --agents "MCTS:mcts" "Heuristic:heuristic" \\
-    --include-baselines --output tournament_results
+    --agents "MCTS:mcts" "Heuristic:heuristic" "Random:random" \\
+    --output tournament_results
 
   # Generate summary of results
   python -m evaluation.cli summary evaluation_results/
@@ -286,30 +309,44 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Evaluate command
-    eval_parser = subparsers.add_parser(
-        "evaluate", help="Evaluate a single agent against a baseline"
-    )
+    eval_parser = subparsers.add_parser("evaluate", help="Evaluate a single agent")
     eval_parser.add_argument(
-        "--test-agent",
+        "--agent-a",
         required=True,
-        choices=["heuristic", "mcts", "checkpoint"],
-        help="Type of test agent",
+        choices=[
+            "heuristic",
+            "improved_heuristic",
+            "mcts",
+            "minimax",
+            "openspiel_minimax",
+            "random",
+        ],
+        help="Type of first agent",
     )
+    eval_parser.add_argument("--agent-a-name", help="Name for first agent")
     eval_parser.add_argument(
-        "--baseline-agent",
-        required=True,
-        choices=["random", "simple_heuristic", "heuristic", "checkpoint"],
-        help="Type of baseline agent",
-    )
-    eval_parser.add_argument("--test-agent-name", help="Name for test agent")
-    eval_parser.add_argument("--baseline-agent-name", help="Name for baseline agent")
-    eval_parser.add_argument(
-        "--test-agent-args",
+        "--agent-a-args",
         default="",
-        help="Arguments for test agent (key=value,key=value)",
+        help="Arguments for first agent (key=value,key=value)",
     )
     eval_parser.add_argument(
-        "--baseline-agent-args", default="", help="Arguments for baseline agent"
+        "--agent-b",
+        required=True,
+        choices=[
+            "heuristic",
+            "improved_heuristic",
+            "mcts",
+            "minimax",
+            "openspiel_minimax",
+            "random",
+        ],
+        help="Type of second agent",
+    )
+    eval_parser.add_argument("--agent-b-name", help="Name for second agent")
+    eval_parser.add_argument(
+        "--agent-b-args",
+        default="",
+        help="Arguments for second agent (key=value,key=value)",
     )
     eval_parser.add_argument(
         "--num-games", type=int, default=100, help="Number of games to play"
@@ -349,16 +386,6 @@ Examples:
         "--agents", nargs="*", help="Agent specifications (name:type[:args])"
     )
     tournament_parser.add_argument(
-        "--include-baselines",
-        action="store_true",
-        help="Include standard baseline agents",
-    )
-    tournament_parser.add_argument(
-        "--baseline-types",
-        default="random,heuristic",
-        help="Comma-separated baseline types to include",
-    )
-    tournament_parser.add_argument(
         "--num-games", type=int, default=50, help="Games per matchup"
     )
     tournament_parser.add_argument(
@@ -390,13 +417,27 @@ Examples:
     quick_parser.add_argument(
         "--test-agent",
         required=True,
-        choices=["heuristic", "mcts"],
+        choices=[
+            "heuristic",
+            "improved_heuristic",
+            "mcts",
+            "minimax",
+            "openspiel_minimax",
+            "random",
+        ],
         help="Test agent type",
     )
     quick_parser.add_argument(
-        "--baseline-agent",
-        choices=["random", "simple_heuristic", "heuristic"],
-        help="Baseline agent type (default: random)",
+        "--opponent",
+        choices=[
+            "heuristic",
+            "improved_heuristic",
+            "mcts",
+            "minimax",
+            "openspiel_minimax",
+            "random",
+        ],
+        help="Type of opponent agent",
     )
     quick_parser.add_argument(
         "--num-games", type=int, help="Number of games (default: 10)"

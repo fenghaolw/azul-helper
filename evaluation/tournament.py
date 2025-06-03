@@ -10,7 +10,6 @@ import itertools
 from typing import Any, Dict, List, Optional, Tuple
 
 from evaluation.agent_evaluator import AgentEvaluator
-from evaluation.baseline_agents import BaselineAgent
 from evaluation.evaluation_config import EvaluationConfig, EvaluationResult
 from evaluation.utils import get_evaluation_timestamp, save_evaluation_results
 
@@ -200,16 +199,23 @@ class Tournament:
                     f"{agent_a_name} vs {agent_b_name}"
                 )
 
-            # Convert agent_b to BaselineAgent if it's not already
-            if not isinstance(agent_b, BaselineAgent):
-                agent_b_baseline = self._wrap_as_baseline(agent_b, agent_b_name)
-            else:
-                agent_b_baseline = agent_b
+            # Import AzulAgent here to avoid circular imports
+            from agents.base_agent import AzulAgent
 
-            # Run evaluation
+            # Verify both agents are AzulAgent instances
+            if not isinstance(agent_a, AzulAgent):
+                raise TypeError(
+                    f"Agent {agent_a_name} must be an AzulAgent instance, got {type(agent_a)}"
+                )
+            if not isinstance(agent_b, AzulAgent):
+                raise TypeError(
+                    f"Agent {agent_b_name} must be an AzulAgent instance, got {type(agent_b)}"
+                )
+
+            # Run evaluation directly with both agents as AzulAgent instances
             result = self.evaluator.evaluate_agent(
                 test_agent=agent_a,
-                baseline_agent=agent_b_baseline,
+                baseline_agent=agent_b,  # No wrapper needed - agent_b is already AzulAgent
                 test_agent_name=agent_a_name,
                 baseline_agent_name=agent_b_name,
             )
@@ -235,26 +241,6 @@ class Tournament:
 
         return self.result
 
-    def _wrap_as_baseline(self, agent: Any, name: str) -> BaselineAgent:
-        """Wrap a regular agent as a BaselineAgent for evaluation."""
-        from evaluation.baseline_agents import BaselineAgent
-
-        class WrappedAgent(BaselineAgent):
-            def __init__(self, wrapped_agent, agent_name):
-                super().__init__(name=agent_name)
-                self.wrapped_agent = wrapped_agent
-
-            def select_action(self, game_state):
-                return self.wrapped_agent.select_action(game_state)
-
-            def get_info(self):
-                info = super().get_info()
-                if hasattr(self.wrapped_agent, "get_info"):
-                    info.update(self.wrapped_agent.get_info())
-                return info
-
-        return WrappedAgent(agent, name)
-
     def save_results(self, filepath: str) -> None:
         """Save tournament results to file."""
         # Save individual matchup results
@@ -278,40 +264,3 @@ class Tournament:
             save_evaluation_results(result, str(matchup_file))
 
         print(f"Tournament results saved to {base_path}")
-
-
-def run_baseline_comparison_tournament(
-    test_agents: Dict[str, Any],
-    baseline_types: List[str] = None,
-    config: Optional[EvaluationConfig] = None,
-    verbose: bool = True,
-) -> TournamentResult:
-    """
-    Run a tournament comparing test agents against standard baselines.
-
-    Args:
-        test_agents: Dictionary of {name: agent} for test agents
-        baseline_types: List of baseline types to include
-        config: Evaluation configuration
-        verbose: Whether to print progress
-
-    Returns:
-        Tournament results
-    """
-    if baseline_types is None:
-        baseline_types = ["random", "simple_heuristic", "heuristic"]
-
-    tournament = Tournament(config)
-
-    # Add test agents
-    for name, agent in test_agents.items():
-        tournament.add_agent(agent, name)
-
-    # Add baseline agents
-    from evaluation.baseline_agents import create_baseline_agent
-
-    for baseline_type in baseline_types:
-        baseline_agent = create_baseline_agent(baseline_type)
-        tournament.add_agent(baseline_agent, baseline_type.title() + "Baseline")
-
-    return tournament.run_tournament(verbose=verbose)

@@ -9,31 +9,35 @@ networks are being trained.
 import random
 from typing import List, Optional, Tuple
 
+from agents.base_agent import AzulAgent
 from game.game_state import Action, GameState, PlayerBoard, TileColor
 
 
-class HeuristicAgent:
+class HeuristicAgent(AzulAgent):
     """
     A heuristic-based agent for Azul that makes strategic decisions
     based on game knowledge and scoring opportunities.
     """
 
-    def __init__(self, player_id: int = 0):
+    def __init__(self, player_id: int = 0, name: Optional[str] = None):
         """
         Initialize the heuristic agent.
 
         Args:
             player_id: The player ID this agent controls
+            name: Optional name for the agent
         """
-        self.player_id = player_id
-        self.nodes_evaluated = 0
+        super().__init__(player_id, name or "HeuristicAgent")
 
-    def select_action(self, game_state: GameState) -> Action:
+    def select_action(
+        self, game_state: GameState, deterministic: bool = False
+    ) -> Action:
         """
         Select the best action based on heuristic evaluation.
 
         Args:
             game_state: Current game state
+            deterministic: Whether to select deterministically (always True for heuristic)
 
         Returns:
             Best action according to heuristics
@@ -313,22 +317,27 @@ class HeuristicAgent:
 
         return False
 
+    def _get_algorithm_name(self) -> str:
+        """Get the algorithm name for this agent."""
+        return "Heuristic-based"
+
     def get_stats(self) -> dict:
-        """Get statistics about the agent's last decision."""
-        return {
-            "nodesEvaluated": self.nodes_evaluated,
-            "algorithm": "Heuristic-based",
-            "features": "Pattern completion, Wall scoring, Strategic play",
-        }
+        """Get runtime performance statistics."""
+        base_stats = super().get_stats()
+        # No additional runtime stats for heuristic agent beyond base class
+        return base_stats
 
     def get_info(self) -> dict:
-        """Get agent information for evaluation metadata."""
-        return {
-            "agent_type": self.__class__.__name__,
-            "algorithm": "Heuristic-based",
-            "features": "Pattern completion, Wall scoring, Strategic play",
-            "player_id": self.player_id,
-        }
+        """Get static agent metadata."""
+        base_info = super().get_info()
+        base_info.update(
+            {
+                "algorithm": "Heuristic-based",
+                "features": "Pattern completion, Wall scoring, Strategic play",
+                "description": "Rule-based agent using strategic heuristics",
+            }
+        )
+        return base_info
 
     def reset_stats(self):
         """Reset statistics."""
