@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from evaluation.agent_evaluator import AgentEvaluator
 from evaluation.evaluation_config import EvaluationConfig, EvaluationResult
 from evaluation.utils import get_evaluation_timestamp, save_evaluation_results
+from training.eta_tracker import ETATracker
 
 
 class TournamentResult:
@@ -181,7 +182,14 @@ class Tournament:
         agent_names = list(self._agents.keys())
         total_matchups = len(agent_names) * (len(agent_names) - 1) // 2
 
-        if verbose:
+        # Initialize ETA tracker for tournament progress
+        eta_tracker = None
+        if verbose and total_matchups > 1:
+            eta_tracker = ETATracker(
+                total_iterations=total_matchups,
+                moving_average_window=min(5, total_matchups),
+                enable_phase_tracking=False,
+            )
             print(f"Starting tournament with {len(agent_names)} agents")
             print(f"Total matchups to play: {total_matchups}")
             print("")
@@ -193,11 +201,24 @@ class Tournament:
             agent_a = self._agents[agent_a_name]
             agent_b = self._agents[agent_b_name]
 
+            # Start matchup tracking
+            if eta_tracker:
+                eta_tracker.start_iteration(completed_matchups + 1)
+
             if verbose:
-                print(
-                    f"Matchup {completed_matchups + 1}/{total_matchups}: "
-                    f"{agent_a_name} vs {agent_b_name}"
-                )
+                base_msg = f"Matchup {completed_matchups + 1}/{total_matchups}: {agent_a_name} vs {agent_b_name}"
+
+                # Add ETA info for tournament progress
+                if eta_tracker and completed_matchups > 0:
+                    eta_estimates = eta_tracker.get_eta_estimates()
+                    if eta_estimates["best_estimate"]:
+                        eta_str = eta_tracker.format_time_display(
+                            eta_estimates["best_estimate"]
+                        )
+                        progress_pct = (completed_matchups / total_matchups) * 100
+                        base_msg += f" | Tournament Progress: {progress_pct:.1f}% | ETA: {eta_str}"
+
+                print(base_msg)
 
             # Import AzulAgent here to avoid circular imports
             from agents.base_agent import AzulAgent
@@ -232,11 +253,25 @@ class Tournament:
                 )
                 print("")
 
+            # End matchup tracking
+            if eta_tracker:
+                eta_tracker.end_iteration()
+
         # Calculate final rankings
         self.result.calculate_rankings()
 
         if verbose:
-            print("Tournament complete!")
+            if eta_tracker:
+                summary = eta_tracker.get_progress_summary()
+                elapsed_str = eta_tracker.format_time_display(summary["elapsed_time"])
+                avg_matchup_str = eta_tracker.format_time_display(
+                    summary["avg_iteration_time"]
+                )
+                print(
+                    f"Tournament complete! Total time: {elapsed_str} (avg: {avg_matchup_str} per matchup)"
+                )
+            else:
+                print("Tournament complete!")
             print(self.result.summary())
 
         return self.result
