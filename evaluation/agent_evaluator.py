@@ -241,33 +241,39 @@ class AgentEvaluator:
         baseline_agent: Any,
         games_to_play: List[Dict[str, Any]],
     ) -> List[GameResult]:
-        """Run games sequentially in the main thread."""
+        """Run games sequentially (single-threaded)."""
         results = []
 
         # Show initial progress message
         if len(games_to_play) > 1:
             print(f"Playing {len(games_to_play)} games...")
 
-        for i, game_config in enumerate(games_to_play):
-            # Always show progress every 10 games (regardless of verbose setting)
-            if (i + 1) % 10 == 0:
-                print(f"Completed {i + 1}/{len(games_to_play)} games")
-
+        for game_config in games_to_play:
             try:
                 result = self._run_single_game(test_agent, baseline_agent, game_config)
                 results.append(result)
 
                 # Show per-game status in verbose mode
                 if self.config.verbose:
-                    winner_name = (
-                        "Test"
-                        if result.winner == 0
-                        else "Baseline" if result.winner == 1 else "Draw"
-                    )
+                    if result.winner == 0:
+                        winner_name = test_agent.name
+                        result_str = "wins"
+                    elif result.winner == 1:
+                        winner_name = baseline_agent.name
+                        result_str = "wins"
+                    else:
+                        winner_name = "Draw"
+                        result_str = ""
+
                     score_str = f"({result.final_scores[0]}-{result.final_scores[1]})"
-                    print(
-                        f"  Game {result.game_id + 1}: {winner_name} wins {score_str} in {result.num_rounds} rounds"
-                    )
+                    if result_str:
+                        print(
+                            f"  Game {result.game_id + 1}: {winner_name} {result_str} {score_str} in {result.num_rounds} rounds"
+                        )
+                    else:
+                        print(
+                            f"  Game {result.game_id + 1}: {winner_name} {score_str} in {result.num_rounds} rounds"
+                        )
 
             except Exception as e:
                 # Create error result
@@ -328,17 +334,27 @@ class AgentEvaluator:
 
                     # Show per-game status in verbose mode
                     if self.config.verbose:
-                        winner_name = (
-                            "Test"
-                            if result.winner == 0
-                            else "Baseline" if result.winner == 1 else "Draw"
-                        )
+                        if result.winner == 0:
+                            winner_name = test_agent.name
+                            result_str = "wins"
+                        elif result.winner == 1:
+                            winner_name = baseline_agent.name
+                            result_str = "wins"
+                        else:
+                            winner_name = "Draw"
+                            result_str = ""
+
                         score_str = (
                             f"({result.final_scores[0]}-{result.final_scores[1]})"
                         )
-                        print(
-                            f"  Game {result.game_id + 1}: {winner_name} wins {score_str} in {result.num_rounds} rounds"
-                        )
+                        if result_str:
+                            print(
+                                f"  Game {result.game_id + 1}: {winner_name} {result_str} {score_str} in {result.num_rounds} rounds"
+                            )
+                        else:
+                            print(
+                                f"  Game {result.game_id + 1}: {winner_name} {score_str} in {result.num_rounds} rounds"
+                            )
 
                 except Exception as e:
                     # Create error result
