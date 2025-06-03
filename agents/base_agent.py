@@ -163,7 +163,7 @@ class AzulAgent(ABC):
             True if get_action_probabilities is implemented meaningfully
         """
         return (
-            self.get_action_probabilities.__func__
+            type(self).get_action_probabilities
             is not AzulAgent.get_action_probabilities
         )
 

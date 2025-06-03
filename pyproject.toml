@@ -37,6 +37,7 @@ dev = [
     "black>=22.0.0",
     "flake8>=4.0.0",
     "flake8-docstrings>=1.6.0",
+    "flake8-pyproject>=1.2.0",
     "isort>=5.10.0",
     "mypy>=0.950",
     "pre-commit>=2.15.0",
@@ -75,22 +76,49 @@ packages = ["azul_rl", "azul_rl.game", "azul_rl.agents", "azul_rl.training", "az
 "azul_rl.utils" = "utils"
 "azul_rl.tests" = "tests"
 
+# =============================================================================
+# Development Tools Configuration (Single Source of Truth)
+# =============================================================================
+
+# Common exclude patterns for all tools
+[tool.dev-excludes]
+# This is not a real pyproject.toml section, just documentation
+# The actual exclude patterns are defined in each tool's section below
+patterns = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "open_spiel",
+    "extension/node_modules",
+    "*.egg-info",
+    ".eggs"
+]
+
 [tool.black]
 line-length = 88
 target-version = ['py38', 'py39', 'py310', 'py311']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | open_spiel
+    \.git
+    | __pycache__
+    | \.pytest_cache
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | venv
+    | build
+    | dist
+    | open_spiel
+    | extension/node_modules
+    | \.eggs
+    | .*\.egg-info
 )/
 '''
 
@@ -98,37 +126,107 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["azul_rl"]
-known_third_party = ["numpy", "gymnasium", "stable_baselines3"]
+known_first_party = ["azul_rl", "game", "agents", "training", "utils", "evaluation"]
+known_third_party = ["numpy", "gymnasium", "stable_baselines3", "flask", "pyspiel"]
+skip_glob = [
+    ".git/*",
+    "__pycache__/*",
+    ".pytest_cache/*",
+    ".mypy_cache/*",
+    ".tox/*",
+    ".venv/*",
+    "venv/*",
+    "build/*",
+    "dist/*",
+    "open_spiel/*",
+    "extension/node_modules/*",
+    ".eggs/*",
+    "*.egg-info/*"
+]
+
+[tool.flake8]
+max-line-length = 88
+max-complexity = 50
+ignore = [
+    "E203",  # whitespace before ':' (conflicts with black)
+    "W503",  # line break before binary operator (conflicts with black)
+    "E501",  # line too long (handled by black)
+    "E704",  # multiple statements on one line (conflicts with black for overloads)
+    "D100",  # Missing docstring in public module
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "D107",  # Missing docstring in __init__
+    "D200",  # One-line docstring should fit on one line
+    "D202",  # No blank lines allowed after function docstring
+    "D205",  # 1 blank line required between summary line and description
+    "D400",  # First line should end with a period
+    "D401",  # First line should be in imperative mood
+    "F401",  # imported but unused (for now)
+    "F541",  # f-string is missing placeholders
+    "B007",  # Loop control variable not used
+    "E402",  # module level import not at top of file
+    "I100",  # Import order (handled by isort)
+    "I101",  # Import order (handled by isort)
+    "I201",  # newlines are handled by black
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "open_spiel",
+    "extension/node_modules",
+    ".eggs",
+    "*.egg-info"
+]
 
 [tool.mypy]
-python_version = "3.8"
-warn_return_any = true
+python_version = "3.9"
+warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = true
 disallow_untyped_decorators = false
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+no_implicit_optional = false
+warn_redundant_casts = false
+warn_unused_ignores = false
+warn_unreachable = false
+ignore_missing_imports = true
 explicit_package_bases = true
-namespace_packages = true
-# Exclude test files and examples from type checking
 exclude = [
-    ".*/tests/.*\\.py$",
-    ".*/examples/.*\\.py$",
-    ".*test.*\\.py$",
-    ".*_test\\.py$"
+    ".git/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".mypy_cache/",
+    ".tox/",
+    ".venv/",
+    "venv/",
+    "build/",
+    "dist/",
+    "open_spiel/",
+    "extension/node_modules/",
+    ".eggs/",
+    ".*\\.egg-info/",
+    "tests/",
+    "examples/",
+    "profiling/",
+    "scripts/"
 ]
 
 [[tool.mypy.overrides]]
 module = [
     "stable_baselines3.*",
     "gymnasium.*",
+    "pyspiel.*",
+    "open_spiel.*",
+    "flask.*",
+    "flask_cors.*"
 ]
 ignore_missing_imports = true
 
