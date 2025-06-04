@@ -1,5 +1,5 @@
 # Global exclude pattern - applies to all hooks (single source of truth)
-exclude: ^(open_spiel/|\.venv/|venv/|build/|dist/|\.eggs/|.*\.egg-info/|extension/node_modules/|examples/|tests/|profiling/|scripts/)
+exclude: ^(open_spiel/|\.venv/|venv/|build/|dist/|game_cpp/|\.eggs/|.*\.egg-info/|extension/node_modules/|examples/|tests/|profiling/|scripts/)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

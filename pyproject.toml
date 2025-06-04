@@ -94,6 +94,7 @@ patterns = [
     "venv",
     "build",
     "dist",
+    "game_cpp",
     "open_spiel",
     "extension/node_modules",
     "*.egg-info",
@@ -115,6 +116,7 @@ extend-exclude = '''
     | venv
     | build
     | dist
+    | game_cpp
     | open_spiel
     | extension/node_modules
     | \.eggs
@@ -138,6 +140,7 @@ skip_glob = [
     "venv/*",
     "build/*",
     "dist/*",
+    "game_cpp/*",
     "open_spiel/*",
     "extension/node_modules/*",
     ".eggs/*",
@@ -179,6 +182,7 @@ exclude = [
     "venv",
     "build",
     "dist",
+    "game_cpp/",
     "open_spiel",
     "extension/node_modules",
     ".eggs",
@@ -209,6 +213,7 @@ exclude = [
     "venv/",
     "build/",
     "dist/",
+    "game_cpp/",
     "open_spiel/",
     "extension/node_modules/",
     ".eggs/",

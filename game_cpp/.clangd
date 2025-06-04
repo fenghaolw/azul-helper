@@ -1,0 +1,16 @@
+CompileFlags:
+  Add: [-std=c++17, -I., -Wall, -Wextra]
+  Compiler: clang++
+
+Index:
+  Background: Build
+
+Diagnostics:
+  ClangTidy:
+    Add: [readability-*, modernize-*, performance-*]
+    Remove: [readability-magic-numbers, readability-identifier-length]
+
+InlayHints:
+  Enabled: true
+  ParameterNames: true
+  DeducedTypes: true 
