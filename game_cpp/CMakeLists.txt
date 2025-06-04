@@ -1,5 +1,45 @@
 cmake_minimum_required(VERSION 3.12)
 project(azul_cpp)
+enable_testing()
+
+# Set default C++ flags and build type specific flags
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the build type" FORCE)
+endif()
+
+if(MSVC)
+    set(DEFAULT_CXX_WARNING_FLAGS "/W4")
+else()
+    set(DEFAULT_CXX_WARNING_FLAGS "-Wall -Wextra -Wpedantic")
+endif()
+
+# Append general warning flags to CMAKE_CXX_FLAGS if it's already set by user/toolchain, otherwise set them.
+if(NOT CMAKE_CXX_FLAGS)
+    set(CMAKE_CXX_FLAGS "${DEFAULT_CXX_WARNING_FLAGS}")
+else()
+    string(APPEND CMAKE_CXX_FLAGS " ${DEFAULT_CXX_WARNING_FLAGS}")
+endif()
+
+# Debug flags
+if(NOT CMAKE_CXX_FLAGS_DEBUG)
+    set(CMAKE_CXX_FLAGS_DEBUG "-g")
+endif()
+
+# Release flags
+if(NOT CMAKE_CXX_FLAGS_RELEASE)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+endif()
+
+# Release with Debug Info flags
+if(NOT CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
+endif()
+
+# Minimum Size Release flags
+if(NOT CMAKE_CXX_FLAGS_MINSIZEREL)
+    set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,38 +59,18 @@ if(Python3_FOUND)
     message(STATUS "Python3_VERSION: ${Python3_VERSION}")
 endif()
 
-# Try to find pybind11 from pip installation
+# Try to find pybind11
 if(Python3_FOUND)
-    message(STATUS "Searching for pybind11 using Python: ${Python3_EXECUTABLE}")
-    execute_process(
-        COMMAND "${Python3_EXECUTABLE}" -m pybind11 --cmakedir
-        OUTPUT_VARIABLE pybind11_DIR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_VARIABLE pybind11_ERROR
-        RESULT_VARIABLE pybind11_RESULT
-    )
-    
-    message(STATUS "pybind11 command result: ${pybind11_RESULT}")
-    if(pybind11_DIR AND pybind11_RESULT EQUAL 0)
-        message(STATUS "Found pybind11 cmake dir: ${pybind11_DIR}")
-        find_package(pybind11)
-        if(pybind11_FOUND)
-            message(STATUS "Successfully found pybind11 from pip: ${pybind11_DIR}")
-        endif()
-    else()
-        message(STATUS "Failed to get pybind11 cmake dir from pip")
-        if(pybind11_ERROR)
-            message(STATUS "Error: ${pybind11_ERROR}")
-        endif()
-    endif()
-endif()
-
-# If pip version not found, try system installation
-if(NOT pybind11_FOUND)
-    find_package(pybind11)
+    find_package(pybind11 REQUIRED)
     if(pybind11_FOUND)
-        message(STATUS "Found pybind11 from system installation")
+        message(STATUS "Found pybind11: ${pybind11_DIR}")
+    # No specific message needed here if not found,
+    # find_package with REQUIRED will show an error.
+    # The existing fallback message at the end of the file will also be printed.
     endif()
+# The find_package(pybind11 REQUIRED) call above will handle the case where pybind11 is not found.
+# The message "pybind11 not found - Python bindings will not be built"
+# later in the script will still be displayed if pybind11_FOUND is FALSE.
 endif()
 
 # OpenSpiel dependency (optional - set OPENSPIEL_ROOT if available)
@@ -115,12 +135,12 @@ else()
     message(STATUS "pybind11 not found - Python bindings will not be built")
 endif()
 
-# Compiler-specific options
+# Compiler-specific options for azul_core
 target_compile_features(azul_core PRIVATE cxx_std_17)
 if(MSVC)
-    target_compile_options(azul_core PRIVATE /W4)
+    target_compile_options(azul_core PRIVATE /W4) # MSVC specific warnings
 else()
-    target_compile_options(azul_core PRIVATE -Wall -Wextra -Wpedantic -O3)
+    target_compile_options(azul_core PRIVATE -Wall -Wextra -Wpedantic) # GCC/Clang specific warnings
 endif()
 
 # Comprehensive game engine tests
@@ -144,14 +164,22 @@ add_executable(test_edge_cases test_edge_cases.cpp)
 target_link_libraries(test_edge_cases azul_core)
 target_compile_features(test_edge_cases PRIVATE cxx_std_17)
 
-# Agent tests
-add_executable(test_agents test_agents.cpp)
-target_link_libraries(test_agents azul_core azul_random_agent azul_minimax_agent)
-target_compile_features(test_agents PRIVATE cxx_std_17)
+# Apply warning flags to all test executables
+set(AZUL_TEST_EXECUTABLES
+    test_basic_functionality
+    test_legal_moves
+    test_game_flow
+    test_scoring
+    test_edge_cases
+    test_agents
+    test_evaluation
+)
 
-# Evaluation tests
-add_executable(test_evaluation test_evaluation.cpp)
-target_link_libraries(test_evaluation azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
-target_compile_features(test_evaluation PRIVATE cxx_std_17)
-
-# Test runner (shell script approach is better for multiple executables)
+foreach(test_exe ${AZUL_TEST_EXECUTABLES})
+    if(MSVC)
+        target_compile_options(${test_exe} PRIVATE /W4)
+    else()
+        target_compile_options(${test_exe} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME ${test_exe} COMMAND ${test_exe})
+endforeach()

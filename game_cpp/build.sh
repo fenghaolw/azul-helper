@@ -26,11 +26,11 @@ make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 # Run tests
 echo "Running tests..."
-if [ -f "./test_basic" ]; then
-    ./test_basic
-    echo "✓ All tests passed!"
+if ctest --output-on-failure; then
+    echo "✓ CTest: All tests passed!"
 else
-    echo "⚠ Test executable not found"
+    echo "⚠ CTest: Tests failed." >&2
+    exit 1
 fi
 
 echo "Build completed successfully!"
