@@ -38,55 +38,92 @@ game_cpp/
 
 ## Building
 
-### Basic Build (Core Game Only)
+The primary way to build the C++ implementation is by using the provided `build.sh` script. This script handles CMake configuration and compilation.
+
+### Standard Build
+
+This will build the core game logic and Python bindings (if pybind11 is found).
 
 ```bash
 cd game_cpp
-mkdir build
-cd build
-cmake ..
-make -j4
+./build.sh
 ```
+The script creates a `build` directory and compiles the project. By default, it attempts a `Release` build.
 
 ### Build with OpenSpiel Support
 
-First, install OpenSpiel:
+To build with OpenSpiel integration (required for the MCTS agent and other OpenSpiel-based AI):
 
-```bash
-# Clone and build OpenSpiel
-git clone https://github.com/deepmind/open_spiel.git
-cd open_spiel
-mkdir build
-cd build
-cmake -DCMAKE_CXX_COMPILER=clang++ ..
-make -j4
-```
+1.  **Install OpenSpiel**: Follow the instructions on the [official OpenSpiel repository](https://github.com/deepmind/open_spiel) to clone and build it. Make a note of the path to your OpenSpiel installation.
+    Example OpenSpiel build steps (refer to their documentation for the latest):
+    ```bash
+    git clone https://github.com/deepmind/open_spiel.git
+    cd open_spiel
+    mkdir build
+    cd build
+    # Adjust CMake options as needed, e.g., for Python version or C++ compiler
+    cmake ..
+    make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    ```
 
-Then build Azul with OpenSpiel:
+2.  **Build Azul with OpenSpiel**: Set the `OPENSPIEL_ROOT` environment variable to the root directory of your OpenSpiel installation before running the `build.sh` script.
+
+    ```bash
+    cd game_cpp
+    export OPENSPIEL_ROOT=/path/to/your/open_spiel_installation
+    ./build.sh
+    ```
+
+### Python Integration and Dependencies
+
+Python bindings are built by default if `pybind11` is detected in your Python environment.
+
+1.  **Install pybind11**:
+    ```bash
+    pip install pybind11
+    ```
+    Ensure `pybind11` is installed for the Python environment you intend to use with Azul. CMake will typically find Python and pybind11 automatically. If you have multiple Python versions, ensure the one with pybind11 is active or correctly configured in your PATH.
+
+2.  After building (e.g., via `./build.sh`), the Python module `azul_cpp_bindings` will be created in the `game_cpp/build` directory. To use it, ensure this directory is in your `PYTHONPATH` or install the package appropriately.
+
+### Manual Build (Advanced)
+
+For more control over the build process (e.g., choosing a different build type like `Debug`), you can run CMake commands manually:
 
 ```bash
 cd game_cpp
-mkdir build
+mkdir -p build
 cd build
-cmake -DOPENSPIEL_ROOT=/path/to/open_spiel ..
-make -j4
+# For a debug build:
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+# For a release build with OpenSpiel:
+# cmake -DCMAKE_BUILD_TYPE=Release -DOPENSPIEL_ROOT=/path/to/open_spiel ..
+make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ```
+This is essentially what `build.sh` automates.
 
-### Python Integration
+## Testing
 
-To use the C++ implementation from Python:
+To run all C++ unit tests, use the `run_all_tests.sh` script from the `game_cpp` directory:
 
 ```bash
-# Install pybind11
-pip install pybind11
-
-# Build with Python bindings
-cd game_cpp/build
-cmake -DPYTHON_EXECUTABLE=$(which python) ..
-make -j4
-
-# The azul_cpp_bindings module will be available for import
+cd game_cpp
+./run_all_tests.sh
 ```
+This script will configure the project (in `Debug` mode by default, which is suitable for testing), build all targets including the test executables, and then run them using CTest. It provides a summary of passed and failed tests.
+
+### Running Tests Manually with CTest
+
+Alternatively, after building the project (e.g., by running `./build.sh` or manually with CMake), you can execute tests directly using CTest from within the build directory. This gives you more control over CTest options (e.g., running specific tests or using different output formats).
+
+```bash
+cd game_cpp/build
+# Ensure the project has been built first
+ctest --output-on-failure
+# Or for more verbose output:
+# ctest -V
+```
+Using `ctest` directly is useful if you want to test a specific build configuration (e.g., `Release`) that you've already compiled, or if you need more detailed test output.
 
 ## Usage
 
@@ -217,6 +254,6 @@ When modifying the C++ code:
 
 ### Runtime Issues
 
-1. **Import errors**: Check Python path and module compilation
-2. **Segmentation faults**: Verify object lifetime management
-3. **Performance issues**: Enable compiler optimizations (-O3) 
+1. **Import errors**: Check Python path and module compilation. Ensure `game_cpp/build` is in `PYTHONPATH` or the module is installed.
+2. **Segmentation faults**: Verify object lifetime management, especially with Python bindings.
+3. **Performance issues**: Ensure you are using a `Release` build type for performance-critical tasks. The `build.sh` script defaults to a `Release` build. If building manually, use `cmake -DCMAKE_BUILD_TYPE=Release ..`. This enables optimizations like `-O3` (on GCC/Clang). For debugging, use the `Debug` build type (`cmake -DCMAKE_BUILD_TYPE=Debug ..`), which is what `run_all_tests.sh` uses by default.
