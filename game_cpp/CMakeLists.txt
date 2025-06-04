@@ -95,6 +95,20 @@ set(AZUL_SOURCES
 
 add_library(azul_core ${AZUL_SOURCES})
 
+# Agent libraries
+add_library(azul_random_agent random_agent.cpp)
+target_link_libraries(azul_random_agent azul_core)
+
+add_library(azul_minimax_agent minimax_agent.cpp)
+target_link_libraries(azul_minimax_agent azul_core)
+
+# Evaluation framework
+add_library(azul_evaluation_config evaluation_config.cpp)
+target_link_libraries(azul_evaluation_config azul_core)
+
+add_library(azul_agent_evaluator agent_evaluator.cpp)
+target_link_libraries(azul_agent_evaluator azul_core azul_random_agent azul_minimax_agent azul_evaluation_config)
+
 # OpenSpiel integration (if available)
 if(OPENSPIEL_LIBRARIES)
     add_library(azul_openspiel azul_openspiel.cpp)
@@ -109,7 +123,7 @@ endif()
 if(pybind11_FOUND)
     message(STATUS "Building Python bindings with pybind11")
     pybind11_add_module(azul_cpp_bindings python_bindings.cpp)
-    target_link_libraries(azul_cpp_bindings PRIVATE azul_core)
+    target_link_libraries(azul_cpp_bindings PRIVATE azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
 
     if(OPENSPIEL_LIBRARIES)
         target_link_libraries(azul_cpp_bindings PRIVATE azul_openspiel azul_mcts)
@@ -157,6 +171,8 @@ set(AZUL_TEST_EXECUTABLES
     test_game_flow
     test_scoring
     test_edge_cases
+    test_agents
+    test_evaluation
 )
 
 foreach(test_exe ${AZUL_TEST_EXECUTABLES})
@@ -165,11 +181,5 @@ foreach(test_exe ${AZUL_TEST_EXECUTABLES})
     else()
         target_compile_options(${test_exe} PRIVATE -Wall -Wextra -Wpedantic)
     endif()
+    add_test(NAME ${test_exe} COMMAND ${test_exe})
 endforeach()
-
-# Add tests to CTest
-add_test(NAME test_basic_functionality COMMAND test_basic_functionality)
-add_test(NAME test_legal_moves COMMAND test_legal_moves)
-add_test(NAME test_game_flow COMMAND test_game_flow)
-add_test(NAME test_scoring COMMAND test_scoring)
-add_test(NAME test_edge_cases COMMAND test_edge_cases)
