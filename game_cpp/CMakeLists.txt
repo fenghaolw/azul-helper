@@ -75,6 +75,20 @@ set(AZUL_SOURCES
 
 add_library(azul_core ${AZUL_SOURCES})
 
+# Agent libraries
+add_library(azul_random_agent random_agent.cpp)
+target_link_libraries(azul_random_agent azul_core)
+
+add_library(azul_minimax_agent minimax_agent.cpp)
+target_link_libraries(azul_minimax_agent azul_core)
+
+# Evaluation framework
+add_library(azul_evaluation_config evaluation_config.cpp)
+target_link_libraries(azul_evaluation_config azul_core)
+
+add_library(azul_agent_evaluator agent_evaluator.cpp)
+target_link_libraries(azul_agent_evaluator azul_core azul_random_agent azul_minimax_agent azul_evaluation_config)
+
 # OpenSpiel integration (if available)
 if(OPENSPIEL_LIBRARIES)
     add_library(azul_openspiel azul_openspiel.cpp)
@@ -89,7 +103,7 @@ endif()
 if(pybind11_FOUND)
     message(STATUS "Building Python bindings with pybind11")
     pybind11_add_module(azul_cpp_bindings python_bindings.cpp)
-    target_link_libraries(azul_cpp_bindings PRIVATE azul_core)
+    target_link_libraries(azul_cpp_bindings PRIVATE azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
 
     if(OPENSPIEL_LIBRARIES)
         target_link_libraries(azul_cpp_bindings PRIVATE azul_openspiel azul_mcts)
@@ -129,5 +143,15 @@ target_compile_features(test_scoring PRIVATE cxx_std_17)
 add_executable(test_edge_cases test_edge_cases.cpp)
 target_link_libraries(test_edge_cases azul_core)
 target_compile_features(test_edge_cases PRIVATE cxx_std_17)
+
+# Agent tests
+add_executable(test_agents test_agents.cpp)
+target_link_libraries(test_agents azul_core azul_random_agent azul_minimax_agent)
+target_compile_features(test_agents PRIVATE cxx_std_17)
+
+# Evaluation tests
+add_executable(test_evaluation test_evaluation.cpp)
+target_link_libraries(test_evaluation azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
+target_compile_features(test_evaluation PRIVATE cxx_std_17)
 
 # Test runner (shell script approach is better for multiple executables)
