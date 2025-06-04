@@ -164,6 +164,14 @@ add_executable(test_edge_cases test_edge_cases.cpp)
 target_link_libraries(test_edge_cases azul_core)
 target_compile_features(test_edge_cases PRIVATE cxx_std_17)
 
+add_executable(test_agents test_agents.cpp)
+target_link_libraries(test_agents azul_core azul_random_agent azul_minimax_agent)
+target_compile_features(test_agents PRIVATE cxx_std_17)
+
+add_executable(test_evaluation test_evaluation.cpp)
+target_link_libraries(test_evaluation azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
+target_compile_features(test_evaluation PRIVATE cxx_std_17)
+
 # Apply warning flags to all test executables
 set(AZUL_TEST_EXECUTABLES
     test_basic_functionality
