@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_map>
 #include <limits>
+#include <chrono>
 
 namespace azul {
 
@@ -65,15 +66,17 @@ private:
                               double alpha = NEGATIVE_INFINITY, 
                               double beta = POSITIVE_INFINITY) const -> double;
     
+    // Time-limited version for performance
+    [[nodiscard]] auto minimax_with_time_limit(const GameState& state, int depth, bool maximizing_player,
+                              double alpha, double beta, 
+                              std::chrono::high_resolution_clock::time_point start_time,
+                              std::chrono::milliseconds time_limit) const -> double;
+    
     // Evaluation function for non-terminal states
     [[nodiscard]] auto evaluate_state(const GameState& state) const -> double;
     
-    // Advanced evaluation helper methods
+    // Evaluation helper method
     [[nodiscard]] auto calculate_round_end_score(const PlayerBoard& player_board) const -> double;
-    [[nodiscard]] auto simulate_wall_scoring(const Wall& wall, int row, TileColor color) const -> double;
-    [[nodiscard]] auto calculate_floor_penalty(size_t floor_tiles) const -> double;
-    [[nodiscard]] auto evaluate_wall_completion_bonus(const Wall& wall) const -> double;
-    [[nodiscard]] auto get_wall_column_for_color(int row, TileColor color) const -> int;
     
     // Helper methods
     [[nodiscard]] auto compute_state_hash(const GameState& state) const -> size_t;

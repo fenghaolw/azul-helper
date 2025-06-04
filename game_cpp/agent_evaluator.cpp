@@ -385,6 +385,8 @@ TournamentResult Tournament::run_tournament() {
         }
     }
     
+    tournament_result.calculate_rankings();
+    
     // Sort agents by win rate (descending)
     std::sort(tournament_result.agent_stats.begin(), tournament_result.agent_stats.end(),
               [](const AgentStats& a, const AgentStats& b) {
