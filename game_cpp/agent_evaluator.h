@@ -63,21 +63,20 @@ private:
     std::string name_;
     int depth_;
     bool enable_alpha_beta_;
-    bool enable_memoization_;
     int seed_;
     
 public:
     MinimaxAgentWrapper(int depth = 4, bool enable_alpha_beta = true, 
-                       bool enable_memoization = true, int seed = -1, 
+                       int seed = -1, 
                        const std::string& name = "MinimaxAgent")
-        : agent_(std::make_unique<MinimaxAgent>(0, depth, enable_alpha_beta, enable_memoization, seed)), 
+        : agent_(std::make_unique<MinimaxAgent>(0, depth, enable_alpha_beta, seed)), 
           name_(name), depth_(depth), enable_alpha_beta_(enable_alpha_beta),
-          enable_memoization_(enable_memoization), seed_(seed) {}
+          seed_(seed) {}
     
     Action get_action(const GameState& state, int player_id) override {
         // Create a fresh agent for the correct player if needed
         if (agent_->player_id() != player_id) {
-            agent_ = std::make_unique<MinimaxAgent>(player_id, depth_, enable_alpha_beta_, enable_memoization_, seed_);
+            agent_ = std::make_unique<MinimaxAgent>(player_id, depth_, enable_alpha_beta_, seed_);
         }
         
         try {
@@ -95,7 +94,7 @@ public:
     std::string get_name() const override { return name_; }
     void reset() override { 
         // Reset with fresh agent to clear any state
-        agent_ = std::make_unique<MinimaxAgent>(0, depth_, enable_alpha_beta_, enable_memoization_, seed_);
+        agent_ = std::make_unique<MinimaxAgent>(0, depth_, enable_alpha_beta_, seed_);
     }
     void reset_stats() override { agent_->reset_stats(); }
     
@@ -198,7 +197,7 @@ std::unique_ptr<EvaluationAgent> create_random_evaluation_agent(
 
 std::unique_ptr<EvaluationAgent> create_minimax_evaluation_agent(
     int depth = 4, bool enable_alpha_beta = true, 
-    bool enable_memoization = true, int seed = -1, const std::string& name = "MinimaxAgent"
+    int seed = -1, const std::string& name = "MinimaxAgent"
 );
 
 } // namespace azul 

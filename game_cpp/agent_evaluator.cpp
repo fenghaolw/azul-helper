@@ -385,6 +385,8 @@ TournamentResult Tournament::run_tournament() {
         }
     }
     
+    tournament_result.calculate_rankings();
+    
     // Sort agents by win rate (descending)
     std::sort(tournament_result.agent_stats.begin(), tournament_result.agent_stats.end(),
               [](const AgentStats& a, const AgentStats& b) {
@@ -414,10 +416,10 @@ std::unique_ptr<EvaluationAgent> create_random_evaluation_agent(
 
 std::unique_ptr<EvaluationAgent> create_minimax_evaluation_agent(
     int depth, bool enable_alpha_beta, 
-    bool enable_memoization, int seed, const std::string& name
+    int seed, const std::string& name
 ) {
     return std::make_unique<MinimaxAgentWrapper>(
-        depth, enable_alpha_beta, enable_memoization, seed, name
+        depth, enable_alpha_beta, seed, name
     );
 }
 

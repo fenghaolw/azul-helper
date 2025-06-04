@@ -66,12 +66,11 @@ void test_minimax_agent() {
     
     // Create game and agent
     GameState game = create_game(2, 42); // Fixed seed for reproducibility
-    MinimaxAgent agent(0, 3, true, true, 42); // Depth 3, alpha-beta, memoization
+    MinimaxAgent agent(0, 3, true, 42); // Depth 3, alpha-beta enabled by default
     
     std::cout << "Agent player ID: " << agent.player_id() << std::endl;
     std::cout << "Search depth: " << agent.depth() << std::endl;
     std::cout << "Alpha-beta pruning: " << (agent.alpha_beta_enabled() ? "enabled" : "disabled") << std::endl;
-    std::cout << "Memoization: " << (agent.memoization_enabled() ? "enabled" : "disabled") << std::endl;
     
     // Test action selection for a few moves
     int moves = 0;
@@ -92,7 +91,6 @@ void test_minimax_agent() {
             std::cout << "Selected action: " << action.to_string() 
                       << " (time: " << duration.count() << " ms)" << std::endl;
             std::cout << "Nodes explored: " << agent.nodes_explored() << std::endl;
-            std::cout << "Cache hits: " << agent.cache_hits() << std::endl;
             
             // Get probabilities (should be deterministic)
             auto probs = agent.get_action_probabilities(game);
@@ -127,7 +125,7 @@ void test_agent_comparison() {
     
     // Create agents
     RandomAgent random_agent(0, 42);
-    MinimaxAgent minimax_agent(1, 4, true, true, 42); // Shallow depth for speed
+    MinimaxAgent minimax_agent(1, 4, true, 42); // Depth 4, alpha-beta enabled
     
     // Create game
     GameState game = create_game(2, 42);
@@ -186,7 +184,7 @@ void test_complete_game() {
     
     // Create agents
     RandomAgent random_agent(0, 42);
-    MinimaxAgent minimax_agent(1, 3, true, true, 42); // Depth 3 for reasonable speed
+    MinimaxAgent minimax_agent(1, 3, true, 42); // Depth 3, alpha-beta enabled
     
     // Create game
     GameState game = create_game(2, 42);

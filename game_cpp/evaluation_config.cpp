@@ -73,27 +73,27 @@ void TournamentResult::calculate_rankings() {
     rankings.clear();
     
     // Calculate statistics for each agent
-    std::map<std::string, std::tuple<int, int, double>> agent_stats; // wins, games, score_diff
+    std::map<std::string, std::tuple<int, int, double>> agent_stats_map; // wins, games, score_diff
     
-    for (const auto& result : evaluation_results) {
+    for (const auto& result : matchup_results) {
         const auto& test_name = result.test_agent_name;
         const auto& baseline_name = result.baseline_agent_name;
         
         // Update test agent stats
-        auto& test_stats = agent_stats[test_name];
+        auto& test_stats = agent_stats_map[test_name];
         std::get<0>(test_stats) += result.test_agent_wins;
         std::get<1>(test_stats) += result.games_played;
         std::get<2>(test_stats) += result.average_score_difference * result.games_played;
         
         // Update baseline agent stats
-        auto& baseline_stats = agent_stats[baseline_name];
+        auto& baseline_stats = agent_stats_map[baseline_name];
         std::get<0>(baseline_stats) += result.baseline_agent_wins;
         std::get<1>(baseline_stats) += result.games_played;
         std::get<2>(baseline_stats) -= result.average_score_difference * result.games_played;
     }
     
     // Convert to rankings format
-    for (const auto& [agent_name, stats] : agent_stats) {
+    for (const auto& [agent_name, stats] : agent_stats_map) {
         int wins = std::get<0>(stats);
         int games = std::get<1>(stats);
         double total_score_diff = std::get<2>(stats);
@@ -120,20 +120,19 @@ std::string TournamentResult::summary() const {
     oss << "TOURNAMENT RESULTS\n";
     oss << std::string(50, '=') << "\n";
     oss << "Tournament Date: " << timestamp << "\n";
-    oss << "Participants: " << agents.size() << " agents\n";
-    oss << "Total Matchups: " << evaluation_results.size() << "\n\n";
+    oss << "Participants: " << agent_stats.size() << " agents\n";
+    oss << "Total Matchups: " << matchup_results.size() << "\n\n";
     
     oss << "FINAL RANKINGS:\n";
-    for (size_t i = 0; i < rankings.size(); ++i) {
-        const auto& [agent_name, win_rate, avg_score_diff] = rankings[i];
-        oss << "  " << (i + 1) << ". " << agent_name << ": " 
-            << std::fixed << std::setprecision(1) << (win_rate * 100) << "% win rate, "
-            << std::showpos << std::setprecision(1) << avg_score_diff << std::noshowpos 
-            << " avg score diff\n";
+    for (size_t i = 0; i < agent_stats.size(); ++i) {
+        const auto& stats = agent_stats[i];
+        oss << "  " << (i + 1) << ". " << stats.agent_name << ": " 
+            << std::fixed << std::setprecision(1) << (stats.win_rate * 100) << "% win rate, "
+            << std::setprecision(1) << stats.avg_score << " avg score\n";
     }
     
     oss << "\nHEAD-TO-HEAD RESULTS:\n";
-    for (const auto& result : evaluation_results) {
+    for (const auto& result : matchup_results) {
         oss << result.test_agent_name << " vs " << result.baseline_agent_name << ": "
             << std::fixed << std::setprecision(1) << (result.test_agent_win_rate * 100) 
             << "% win rate (" << result.test_agent_wins << "/" << result.games_played << " games)\n";
