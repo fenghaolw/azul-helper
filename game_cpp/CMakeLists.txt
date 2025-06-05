@@ -76,7 +76,7 @@ target_include_directories(azul_evaluation PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# Evaluation demo executable (comprehensive)
+# Evaluation demo executable (head-to-head + tournament)
 add_executable(azul_evaluation_demo
     main_evaluation_demo.cpp
 )
@@ -91,13 +91,29 @@ target_link_libraries(azul_evaluation_demo
     ${LOCAL_OPENSPIEL_LIB}
 )
 
+# Profiling demo executable (with CLI options)
+add_executable(azul_profiling_demo
+    main_profiling_demo.cpp
+)
+
+target_include_directories(azul_profiling_demo PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(azul_profiling_demo
+    azul_evaluation
+    azul_local
+    ${LOCAL_OPENSPIEL_LIB}
+)
+
 # Status messages
 message(STATUS "")
 message(STATUS "✅ Simplified OpenSpiel Azul integration configured")
 message(STATUS "📁 OpenSpiel source: ${OPENSPIEL_ROOT}")
 message(STATUS "📚 Shared library: ${LOCAL_OPENSPIEL_LIB}")
-message(STATUS "🎯 Build targets: azul_evaluation_demo")
+message(STATUS "🎯 Build targets: azul_evaluation_demo, azul_profiling_demo")
 message(STATUS "")
 message(STATUS "🚀 To build and run:")
 message(STATUS "   make azul_evaluation_demo && ./azul_evaluation_demo")
+message(STATUS "   make azul_profiling_demo && ./azul_profiling_demo --help")
 message(STATUS "")

@@ -54,39 +54,117 @@ This project uses a **local forked Azul game** approach rather than depending on
 
 4. **Test the integration**:
    ```bash
-   ./azul_mcts_demo      # Test MCTS with local Azul
-   ./azul_agents_test    # Test RandomAgent vs MinimaxAgent
+   ./azul_evaluation_demo    # Run agent evaluation and tournament
+   ./azul_profiling_demo     # Profile agent performance (use --help for options)
    ```
 
-## 🎮 Available Demos
+## 🎮 Available Demos & Tools
 
-### MCTS Demo (`azul_mcts_demo`)
+### Agent Evaluation Demo (`azul_evaluation_demo`)
 
-Demonstrates OpenSpiel's Monte Carlo Tree Search with your local Azul game:
+Comprehensive evaluation system for testing agent performance with head-to-head matchups and tournaments:
 
 ```bash
-./azul_mcts_demo
+./azul_evaluation_demo
 ```
 
 **Features**:
-- 400 simulations per move
-- UCT exploration constant: 1.4
-- Shows detailed MCTS tree analysis
-- Runs 5 turns of gameplay
+- **Head-to-Head Evaluations**: Minimax vs MCTS, both vs Random baseline
+- **3-Agent Tournament**: Round-robin between Minimax_D4, MCTS_1000, and MCTS_1000_UCT2
+- **Statistical Analysis**: Win rates, confidence intervals, p-values
+- **Performance Metrics**: Average game duration, score differences
+- **Results Export**: Detailed results saved to `evaluation_results.txt`
 
-### Agents Integration (`azul_agents_test`)
-
-Shows RandomAgent vs MinimaxAgent with OpenSpiel integration:
-
-```bash
-./azul_agents_test
+**Sample Output**:
+```
+=== TOURNAMENT RESULTS ===
+1. MCTS_1000: 61.7% win rate
+2. MCTS_1000_UCT2: 46.7% win rate  
+3. Minimax_D4: 41.7% win rate
 ```
 
+### Agent Profiling Demo (`azul_profiling_demo`)
+
+Performance profiling tool with configurable CLI options for analyzing agent computation:
+
+```bash
+# Profile MCTS agent with custom settings
+./azul_profiling_demo --agent mcts --simulations 1000 --games 5
+
+# Profile Minimax agent with specific depth
+./azul_profiling_demo --agent minimax --depth 4 --games 3
+
+# Quick profiling with minimal output
+./azul_profiling_demo --agent mcts --simulations 500 --games 2 --quiet
+
+# Show all available options
+./azul_profiling_demo --help
+```
+
+**CLI Options**:
+- `--agent <type>`: Agent type (`mcts` or `minimax`)
+- `--depth <n>`: Minimax search depth (1-10, default: 4)
+- `--simulations <n>`: MCTS simulation count (10-10000, default: 1000)
+- `--uct <c>`: MCTS UCT exploration constant (0.1-5.0, default: 1.4)
+- `--games <n>`: Number of profiling games (1-100, default: 5)
+- `--seed <n>`: Random seed for reproducibility (default: 42)
+- `--quiet`: Reduce output verbosity
+- `--help`: Show usage information
+
 **Features**:
-- RandomAgent uses uniform random selection
-- MinimaxAgent uses OpenSpiel's optimized algorithms
-- Shows node exploration counts
-- Demonstrates zero-sum game benefits
+- **Fast Execution**: Always competes against random agent for minimum runtime
+- **Detailed Timing**: Function-level profiling with call counts and averages
+- **Memory Tracking**: Memory allocation and deallocation monitoring
+- **Performance Hotspots**: Top 5 most expensive operations
+- **Custom Reports**: Saves reports with descriptive filenames like `profiling_mcts_s1000_uct14_report.txt`
+
+**Sample Profiling Output**:
+```
+=== PROFILING RESULTS ===
+Function                      Calls     Total(ms)   Avg(ms)     % Time
+get_action                    54        105.31      1.95        99.9%
+mcts_search_core             54        105.29      1.95        99.9%
+```
+
+## 📋 Usage Examples
+
+### Quick Evaluation
+```bash
+# Run complete agent evaluation (head-to-head + tournament)
+./azul_evaluation_demo
+
+# Quick MCTS profiling
+./azul_profiling_demo --agent mcts --games 3 --quiet
+
+# Deep minimax analysis
+./azul_profiling_demo --agent minimax --depth 5 --games 5
+```
+
+### Research Workflows
+```bash
+# Compare MCTS configurations
+./azul_profiling_demo --agent mcts --simulations 500 --uct 1.0 --games 10
+./azul_profiling_demo --agent mcts --simulations 500 --uct 2.0 --games 10
+
+# Minimax depth analysis
+for depth in 2 3 4 5; do
+  ./azul_profiling_demo --agent minimax --depth $depth --games 5 --quiet
+done
+
+# Tournament evaluation
+./azul_evaluation_demo > tournament_results.txt
+```
+
+### Performance Benchmarking
+```bash
+# Profile different agent configurations
+./azul_profiling_demo --agent mcts --simulations 100  --games 10
+./azul_profiling_demo --agent mcts --simulations 500  --games 10  
+./azul_profiling_demo --agent mcts --simulations 1000 --games 10
+
+# Compare with minimax baseline
+./azul_profiling_demo --agent minimax --depth 3 --games 10
+```
 
 ## 🤖 Agent Implementations
 
@@ -186,6 +264,8 @@ The build system automatically:
 ### Key Build Targets
 
 - **`azul_local`**: Static library containing your local Azul game
+- **`azul_evaluation_demo`**: Agent evaluation and tournament system
+- **`azul_profiling_demo`**: Performance profiling tool with CLI options
 - **`azul_mcts_demo`**: MCTS demonstration executable
 - **`azul_agents_test`**: Agent integration test executable
 

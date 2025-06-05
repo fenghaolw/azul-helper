@@ -1,8 +1,10 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <vector>
 
+#include "azul.h"
 #include "open_spiel/spiel.h"
 
 namespace azul {
@@ -46,6 +48,14 @@ class MinimaxAgent {
 
   // Evaluation function for non-terminal states
   [[nodiscard]] auto evaluate_state(const GameStateType& state) const -> double;
+
+  // Helper methods for Azul-specific evaluation
+  [[nodiscard]] static auto calculate_round_end_score(
+      const open_spiel::azul::AzulState& state, int player) -> double;
+  [[nodiscard]] static auto simulate_wall_scoring(
+      const std::array<std::array<bool, open_spiel::azul::kWallSize>,
+                       open_spiel::azul::kWallSize>& wall,
+      int row, int col) -> double;
 };
 
 [[nodiscard]] inline auto create_minimax_agent(int player_id, int depth)

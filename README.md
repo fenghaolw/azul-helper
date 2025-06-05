@@ -91,6 +91,7 @@ The system supports multiple AI approaches, each with different strengths:
 - 📊 **Benchmarking**: Compare different AI approaches
 - 🔬 **Analysis Tools**: Game state analysis and visualization
 - 💾 **Model Management**: Save, load, and version AI models
+- ⚡ **C++ Performance Tools**: High-speed agent evaluation and profiling
 
 ## 🎯 How to Play
 
@@ -107,7 +108,7 @@ Azul is a tile-laying game where players compete to decorate palace walls with P
 ### Scoring System
 - **Basic**: 1 point per tile + adjacency bonuses
 - **Row Bonus**: 2 points per completed horizontal row
-- **Column Bonus**: 7 points per completed vertical column  
+- **Column Bonus**: 7 points per completed vertical column
 - **Color Bonus**: 10 points per complete color set (5 tiles)
 - **Floor Penalties**: -1, -1, -2, -2, -2, -3, -3 for floor tiles
 
@@ -189,6 +190,16 @@ azul-helper/
 │       │   ├── content.ts      # BGA content script
 │       │   └── popup.tsx       # Extension popup
 │       └── manifest.json       # Extension manifest
+├── ⚡ C++ Backend (High-Performance)
+│   ├── game_cpp/              # OpenSpiel integration
+│   │   ├── azul.cc            # Local Azul game implementation
+│   │   ├── azul.h             # Game interface
+│   │   ├── azul_evaluation_demo   # Agent evaluation & tournament
+│   │   ├── azul_profiling_demo    # Performance profiling tool
+│   │   ├── agent_evaluator.cpp   # Evaluation framework
+│   │   ├── mcts_agent.cpp     # OpenSpiel MCTS integration
+│   │   ├── minimax_agent.cpp  # Minimax with OpenSpiel
+│   │   └── CMakeLists.txt     # Build configuration
 ├── 📊 Configuration & Docs
 │   ├── requirements.txt        # Python dependencies
 │   ├── requirements-dev.txt    # Development dependencies
@@ -280,7 +291,7 @@ python -m utils.benchmark --agents auto,mcts,heuristic
 import requests
 
 # Get move recommendation
-response = requests.post('http://localhost:5000/api/get_best_move', 
+response = requests.post('http://localhost:5000/api/get_best_move',
                         json={'game_state': game_state_dict})
 best_move = response.json()['move']
 ```

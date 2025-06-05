@@ -11,8 +11,9 @@ namespace azul {
 AgentEvaluator::AgentEvaluator(const EvaluationConfig& config)
     : config_(config) {}
 
-EvaluationResult AgentEvaluator::evaluate_agent(
-    EvaluationAgent& test_agent, EvaluationAgent& baseline_agent) {
+auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
+                                    EvaluationAgent& baseline_agent)
+    -> EvaluationResult {
   // Create result object
   EvaluationResult result(test_agent.get_name(), baseline_agent.get_name(),
                           config_);

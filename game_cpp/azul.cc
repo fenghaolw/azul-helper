@@ -52,7 +52,9 @@ const GameType kGameType{/*short_name=*/"azul",
 
 REGISTER_SPIEL_GAME(kGameType, GameFactory);
 
-RegisterSingleTensorObserver single_tensor(kGameType.short_name);
+// Note: Removed RegisterSingleTensorObserver to avoid duplicate registration
+// issues Single tensor observer can be registered manually if needed for ML
+// training
 
 // Floor line penalty points
 const std::vector<int> kFloorPenalties = {-1, -1, -2, -2, -2, -3, -3};
