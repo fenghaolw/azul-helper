@@ -1,8 +1,9 @@
 #pragma once
 
 #include "evaluation_config.h"
-#include "azul_openspiel.h"
+#include "azul.h"
 #include "mcts_agent.h"
+#include "open_spiel/spiel.h"
 #include "random_agent.h"
 #include "minimax_agent.h"
 #include <memory>
@@ -13,8 +14,10 @@
 
 namespace azul {
 
+// Type aliases for OpenSpiel integration
 using GameStateType = open_spiel::State;
 using ActionType = open_spiel::Action;
+using AzulGame = open_spiel::azul::AzulGame;
 
 /**
  * Agent interface for evaluation.

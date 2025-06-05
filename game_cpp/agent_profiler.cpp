@@ -1,13 +1,11 @@
 #include "agent_profiler.h"
 #include "minimax_agent.h"
-#include "game_state.h"
-#include "action.h"
+#include "mcts_agent.h"
+#include "azul.h"
+#include "open_spiel/spiel.h"
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-
-#include "mcts_agent.h"
-#include "open_spiel/spiel.h"
 
 namespace azul {
 
@@ -41,23 +39,23 @@ void AgentProfiler::track_memory_deallocation(const std::string& context, size_t
     memory_stats_.track_deallocation(size_bytes);
 }
 
-void AgentProfiler::profile_minimax_search(const std::function<Action()>& search_func, 
+void AgentProfiler::profile_minimax_search(const std::function<open_spiel::Action()>& search_func, 
                                           const std::string& context) {
     if (!profiling_enabled_) return;
     
     Timer timer;
-    Action result = search_func();
+    open_spiel::Action result = search_func();
     double elapsed_ms = timer.elapsed_ms();
     
     function_stats_[context].update(elapsed_ms);
 }
 
-void AgentProfiler::profile_mcts_search(const std::function<Action()>& search_func,
+void AgentProfiler::profile_mcts_search(const std::function<open_spiel::Action()>& search_func,
                                        const std::string& context) {
     if (!profiling_enabled_) return;
     
     Timer timer;
-    Action result = search_func();
+    open_spiel::Action result = search_func();
     double elapsed_ms = timer.elapsed_ms();
     
     function_stats_[context].update(elapsed_ms);
@@ -159,18 +157,18 @@ void AgentProfiler::print_hotspots(std::ostream& os, size_t top_n) const {
 ProfiledMinimaxAgent::ProfiledMinimaxAgent(std::unique_ptr<MinimaxAgent> agent)
     : agent_(std::move(agent)) {}
 
-Action ProfiledMinimaxAgent::get_action(const GameState& state) {
+open_spiel::Action ProfiledMinimaxAgent::get_action(const open_spiel::State& state) {
     PROFILE_FUNCTION();
     
     auto& profiler = AgentProfiler::instance();
     
-    Action result(0, TileColor::RED, 0); // Initialize with dummy values
-    profiler.profile_minimax_search([&]() -> Action {
+    open_spiel::Action result = 0; // Initialize with dummy value
+    profiler.profile_minimax_search([&]() -> open_spiel::Action {
         // Profile the main components
         {
             PROFILE_SCOPE("get_legal_actions");
-            auto legal_actions = state.get_legal_actions(agent_->player_id());
-            profiler.track_memory_allocation("legal_actions", legal_actions.size() * sizeof(Action));
+            auto legal_actions = state.LegalActions();
+            profiler.track_memory_allocation("legal_actions", legal_actions.size() * sizeof(open_spiel::Action));
         }
         
         {
@@ -184,9 +182,15 @@ Action ProfiledMinimaxAgent::get_action(const GameState& state) {
     return result;
 }
 
-std::vector<double> ProfiledMinimaxAgent::get_action_probabilities(const GameState& state) {
+std::vector<double> ProfiledMinimaxAgent::get_action_probabilities(const open_spiel::State& state) {
     PROFILE_FUNCTION();
-    return agent_->get_action_probabilities(state);
+    // For now, return uniform probabilities over legal actions
+    auto legal_actions = state.LegalActions();
+    if (legal_actions.empty()) {
+        return {};
+    }
+    double prob = 1.0 / legal_actions.size();
+    return std::vector<double>(legal_actions.size(), prob);
 }
 
 void ProfiledMinimaxAgent::reset() {
@@ -210,7 +214,7 @@ open_spiel::Action ProfiledMCTSAgent::get_action(const open_spiel::State& state)
             result = agent_->get_action(state);
         }
         
-        return Action(0, TileColor::RED, 0); // Return dummy Action for the lambda
+        return 0; // Return dummy action for the lambda
     }, "ProfiledMCTSAgent::get_action");
     
     return result;

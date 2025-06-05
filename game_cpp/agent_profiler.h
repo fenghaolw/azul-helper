@@ -14,10 +14,12 @@
 namespace azul {
 
 // Forward declarations
-class GameState;
-class Action;
 class MinimaxAgent;
 class AzulMCTSAgent;
+
+// Type aliases for compatibility
+using GameState = open_spiel::State;
+using Action = open_spiel::Action;
 
 /**
  * High-resolution timer for precise performance measurements
@@ -111,9 +113,9 @@ public:
     void track_memory_deallocation(const std::string& context, size_t size_bytes);
     
     // Agent-specific profiling
-    void profile_minimax_search(const std::function<Action()>& search_func, 
+    void profile_minimax_search(const std::function<open_spiel::Action()>& search_func, 
                                const std::string& context = "minimax_search");
-    void profile_mcts_search(const std::function<Action()>& search_func,
+    void profile_mcts_search(const std::function<open_spiel::Action()>& search_func,
                             const std::string& context = "mcts_search");
     
     // Reporting
@@ -168,8 +170,8 @@ class ProfiledMinimaxAgent {
 public:
     explicit ProfiledMinimaxAgent(std::unique_ptr<MinimaxAgent> agent);
     
-    [[nodiscard]] auto get_action(const GameState& state) -> Action;
-    [[nodiscard]] auto get_action_probabilities(const GameState& state) -> std::vector<double>;
+    [[nodiscard]] auto get_action(const open_spiel::State& state) -> open_spiel::Action;
+    [[nodiscard]] auto get_action_probabilities(const open_spiel::State& state) -> std::vector<double>;
     void reset();
     
     // Access to underlying agent

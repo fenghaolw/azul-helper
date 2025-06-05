@@ -50,33 +50,33 @@ add_library(azul_local STATIC
 
 target_include_directories(azul_local PRIVATE ${OPENSPIEL_INCLUDE_DIRS})
 
-# MCTS demo executable
-add_executable(azul_mcts_demo
-    test_mcts_integration.cpp
-)
-
-target_include_directories(azul_mcts_demo PRIVATE 
-    ${OPENSPIEL_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(azul_mcts_demo
-    azul_local
-    ${LOCAL_OPENSPIEL_LIB}
-)
-
-# Agents test executable
-add_executable(azul_agents_test
+# Agent evaluation library
+add_library(azul_evaluation STATIC
+    evaluation_config.cpp
+    agent_evaluator.cpp
+    agent_profiler.cpp
+    mcts_agent.cpp
     random_agent.cpp
     minimax_agent.cpp
 )
 
-target_include_directories(azul_agents_test PRIVATE 
+target_include_directories(azul_evaluation PRIVATE 
     ${OPENSPIEL_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(azul_agents_test
+# Evaluation demo executable (comprehensive)
+add_executable(azul_evaluation_demo
+    main_evaluation_demo.cpp
+)
+
+target_include_directories(azul_evaluation_demo PRIVATE 
+    ${OPENSPIEL_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(azul_evaluation_demo
+    azul_evaluation
     azul_local
     ${LOCAL_OPENSPIEL_LIB}
 )
@@ -86,9 +86,8 @@ message(STATUS "")
 message(STATUS "✅ Simplified OpenSpiel Azul integration configured")
 message(STATUS "📁 OpenSpiel source: ${OPENSPIEL_ROOT}")
 message(STATUS "📚 Shared library: ${LOCAL_OPENSPIEL_LIB}")
-message(STATUS "🎯 Build targets: azul_mcts_demo, azul_agents_test")
+message(STATUS "🎯 Build targets: azul_evaluation_demo")
 message(STATUS "")
 message(STATUS "🚀 To build and run:")
-message(STATUS "   make azul_mcts_demo && ./azul_mcts_demo")
-message(STATUS "   make azul_agents_test && ./azul_agents_test")
+message(STATUS "   make azul_evaluation_demo && ./azul_evaluation_demo")
 message(STATUS "")
