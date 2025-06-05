@@ -1,8 +1,13 @@
 #pragma once
 
+#ifdef WITH_OPENSPIEL
+#include "open_spiel/spiel.h"
+#else
 #include "action.h"
 #include "game_state.h"
 #include "player_board.h"
+#endif
+
 #include <memory>
 #include <vector>
 #include <unordered_map>
@@ -11,22 +16,31 @@
 
 namespace azul {
 
+#ifdef WITH_OPENSPIEL
+using ActionType = open_spiel::Action;
+using GameStateType = open_spiel::State;
+#else
+using ActionType = Action;
+using GameStateType = GameState;
+#endif
+
 /**
  * Minimax agent with alpha-beta pruning for Azul.
  * Alpha-beta pruning is enabled by default and strongly recommended for optimal performance.
  * Uses intelligent move ordering and action filtering for maximum search efficiency.
  * 
  * Performance: ~2.6x faster than basic minimax with 71% node reduction.
+ * Now supports OpenSpiel game states.
  */
 class MinimaxAgent {
 public:
     MinimaxAgent(int player_id, int depth = 4, bool enable_alpha_beta = true, int seed = -1);
     
     // Get the best action using minimax search
-    [[nodiscard]] auto get_action(const GameState& state) -> Action;
+    [[nodiscard]] auto get_action(const GameStateType& state) -> ActionType;
     
     // Get action probabilities (minimax is deterministic, so best action gets probability 1.0)
-    [[nodiscard]] auto get_action_probabilities(const GameState& state) -> std::vector<double>;
+    [[nodiscard]] auto get_action_probabilities(const GameStateType& state) -> std::vector<double>;
     
     // Reset the agent (clear move scores)
     void reset();
@@ -58,33 +72,35 @@ private:
     static constexpr double NEGATIVE_INFINITY = std::numeric_limits<double>::lowest();
     
     // Core minimax algorithm
-    [[nodiscard]] auto minimax(const GameState& state, int depth, bool maximizing_player,
+    [[nodiscard]] auto minimax(const GameStateType& state, int depth, bool maximizing_player,
                               double alpha = NEGATIVE_INFINITY, 
                               double beta = POSITIVE_INFINITY) const -> double;
     
     // Time-limited version for performance
-    [[nodiscard]] auto minimax_with_time_limit(const GameState& state, int depth, bool maximizing_player,
+    [[nodiscard]] auto minimax_with_time_limit(const GameStateType& state, int depth, bool maximizing_player,
                               double alpha, double beta, 
                               std::chrono::high_resolution_clock::time_point start_time,
                               std::chrono::milliseconds time_limit) const -> double;
     
     // Evaluation function for non-terminal states
-    [[nodiscard]] auto evaluate_state(const GameState& state) const -> double;
+    [[nodiscard]] auto evaluate_state(const GameStateType& state) const -> double;
     
-    // Evaluation helper method
+#ifndef WITH_OPENSPIEL
+    // Evaluation helper method (only needed for custom game state)
     [[nodiscard]] auto calculate_round_end_score(const PlayerBoard& player_board) const -> double;
+#endif
     
     // Helper methods
-    [[nodiscard]] auto is_maximizing_player(const GameState& state) const -> bool;
+    [[nodiscard]] auto is_maximizing_player(const GameStateType& state) const -> bool;
     
     // Move ordering for better alpha-beta pruning (like Python version)
-    [[nodiscard]] auto order_actions(const std::vector<Action>& actions, const GameState& state, bool use_previous_scores = false) const -> std::vector<Action>;
-    [[nodiscard]] auto evaluate_move_priority(const Action& action, const GameState& state) const -> double;
-    [[nodiscard]] auto action_key(const Action& action) const -> std::string;
+    [[nodiscard]] auto order_actions(const std::vector<ActionType>& actions, const GameStateType& state, bool use_previous_scores = false) const -> std::vector<ActionType>;
+    [[nodiscard]] auto evaluate_move_priority(const ActionType& action, const GameStateType& state) const -> double;
+    [[nodiscard]] auto action_key(const ActionType& action) const -> std::string;
     
     // Action filtering to reduce branching factor
-    [[nodiscard]] auto filter_obviously_bad_moves(const std::vector<Action>& actions, const GameState& state) const -> std::vector<Action>;
-    [[nodiscard]] auto is_obviously_bad_move(const Action& action, const GameState& state) const -> bool;
+    [[nodiscard]] auto filter_obviously_bad_moves(const std::vector<ActionType>& actions, const GameStateType& state) const -> std::vector<ActionType>;
+    [[nodiscard]] auto is_obviously_bad_move(const ActionType& action, const GameStateType& state) const -> bool;
 };
 
 // Factory function for creating minimax agents

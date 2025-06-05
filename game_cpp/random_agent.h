@@ -1,26 +1,40 @@
 #pragma once
 
+#ifdef WITH_OPENSPIEL
+#include "open_spiel/spiel.h"
+#else
 #include "action.h"
 #include "game_state.h"
+#endif
+
 #include <memory>
 #include <random>
 #include <vector>
 
 namespace azul {
 
+#ifdef WITH_OPENSPIEL
+using ActionType = open_spiel::Action;
+using GameStateType = open_spiel::State;
+#else
+using ActionType = Action;
+using GameStateType = GameState;
+#endif
+
 /**
  * Random agent that selects actions uniformly at random from legal actions.
  * Serves as a baseline for comparing other agents.
+ * Now supports OpenSpiel game states.
  */
 class RandomAgent {
 public:
     explicit RandomAgent(int player_id, int seed = -1);
     
     // Get a random legal action for the current state
-    [[nodiscard]] auto get_action(const GameState& state) -> Action;
+    [[nodiscard]] auto get_action(const GameStateType& state) -> ActionType;
     
     // Get uniform action probabilities over legal actions
-    [[nodiscard]] auto get_action_probabilities(const GameState& state) -> std::vector<double>;
+    [[nodiscard]] auto get_action_probabilities(const GameStateType& state) -> std::vector<double>;
     
     // Reset the agent (reseed random number generator)
     void reset();

@@ -4,25 +4,39 @@
 #ifdef WITH_OPENSPIEL
 #include "open_spiel/spiel.h"
 #include "open_spiel/algorithms/mcts.h"
+// Include our local Azul game (which auto-registers itself)
+#include "azul.h"
+
+// Force linker to include the azul registration by referencing symbols
+namespace {
+void force_azul_registration() {
+    // Reference symbols from azul namespace to force linking
+    (void)open_spiel::azul::TileColorToString(open_spiel::azul::TileColor::kBlue);
+}
+}
 #endif
 
 int main() {
-    std::cout << "=== Direct OpenSpiel Azul MCTS Demo ===" << std::endl;
-    std::cout << "Pure OpenSpiel integration - no bridge complexity" << std::endl;
+    std::cout << "=== Local Azul MCTS Demo ===" << std::endl;
+    std::cout << "Using local forked Azul game with OpenSpiel MCTS" << std::endl;
     std::cout << std::endl;
     
 #ifdef WITH_OPENSPIEL
     try {
-        // Load Azul game directly from OpenSpiel
+        // Force registration by calling the function (this ensures linking)
+        force_azul_registration();
+        
+        // Load our local Azul game (auto-registered by REGISTER_SPIEL_GAME in azul.cc)
         auto game = open_spiel::LoadGame("azul");
         if (!game) {
-            std::cerr << "❌ Failed to load Azul game from OpenSpiel" << std::endl;
+            std::cerr << "❌ Failed to load local Azul game" << std::endl;
             return 1;
         }
         
-        std::cout << "✅ Successfully loaded OpenSpiel Azul game!" << std::endl;
+        std::cout << "✅ Successfully loaded local Azul game!" << std::endl;
         std::cout << "   Game: " << game->GetType().short_name << std::endl;
         std::cout << "   Max players: " << game->NumPlayers() << std::endl;
+        std::cout << "   Utility: " << (game->GetType().utility == open_spiel::GameType::Utility::kZeroSum ? "Zero-Sum" : "General-Sum") << std::endl;
         std::cout << std::endl;
         
         // Create initial state
@@ -42,7 +56,7 @@ int main() {
             true   // Verbose (shows tree search details)
         );
         
-        std::cout << "✅ MCTS bot created with 100 simulations per move" << std::endl;
+        std::cout << "✅ MCTS bot created with 400 simulations per move" << std::endl;
         std::cout << std::endl;
         
         // Run game simulation
@@ -51,7 +65,7 @@ int main() {
             auto current_player = state->CurrentPlayer();
             auto legal_actions = state->LegalActions();
             
-            std::cout << "Turn " << turn << ": " << legal_actions.size() << " legal actions" << std::endl;
+            std::cout << "Turn " << turn << " (Player " << current_player << "): " << legal_actions.size() << " legal actions" << std::endl;
             
             // Get MCTS action - this runs the tree search
             auto action = mcts_bot.Step(*state);
@@ -63,13 +77,17 @@ int main() {
             turn++;
         }
         
+        std::cout << std::endl;
+        std::cout << "✅ Demo completed successfully!" << std::endl;
+        std::cout << "💡 Your local Azul game is working with OpenSpiel MCTS" << std::endl;
+        
     } catch (const std::exception& e) {
         std::cerr << "❌ Error: " << e.what() << std::endl;
         return 1;
     }
 #else
     std::cout << "❌ OpenSpiel not available - cannot run demo" << std::endl;
-    std::cout << "   Please build OpenSpiel with BUILD_SHARED_LIB=ON" << std::endl;
+    std::cout << "   Please ensure WITH_OPENSPIEL is defined" << std::endl;
     return 1;
 #endif
     

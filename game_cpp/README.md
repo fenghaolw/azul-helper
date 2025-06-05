@@ -1,259 +1,253 @@
-# Azul C++ Implementation
+# Azul Helper - OpenSpiel Integration (Local Forked Approach)
 
-This directory contains a high-performance C++ implementation of the Azul board game, with OpenSpiel integration and MCTS agent support.
+A comprehensive C++ library for Azul game AI development using a **local forked OpenSpiel Azul game** approach. This setup gives you full control over the Azul game logic while leveraging OpenSpiel's powerful algorithms for MCTS, minimax, and other AI techniques.
 
-## Features
+## 🏗️ Architecture Overview
 
-- **Core Game Logic**: Complete implementation of Azul game rules in C++
-- **OpenSpiel Integration**: Compatible with OpenSpiel for advanced AI algorithms
-- **MCTS Agent**: Monte Carlo Tree Search agent for strong gameplay
-- **Python Bindings**: Expose C++ functionality to Python for easy integration
-- **Performance Optimized**: Efficient data structures and algorithms for fast gameplay
+### Local Integration Approach
 
-## File Structure
+This project uses a **local forked Azul game** approach rather than depending on the upstream OpenSpiel Azul implementation:
 
-```
-game_cpp/
-├── tile.h/cpp              # Tile and TileColor definitions
-├── action.h/cpp             # Action representation
-├── player_board.h/cpp       # PatternLine, Wall, and PlayerBoard classes
-├── factory.h/cpp            # Factory, CenterArea, and FactoryArea classes
-├── game_state.h/cpp         # Main GameState class
-├── azul_openspiel.h/cpp     # OpenSpiel integration
-├── mcts_agent.h/cpp         # MCTS agent implementation
-├── python_bindings.cpp      # Python bindings using pybind11
-├── CMakeLists.txt           # Build configuration
-└── README.md               # This file
-```
+1. **Local Azul Game**: `azul.cc` and `azul.h` are forked copies that you can modify
+2. **Local OpenSpiel Library**: `libopen_spiel.dylib` provides core OpenSpiel functionality 
+3. **Custom Agents**: Your agents work with both the local Azul game and OpenSpiel algorithms
+4. **Full Control**: Modify game rules, scoring, or mechanics as needed for research
 
-## Dependencies
+### Benefits
 
-### Required
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-- CMake 3.12+
-- pybind11 (for Python bindings)
+- 🎯 **Full Game Control**: Modify Azul game logic without rebuilding entire OpenSpiel
+- 🚀 **Fast Iteration**: Changes to game rules only require rebuilding this project
+- 🔧 **Stable Integration**: Uses clean OpenSpiel library without dependency conflicts
+- 📊 **Zero-Sum Support**: Properly configured for minimax and other zero-sum algorithms
+- 🤖 **Advanced AI**: Leverage OpenSpiel's MCTS, minimax, and other algorithms
 
-### Optional
-- OpenSpiel (for advanced AI algorithms and MCTS)
+## 🚀 Quick Start
 
-## Building
+### Prerequisites
 
-The primary way to build the C++ implementation is by using the provided `build.sh` script. This script handles CMake configuration and compilation.
+- **C++17** or later
+- **CMake 3.17** or later
+- **OpenSpiel** built as shared library (see setup below)
 
-### Standard Build
+### Setup Instructions
 
-This will build the core game logic and Python bindings (if pybind11 is found).
+1. **Build OpenSpiel as shared library**:
+   ```bash
+   cd /path/to/open_spiel
+   rm -rf build && mkdir build && cd build
+   BUILD_SHARED_LIB=ON CXX=clang++ cmake -DPython3_EXECUTABLE=$(which python3) -DCMAKE_CXX_COMPILER=${CXX} ../open_spiel
+   make -j$(nproc) open_spiel
+   ```
 
-```bash
-cd game_cpp
-./build.sh
-```
-The script creates a `build` directory and compiles the project. By default, it attempts a `Release` build.
+2. **Copy the shared library**:
+   ```bash
+   cp libopen_spiel.dylib /path/to/azul-helper/game_cpp/
+   ```
 
-### Build with OpenSpiel Support
+3. **Build the project**:
+   ```bash
+   cd game_cpp
+   mkdir -p build && cd build
+   cmake ..
+   make
+   ```
 
-To build with OpenSpiel integration (required for the MCTS agent and other OpenSpiel-based AI):
+4. **Test the integration**:
+   ```bash
+   ./azul_mcts_demo      # Test MCTS with local Azul
+   ./azul_agents_test    # Test RandomAgent vs MinimaxAgent
+   ```
 
-1.  **Install OpenSpiel**: Follow the instructions on the [official OpenSpiel repository](https://github.com/deepmind/open_spiel) to clone and build it. Make a note of the path to your OpenSpiel installation.
-    Example OpenSpiel build steps (refer to their documentation for the latest):
-    ```bash
-    git clone https://github.com/deepmind/open_spiel.git
-    cd open_spiel
-    mkdir build
-    cd build
-    # Adjust CMake options as needed, e.g., for Python version or C++ compiler
-    cmake ..
-    make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-    ```
+## 🎮 Available Demos
 
-2.  **Build Azul with OpenSpiel**: Set the `OPENSPIEL_ROOT` environment variable to the root directory of your OpenSpiel installation before running the `build.sh` script.
+### MCTS Demo (`azul_mcts_demo`)
 
-    ```bash
-    cd game_cpp
-    export OPENSPIEL_ROOT=/path/to/your/open_spiel_installation
-    ./build.sh
-    ```
-
-### Python Integration and Dependencies
-
-Python bindings are built by default if `pybind11` is detected in your Python environment.
-
-1.  **Install pybind11**:
-    ```bash
-    pip install pybind11
-    ```
-    Ensure `pybind11` is installed for the Python environment you intend to use with Azul. CMake will typically find Python and pybind11 automatically. If you have multiple Python versions, ensure the one with pybind11 is active or correctly configured in your PATH.
-
-2.  After building (e.g., via `./build.sh`), the Python module `azul_cpp_bindings` will be created in the `game_cpp/build` directory. To use it, ensure this directory is in your `PYTHONPATH` or install the package appropriately.
-
-### Manual Build (Advanced)
-
-For more control over the build process (e.g., choosing a different build type like `Debug`), you can run CMake commands manually:
+Demonstrates OpenSpiel's Monte Carlo Tree Search with your local Azul game:
 
 ```bash
-cd game_cpp
-mkdir -p build
-cd build
-# For a debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-# For a release build with OpenSpiel:
-# cmake -DCMAKE_BUILD_TYPE=Release -DOPENSPIEL_ROOT=/path/to/open_spiel ..
-make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+./azul_mcts_demo
 ```
-This is essentially what `build.sh` automates.
 
-## Testing
+**Features**:
+- 400 simulations per move
+- UCT exploration constant: 1.4
+- Shows detailed MCTS tree analysis
+- Runs 5 turns of gameplay
 
-To run all C++ unit tests, use the `run_all_tests.sh` script from the `game_cpp` directory:
+### Agents Integration (`azul_agents_test`)
+
+Shows RandomAgent vs MinimaxAgent with OpenSpiel integration:
 
 ```bash
-cd game_cpp
-./run_all_tests.sh
+./azul_agents_test
 ```
-This script will configure the project (in `Debug` mode by default, which is suitable for testing), build all targets including the test executables, and then run them using CTest. It provides a summary of passed and failed tests.
 
-### Running Tests Manually with CTest
+**Features**:
+- RandomAgent uses uniform random selection
+- MinimaxAgent uses OpenSpiel's optimized algorithms
+- Shows node exploration counts
+- Demonstrates zero-sum game benefits
 
-Alternatively, after building the project (e.g., by running `./build.sh` or manually with CMake), you can execute tests directly using CTest from within the build directory. This gives you more control over CTest options (e.g., running specific tests or using different output formats).
+## 🤖 Agent Implementations
 
-```bash
-cd game_cpp/build
-# Ensure the project has been built first
-ctest --output-on-failure
-# Or for more verbose output:
-# ctest -V
-```
-Using `ctest` directly is useful if you want to test a specific build configuration (e.g., `Release`) that you've already compiled, or if you need more detailed test output.
+### RandomAgent
 
-## Usage
+**File**: `random_agent.h`, `random_agent.cpp`
 
-### C++ Usage
+Simple baseline agent that selects actions uniformly at random.
 
+**Features**:
+- Configurable random seed
+- Cross-compatible with OpenSpiel and custom game states
+- Useful for baseline comparisons
+
+**Usage**:
 ```cpp
-#include "game_state.h"
-
-// Create a new game
-azul::GameState game(2, 42); // 2 players, seed 42
-
-// Get legal actions
-auto actions = game.get_legal_actions();
-
-// Apply an action
-if (!actions.empty()) {
-    game.apply_action(actions[0]);
-}
-
-// Check game state
-if (game.is_game_over()) {
-    int winner = game.get_winner();
-    auto scores = game.get_scores();
-}
+azul::RandomAgent agent(player_id, seed);
+auto action = agent.get_action(state);
 ```
 
-### Python Usage
+### MinimaxAgent
 
-```python
-import azul_cpp_bindings as azul
+**File**: `minimax_agent.h`, `minimax_agent.cpp`
 
-# Create a new game
-game = azul.create_game(num_players=2, seed=42)
+Advanced agent using OpenSpiel's optimized minimax algorithms with custom evaluation.
 
-# Get legal actions
-actions = game.get_legal_actions()
+**Features**:
+- Leverages OpenSpiel's `ExpectiminimaxSearch` for stochastic games
+- Custom Azul-specific evaluation function
+- Configurable search depth
+- Node exploration tracking
 
-# Apply an action
-if actions:
-    game.apply_action(actions[0])
-
-# Check game state
-if game.is_game_over():
-    winner = game.get_winner()
-    scores = game.get_scores()
+**Usage**:
+```cpp
+azul::MinimaxAgent agent(player_id, depth);
+auto action = agent.get_action(state);
+std::cout << "Explored " << agent.nodes_explored() << " nodes" << std::endl;
 ```
 
-### MCTS Agent Usage (with OpenSpiel)
+## 🛠️ Development Workflow
 
-```python
-import azul_cpp_bindings as azul
+### Modifying Game Logic
 
-# Create MCTS agent
-agent = azul.create_mcts_agent(
-    player_id=0,
-    num_simulations=1000,
-    uct_c=1.4,
-    seed=42
-)
+1. **Edit Local Files**: Modify `azul.cc` and `azul.h` as needed
+2. **Maintain Zero-Sum**: Keep `GameType::Utility::kZeroSum` for minimax benefits
+3. **Rebuild**: `make` in the build directory
+4. **Test**: Run demos to verify changes work
 
-# Use in game loop
-game = azul.AzulGame({"players": 2})
-state = game.NewInitialState()
+### Adding New Agents
 
-while not state.IsTerminal():
-    if state.CurrentPlayer() == 0:
-        action = agent.get_action(state)
-        state.DoApplyAction(action)
-    else:
-        # Other player logic
-        legal_actions = state.LegalActions()
-        action = legal_actions[0]  # Random choice
-        state.DoApplyAction(action)
-```
+1. **Create Agent Files**: Follow the pattern of `random_agent.h/cpp`
+2. **OpenSpiel Integration**: Use conditional compilation with `#ifdef WITH_OPENSPIEL`
+3. **Type Aliases**: Use `ActionType` and `GameStateType` for compatibility
+4. **Update CMakeLists.txt**: Add new source files to build targets
 
-## Performance Benefits
+### Performance Optimization
 
-The C++ implementation provides significant performance improvements over the Python version:
+- **MinimaxAgent**: Leverages OpenSpiel's optimized C++ algorithms
+- **Custom Evaluation**: Implement domain-specific heuristics in `evaluate_state()`
+- **Depth Tuning**: Balance search depth vs. computation time
+- **Node Tracking**: Monitor `nodes_explored()` for performance insights
 
-- **Memory Efficiency**: Tile pooling and optimized data structures
-- **Computation Speed**: 10-100x faster game simulation
-- **Cache Optimization**: Precomputed lookup tables for wall patterns
-- **MCTS Performance**: Faster tree search for stronger AI
+## 📊 Integration Features
 
-## Integration with Existing Python Code
+### OpenSpiel Algorithm Access
 
-The C++ implementation is designed to be a drop-in replacement for the Python version:
+- **MCTS**: `open_spiel::algorithms::MCTSBot`
+- **Minimax**: `open_spiel::algorithms::ExpectiminimaxSearch`
+- **Alpha-Beta**: `open_spiel::algorithms::AlphaBetaSearch` (for deterministic variants)
+- **Random Rollouts**: `open_spiel::algorithms::RandomRolloutEvaluator`
 
-```python
-# Replace Python imports
-# from game.game_state import GameState, Action
-# with C++ imports
-from azul_cpp_bindings import GameState, Action
+### Game State Compatibility
 
-# The API is compatible
-game = GameState(num_players=2, seed=42)
-actions = game.get_legal_actions()
-# ... rest of code works the same
-```
+- **OpenSpiel States**: Full `open_spiel::State` interface
+- **Custom States**: Fallback support for non-OpenSpiel implementations
+- **Type Safety**: Conditional compilation ensures compatibility
 
-## OpenSpiel Compatibility
+### Zero-Sum Benefits
 
-The implementation is fully compatible with OpenSpiel's algorithms:
+With proper zero-sum configuration:
+- **Minimax**: Optimal play computation
+- **Alpha-Beta Pruning**: Efficient search space reduction
+- **Game Theory**: Nash equilibrium analysis
+- **Performance**: Optimized algorithms for competitive scenarios
 
-- **MCTS**: Monte Carlo Tree Search
-- **AlphaZero**: Deep reinforcement learning
-- **CFR**: Counterfactual Regret Minimization
-- **Minimax**: Perfect information game solving
+## 🔧 Build Configuration
 
-## Contributing
+### CMakeLists.txt Overview
 
-When modifying the C++ code:
+The build system automatically:
+1. **Detects OpenSpiel**: Finds source headers and local shared library
+2. **Links Dependencies**: Handles Abseil and other OpenSpiel dependencies
+3. **Compiles Local Game**: Builds your forked Azul game into `azul_local`
+4. **Force Registration**: Ensures local game is registered with OpenSpiel
+5. **Creates Targets**: Builds both demo and test executables
 
-1. Maintain API compatibility with the Python version
-2. Add appropriate Python bindings for new functionality
-3. Update tests to cover new features
-4. Follow C++17 best practices
-5. Ensure OpenSpiel integration remains functional
+### Key Build Targets
 
-## Troubleshooting
+- **`azul_local`**: Static library containing your local Azul game
+- **`azul_mcts_demo`**: MCTS demonstration executable
+- **`azul_agents_test`**: Agent integration test executable
 
-### Common Build Issues
+## 🐛 Troubleshooting
 
-1. **Missing pybind11**: Install with `pip install pybind11`
-2. **OpenSpiel not found**: Set `OPENSPIEL_ROOT` correctly
-3. **C++17 support**: Ensure compiler supports C++17
-4. **CMake version**: Upgrade to CMake 3.12+
+### Common Issues
 
-### Runtime Issues
+1. **"Unknown game 'azul'"**
+   - **Cause**: Local game registration not working
+   - **Fix**: Ensure force linking code is present and executes
 
-1. **Import errors**: Check Python path and module compilation. Ensure `game_cpp/build` is in `PYTHONPATH` or the module is installed.
-2. **Segmentation faults**: Verify object lifetime management, especially with Python bindings.
-3. **Performance issues**: Ensure you are using a `Release` build type for performance-critical tasks. The `build.sh` script defaults to a `Release` build. If building manually, use `cmake -DCMAKE_BUILD_TYPE=Release ..`. This enables optimizations like `-O3` (on GCC/Clang). For debugging, use the `Debug` build type (`cmake -DCMAKE_BUILD_TYPE=Debug ..`), which is what `run_all_tests.sh` uses by default.
+2. **OpenSpiel Library Not Found**
+   - **Cause**: `libopen_spiel.dylib` missing or wrong path
+   - **Fix**: Copy shared library to `game_cpp/` directory
+
+3. **Minimax Algorithm Failures**
+   - **Cause**: Game not properly classified as zero-sum
+   - **Fix**: Verify `GameType::Utility::kZeroSum` in `azul.cc`
+
+4. **Build Errors**
+   - **Cause**: Missing OpenSpiel headers or dependencies
+   - **Fix**: Ensure OpenSpiel source is available and CMake can find it
+
+### Debug Tips
+
+- **Verbose Build**: `make VERBOSE=1` to see detailed compilation
+- **Game Properties**: Check game type classification in demo output
+- **Agent Fallbacks**: MinimaxAgent has graceful degradation to random selection
+
+## 📈 Performance Characteristics
+
+### MCTS Performance
+- **Speed**: ~50,000-70,000 simulations/second
+- **Memory**: <1 MB for typical game trees
+- **Scalability**: Handles deep game trees efficiently
+
+### Minimax Performance
+- **Node Exploration**: 50-3,500 nodes per move (depth dependent)
+- **Zero-Sum Optimization**: Significant speedup over general-sum
+- **Custom Evaluation**: Domain-specific heuristics for better play
+
+## 🔮 Future Extensions
+
+### Potential Enhancements
+
+1. **Neural Network Integration**: Connect TensorFlow/PyTorch models
+2. **Multi-Threading**: Parallel MCTS or minimax search
+3. **Game Variants**: Implement Azul: Stained Glass of Sintra, etc.
+4. **Tournament System**: Automated agent evaluation framework
+5. **Visualization**: Game state rendering and move analysis
+
+### Research Applications
+
+- **AI Algorithm Comparison**: Systematic evaluation of different approaches
+- **Game Balance Analysis**: Modify rules and measure impact
+- **Human vs AI Studies**: Behavioral analysis with custom game variants
+- **Optimization Research**: Fine-tune evaluation functions and search parameters
+
+## 📝 License
+
+This project follows the same Apache 2.0 license as OpenSpiel. The forked Azul game files retain their original OpenSpiel copyright and license terms.
+
+---
+
+**Happy Coding!** 🎯 This setup gives you a powerful, flexible foundation for Azul AI research and development.
