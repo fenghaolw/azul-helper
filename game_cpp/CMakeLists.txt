@@ -1,206 +1,94 @@
-cmake_minimum_required(VERSION 3.12)
-project(azul_cpp)
-enable_testing()
-
-# Set default C++ flags and build type specific flags
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to 'Release' as none was specified.")
-  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the build type" FORCE)
-endif()
-
-if(MSVC)
-    set(DEFAULT_CXX_WARNING_FLAGS "/W4")
-else()
-    set(DEFAULT_CXX_WARNING_FLAGS "-Wall -Wextra -Wpedantic")
-endif()
-
-# Append general warning flags to CMAKE_CXX_FLAGS if it's already set by user/toolchain, otherwise set them.
-if(NOT CMAKE_CXX_FLAGS)
-    set(CMAKE_CXX_FLAGS "${DEFAULT_CXX_WARNING_FLAGS}")
-else()
-    string(APPEND CMAKE_CXX_FLAGS " ${DEFAULT_CXX_WARNING_FLAGS}")
-endif()
-
-# Debug flags
-if(NOT CMAKE_CXX_FLAGS_DEBUG)
-    set(CMAKE_CXX_FLAGS_DEBUG "-g")
-endif()
-
-# Release flags
-if(NOT CMAKE_CXX_FLAGS_RELEASE)
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-endif()
-
-# Release with Debug Info flags
-if(NOT CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
-endif()
-
-# Minimum Size Release flags
-if(NOT CMAKE_CXX_FLAGS_MINSIZEREL)
-    set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
-endif()
+cmake_minimum_required(VERSION 3.17)
+project(azul_openspiel_direct)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Detect and prefer current Python executable (respects virtual environment)
-if(DEFINED ENV{VIRTUAL_ENV})
-    message(STATUS "Virtual environment detected: $ENV{VIRTUAL_ENV}")
-    set(Python3_EXECUTABLE "$ENV{VIRTUAL_ENV}/bin/python")
+# Compiler flags
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Find Python - prefer the virtual environment version
-find_package(Python3 COMPONENTS Interpreter Development)
-
-message(STATUS "Python3_FOUND: ${Python3_FOUND}")
-if(Python3_FOUND)
-    message(STATUS "Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
-    message(STATUS "Python3_VERSION: ${Python3_VERSION}")
-endif()
-
-# Try to find pybind11
-if(Python3_FOUND)
-    find_package(pybind11 REQUIRED)
-    if(pybind11_FOUND)
-        message(STATUS "Found pybind11: ${pybind11_DIR}")
-    # No specific message needed here if not found,
-    # find_package with REQUIRED will show an error.
-    # The existing fallback message at the end of the file will also be printed.
-    endif()
-# The find_package(pybind11 REQUIRED) call above will handle the case where pybind11 is not found.
-# The message "pybind11 not found - Python bindings will not be built"
-# later in the script will still be displayed if pybind11_FOUND is FALSE.
-endif()
-
-# OpenSpiel dependency (optional - set OPENSPIEL_ROOT if available)
-set(OPENSPIEL_ROOT "" CACHE PATH "Path to OpenSpiel installation")
-if(OPENSPIEL_ROOT)
-    find_library(OPENSPIEL_LIB openspiel PATHS ${OPENSPIEL_ROOT}/build)
-    if(OPENSPIEL_LIB)
-        add_definitions(-DWITH_OPENSPIEL)
-        include_directories(${OPENSPIEL_ROOT})
-        set(OPENSPIEL_LIBRARIES ${OPENSPIEL_LIB})
-    endif()
-endif()
-
-# Core Azul game library
-set(AZUL_SOURCES
-    tile.cpp
-    action.cpp
-    player_board.cpp
-    factory.cpp
-    game_state.cpp
-)
-
-add_library(azul_core ${AZUL_SOURCES})
-
-# Agent libraries
-add_library(azul_random_agent random_agent.cpp)
-target_link_libraries(azul_random_agent azul_core)
-
-add_library(azul_minimax_agent minimax_agent.cpp)
-target_link_libraries(azul_minimax_agent azul_core)
-
-# Agent profiler library
-add_library(azul_agent_profiler agent_profiler.cpp)
-target_link_libraries(azul_agent_profiler azul_core azul_minimax_agent)
-
-# Evaluation framework
-add_library(azul_evaluation_config evaluation_config.cpp)
-target_link_libraries(azul_evaluation_config azul_core)
-
-add_library(azul_agent_evaluator agent_evaluator.cpp)
-target_link_libraries(azul_agent_evaluator azul_core azul_random_agent azul_minimax_agent azul_evaluation_config)
-
-# OpenSpiel integration (if available)
-if(OPENSPIEL_LIBRARIES)
-    add_library(azul_openspiel azul_openspiel.cpp)
-    target_link_libraries(azul_openspiel azul_core ${OPENSPIEL_LIBRARIES})
-    
-    # MCTS Agent
-    add_library(azul_mcts mcts_agent.cpp)
-    target_link_libraries(azul_mcts azul_core azul_openspiel ${OPENSPIEL_LIBRARIES})
-    
-    # Add MCTS support to profiler if OpenSpiel is available
-    target_link_libraries(azul_agent_profiler azul_mcts)
-endif()
-
-# Python bindings (only if pybind11 is available)
-if(pybind11_FOUND)
-    message(STATUS "Building Python bindings with pybind11")
-    pybind11_add_module(azul_cpp_bindings python_bindings.cpp)
-    target_link_libraries(azul_cpp_bindings PRIVATE azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
-
-    if(OPENSPIEL_LIBRARIES)
-        target_link_libraries(azul_cpp_bindings PRIVATE azul_openspiel azul_mcts)
-    endif()
-    
-    # Export compile commands for IDE support
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-else()
-    message(STATUS "pybind11 not found - Python bindings will not be built")
-endif()
-
-# Compiler-specific options for azul_core
-target_compile_features(azul_core PRIVATE cxx_std_17)
 if(MSVC)
-    target_compile_options(azul_core PRIVATE /W4) # MSVC specific warnings
+    set(CMAKE_CXX_FLAGS "/W4")
 else()
-    target_compile_options(azul_core PRIVATE -Wall -Wextra -Wpedantic) # GCC/Clang specific warnings
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 endif()
 
-# Comprehensive game engine tests
-add_executable(test_basic_functionality test_basic_functionality.cpp)
-target_link_libraries(test_basic_functionality azul_core)
-target_compile_features(test_basic_functionality PRIVATE cxx_std_17)
+# OpenSpiel dependency (auto-detect)
+get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+get_filename_component(GRANDPARENT_DIR ${PARENT_DIR} DIRECTORY)
+set(AUTO_OPENSPIEL_PATH "${GRANDPARENT_DIR}/open_spiel")
 
-add_executable(test_legal_moves test_legal_moves.cpp)
-target_link_libraries(test_legal_moves azul_core)
-target_compile_features(test_legal_moves PRIVATE cxx_std_17)
+if(EXISTS "${AUTO_OPENSPIEL_PATH}" AND EXISTS "${AUTO_OPENSPIEL_PATH}/build")
+    message(STATUS "Auto-detected OpenSpiel at: ${AUTO_OPENSPIEL_PATH}")
+    set(OPENSPIEL_ROOT "${AUTO_OPENSPIEL_PATH}")
+    set(OPENSPIEL_BUILD_DIR "${OPENSPIEL_ROOT}/build")
+    
+    # Include OpenSpiel headers
+    include_directories(${OPENSPIEL_ROOT})
+    include_directories(${OPENSPIEL_ROOT}/open_spiel)
+    include_directories(${OPENSPIEL_ROOT}/open_spiel/abseil-cpp)
+    
+    # Find shared library
+    find_library(OPENSPIEL_LIB 
+        NAMES open_spiel
+        PATHS ${OPENSPIEL_BUILD_DIR}
+        NO_DEFAULT_PATH
+    )
+    
+    if(OPENSPIEL_LIB)
+        message(STATUS "Found OpenSpiel shared library: ${OPENSPIEL_LIB}")
+        set(WITH_OPENSPIEL TRUE)
+    else()
+        message(FATAL_ERROR "OpenSpiel shared library not found. Please build OpenSpiel with BUILD_SHARED_LIB=ON")
+    endif()
+    
+    # Find Abseil libraries (required by OpenSpiel)
+    file(GLOB_RECURSE ABSEIL_LIBRARIES "${OPENSPIEL_BUILD_DIR}/abseil-cpp/absl/*/*.a")
+    if(ABSEIL_LIBRARIES)
+        list(LENGTH ABSEIL_LIBRARIES ABSEIL_COUNT)
+        message(STATUS "Found ${ABSEIL_COUNT} Abseil libraries")
+    else()
+        message(FATAL_ERROR "No Abseil libraries found")
+    endif()
+    
+    # Note: Azul game is already available in OpenSpiel shared library
+    # No need to copy source files since we use LoadGame("azul")
+    
+else()
+    message(FATAL_ERROR "OpenSpiel not found at expected location: ${AUTO_OPENSPIEL_PATH}")
+endif()
 
-add_executable(test_game_flow test_game_flow.cpp)
-target_link_libraries(test_game_flow azul_core)
-target_compile_features(test_game_flow PRIVATE cxx_std_17)
+# Define OPENSPIEL integration
+add_definitions(-DWITH_OPENSPIEL)
 
-add_executable(test_scoring test_scoring.cpp)
-target_link_libraries(test_scoring azul_core)
-target_compile_features(test_scoring PRIVATE cxx_std_17)
-
-add_executable(test_edge_cases test_edge_cases.cpp)
-target_link_libraries(test_edge_cases azul_core)
-target_compile_features(test_edge_cases PRIVATE cxx_std_17)
-
-add_executable(test_agents test_agents.cpp)
-target_link_libraries(test_agents azul_core azul_random_agent azul_minimax_agent)
-target_compile_features(test_agents PRIVATE cxx_std_17)
-
-add_executable(test_evaluation test_evaluation.cpp)
-target_link_libraries(test_evaluation azul_core azul_random_agent azul_minimax_agent azul_agent_evaluator azul_evaluation_config)
-target_compile_features(test_evaluation PRIVATE cxx_std_17)
-
-# Agent profiler test executable
-add_executable(test_profiler test_profiler.cpp)
-target_link_libraries(test_profiler azul_core azul_random_agent azul_minimax_agent azul_agent_profiler)
-target_compile_features(test_profiler PRIVATE cxx_std_17)
-
-# Apply warning flags to all test executables
-set(AZUL_TEST_EXECUTABLES
-    test_basic_functionality
-    test_legal_moves
-    test_game_flow
-    test_scoring
-    test_edge_cases
-    test_agents
-    #test_evaluation # Commented out for now, it's too slow
-    test_profiler
+# Simple MCTS demo using OpenSpiel directly (no separate azul_core needed)
+add_executable(azul_mcts_demo
+    test_mcts_integration.cpp
 )
 
-foreach(test_exe ${AZUL_TEST_EXECUTABLES})
-    if(MSVC)
-        target_compile_options(${test_exe} PRIVATE /W4)
-    else()
-        target_compile_options(${test_exe} PRIVATE -Wall -Wextra -Wpedantic)
-    endif()
-    add_test(NAME ${test_exe} COMMAND ${test_exe})
-endforeach()
+target_include_directories(azul_mcts_demo PRIVATE
+    ${OPENSPIEL_ROOT}
+    ${OPENSPIEL_ROOT}/open_spiel
+    ${OPENSPIEL_ROOT}/open_spiel/abseil-cpp
+)
+
+target_link_libraries(azul_mcts_demo
+    ${OPENSPIEL_LIB}
+    ${ABSEIL_LIBRARIES}
+)
+
+message(STATUS "")
+message(STATUS "✅ Direct OpenSpiel Azul integration configured")
+message(STATUS "📁 OpenSpiel path: ${OPENSPIEL_ROOT}")
+message(STATUS "📚 Shared library: ${OPENSPIEL_LIB}")
+message(STATUS "🎯 Build targets:")
+message(STATUS "   • azul_mcts_demo (Direct OpenSpiel MCTS demo)")
+message(STATUS "")
+message(STATUS "🚀 To build and run:")
+message(STATUS "   make azul_mcts_demo && ./azul_mcts_demo")
+message(STATUS "")

@@ -123,8 +123,20 @@ GameResult AgentEvaluator::run_single_game(
 ) {
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // Create game
-    GameState game = create_game(config_.num_players, seed);
+#ifdef WITH_OPENSPIEL
+    // Create OpenSpiel game
+    open_spiel::GameParameters params;
+    params["players"] = open_spiel::GameParameter(config_.num_players);
+    if (seed != -1) {
+        params["seed"] = open_spiel::GameParameter(seed);
+    }
+    auto game_instance = std::make_shared<AzulGame>(params);
+    auto game_state = game_instance->NewInitialState();
+#else
+    // Create game using legacy GameState
+    GameState game_state_obj = create_game(config_.num_players, seed);
+    auto& game_state = game_state_obj; // For compatibility with the rest of the function
+#endif
     
     // Track performance statistics
     size_t test_nodes_before = test_agent.get_nodes_explored();
@@ -138,24 +150,41 @@ GameResult AgentEvaluator::run_single_game(
     bool timeout_occurred = false;
     
     try {
-        while (!game.is_game_over() && total_moves < 200) { // Add move limit to prevent infinite loops
-            int current_player = game.current_player();
+#ifdef WITH_OPENSPIEL
+        while (!game_state->IsTerminal() && total_moves < 200) { // Add move limit to prevent infinite loops
+            int current_player = game_state->CurrentPlayer();
+#else
+        while (!game_state.is_game_over() && total_moves < 200) { // Add move limit to prevent infinite loops
+            int current_player = game_state.current_player();
+#endif
             
             // Validate current player
             if (current_player < 0 || current_player >= config_.num_players) {
                 throw std::runtime_error("Invalid current player: " + std::to_string(current_player));
             }
             
-            Action action(0, TileColor::BLUE, 0); // Default initialization
+#ifdef WITH_OPENSPIEL
+            ActionType action = -1; // Default initialization for OpenSpiel action
+#else
+            Action action(0, TileColor::BLUE, 0); // Default initialization for legacy action
+#endif
             
             auto move_start = std::chrono::high_resolution_clock::now();
             
             try {
                 // Pass the current player ID to the agent
                 if (current_player == test_agent_player) {
-                    action = test_agent.get_action(game, current_player);
+#ifdef WITH_OPENSPIEL
+                    action = test_agent.get_action(*game_state, current_player);
+#else
+                    action = test_agent.get_action(game_state, current_player);
+#endif
                 } else if (current_player == baseline_agent_player) {
-                    action = baseline_agent.get_action(game, current_player);
+#ifdef WITH_OPENSPIEL
+                    action = baseline_agent.get_action(*game_state, current_player);
+#else
+                    action = baseline_agent.get_action(game_state, current_player);
+#endif
                 } else {
                     throw std::runtime_error("Unknown player mapping: current=" + std::to_string(current_player) +
                                            ", test=" + std::to_string(test_agent_player) +
@@ -163,9 +192,15 @@ GameResult AgentEvaluator::run_single_game(
                 }
             } catch (const std::exception& e) {
                 // If agent fails, try to get a legal action as fallback
-                auto legal_actions = game.get_legal_actions(current_player);
+#ifdef WITH_OPENSPIEL
+                auto legal_actions = game_state->LegalActions();
                 if (!legal_actions.empty()) {
                     action = legal_actions[0];
+#else
+                auto legal_actions = game_state.get_legal_actions(current_player);
+                if (!legal_actions.empty()) {
+                    action = legal_actions[0];
+#endif
                     if (config_.verbose) {
                         std::cout << "Agent failed, using fallback action: " << e.what() << std::endl;
                     }
@@ -186,7 +221,11 @@ GameResult AgentEvaluator::run_single_game(
             }
             
             // Validate action before applying
-            auto legal_actions = game.get_legal_actions(current_player);
+#ifdef WITH_OPENSPIEL
+            auto legal_actions = game_state->LegalActions();
+#else
+            auto legal_actions = game_state.get_legal_actions(current_player);
+#endif
             bool action_valid = false;
             for (const auto& legal_action : legal_actions) {
                 if (action == legal_action) {
@@ -199,51 +238,76 @@ GameResult AgentEvaluator::run_single_game(
                 if (!legal_actions.empty()) {
                     action = legal_actions[0]; // Use first legal action as fallback
                     if (config_.verbose) {
-                        std::cout << "Invalid action, using fallback in game " << game_id << std::endl;
+                        std::cout << "Invalid action in game " << game_id << ", using fallback" << std::endl;
                     }
                 } else {
-                    throw std::runtime_error("No legal actions available for player " + std::to_string(current_player));
+                    throw std::runtime_error("No legal actions available in game " + std::to_string(game_id));
                 }
             }
             
-            if (!game.apply_action(action)) {
-                throw std::runtime_error("Failed to apply action: " + action.to_string());
+            // Apply action
+#ifdef WITH_OPENSPIEL
+            game_state->ApplyAction(action);
+#else
+            bool action_applied = game_state.apply_action(action, false);
+            if (!action_applied) {
+                throw std::runtime_error("Failed to apply action in game " + std::to_string(game_id));
             }
+#endif
             
             total_moves++;
             moves_since_round_start++;
             
-            // Improved round counting heuristic
-            if (moves_since_round_start >= 20) {
+            // Detect round changes (basic heuristic - in a real implementation you'd check game state)
+            if (moves_since_round_start >= config_.num_players * 3) { // Rough estimate
                 num_rounds++;
                 moves_since_round_start = 0;
             }
         }
-        
-        if (total_moves >= 200) {
-            error_log = "Game terminated due to move limit (possible infinite loop)";
-        }
-        
     } catch (const std::exception& e) {
         error_log = e.what();
+        if (config_.verbose) {
+            std::cout << "Game " << game_id << " error: " << error_log << std::endl;
+        }
     }
     
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-    double game_duration = duration.count() / 1000.0;
+    auto game_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
     
-    // Get final scores and determine winner
-    auto final_scores = game.get_scores();
-    int winner = game.is_game_over() ? game.get_winner() : -1; // -1 for incomplete games
+    // Determine winner and final scores
+    int winner = -1; // Default to draw
+    std::vector<int> final_scores;
     
-    // Create game result
-    GameResult result(game_id, winner, final_scores, num_rounds, total_moves, game_duration);
+#ifdef WITH_OPENSPIEL
+    if (game_state->IsTerminal()) {
+        auto returns = game_state->Returns();
+        final_scores.resize(returns.size());
+        
+        // Convert returns to scores (assuming returns are in [-1, 1] range)
+        double max_return = *std::max_element(returns.begin(), returns.end());
+        for (size_t i = 0; i < returns.size(); ++i) {
+            final_scores[i] = static_cast<int>(returns[i] * 100); // Scale to reasonable score range
+            if (returns[i] == max_return) {
+                winner = static_cast<int>(i);
+            }
+        }
+    }
+#else
+    if (game_state.is_game_over()) {
+        winner = game_state.get_winner();
+        final_scores = game_state.get_scores();
+    }
+#endif
     
     // Track performance statistics
-    result.test_agent_nodes = test_agent.get_nodes_explored() - test_nodes_before;
-    result.baseline_agent_nodes = baseline_agent.get_nodes_explored() - baseline_nodes_before;
-    result.error_log = error_log;
+    size_t test_nodes_after = test_agent.get_nodes_explored();
+    size_t baseline_nodes_after = baseline_agent.get_nodes_explored();
+    
+    GameResult result(game_id, winner, final_scores, num_rounds, total_moves, game_duration.count() / 1000.0);
     result.timeout_occurred = timeout_occurred;
+    result.error_log = error_log;
+    result.test_agent_nodes = test_nodes_after - test_nodes_before;
+    result.baseline_agent_nodes = baseline_nodes_after - baseline_nodes_before;
     
     return result;
 }
@@ -422,5 +486,16 @@ std::unique_ptr<EvaluationAgent> create_minimax_evaluation_agent(
         depth, enable_alpha_beta, seed, name
     );
 }
+
+#ifdef WITH_OPENSPIEL
+std::unique_ptr<EvaluationAgent> create_mcts_evaluation_agent(
+    int num_simulations, double uct_c,
+    int seed, const std::string& name
+) {
+    return std::make_unique<MCTSAgentWrapper>(
+        num_simulations, uct_c, seed, name
+    );
+}
+#endif // WITH_OPENSPIEL
 
 } // namespace azul 
