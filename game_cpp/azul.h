@@ -17,9 +17,9 @@
 
 #include <array>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
-#include <random>
 
 #include "open_spiel/abseil-cpp/absl/types/optional.h"
 #include "open_spiel/game_parameters.h"
@@ -47,7 +47,7 @@ inline constexpr int kDefaultSeed = 0;
 inline constexpr int kNumTileColors = 5;  // Blue, Yellow, Red, Black, White
 inline constexpr int kNumFactories = 5;   // For 2 players (2*num_players + 1)
 inline constexpr int kTilesPerFactory = 4;
-inline constexpr int kWallSize = 5;       // 5x5 wall
+inline constexpr int kWallSize = 5;  // 5x5 wall
 inline constexpr int kNumPatternLines = 5;
 inline constexpr int kTotalTilesPerColor = 20;
 inline constexpr int kFirstPlayerTileValue = -1;  // Special tile value
@@ -55,12 +55,14 @@ inline constexpr int kFirstPlayerTileValue = -1;  // Special tile value
 // Maximum game length estimate (each player takes ~60-80 turns in worst case)
 inline constexpr int kMaxGameLength = 400;
 
-// Total distinct actions: Factory selection (factory_id * color) + Center selection (colors)
-inline constexpr int kNumDistinctActions = 
-    (kMaxNumPlayers * 2 + 1) * kNumTileColors * kNumPatternLines + // Factory to pattern line
-    kNumTileColors * kNumPatternLines +                           // Center to pattern line  
-    (kMaxNumPlayers * 2 + 1) * kNumTileColors +                  // Factory to floor
-    kNumTileColors;                                              // Center to floor
+// Total distinct actions: Factory selection (factory_id * color) + Center
+// selection (colors)
+inline constexpr int kNumDistinctActions =
+    (kMaxNumPlayers * 2 + 1) * kNumTileColors *
+        kNumPatternLines +                       // Factory to pattern line
+    kNumTileColors * kNumPatternLines +          // Center to pattern line
+    (kMaxNumPlayers * 2 + 1) * kNumTileColors +  // Factory to floor
+    kNumTileColors;                              // Center to floor
 
 // Tile colors
 enum class TileColor {
@@ -73,29 +75,31 @@ enum class TileColor {
 };
 
 // Wall pattern for Azul (each row is shifted by one position)
-inline constexpr std::array<std::array<TileColor, kWallSize>, kWallSize> kWallPattern = {{
-  {{TileColor::kBlue, TileColor::kYellow, TileColor::kRed, TileColor::kBlack, TileColor::kWhite}},
-  {{TileColor::kWhite, TileColor::kBlue, TileColor::kYellow, TileColor::kRed, TileColor::kBlack}},
-  {{TileColor::kBlack, TileColor::kWhite, TileColor::kBlue, TileColor::kYellow, TileColor::kRed}},
-  {{TileColor::kRed, TileColor::kBlack, TileColor::kWhite, TileColor::kBlue, TileColor::kYellow}},
-  {{TileColor::kYellow, TileColor::kRed, TileColor::kBlack, TileColor::kWhite, TileColor::kBlue}}
-}};
+inline constexpr std::array<std::array<TileColor, kWallSize>, kWallSize>
+    kWallPattern = {{{{TileColor::kBlue, TileColor::kYellow, TileColor::kRed,
+                       TileColor::kBlack, TileColor::kWhite}},
+                     {{TileColor::kWhite, TileColor::kBlue, TileColor::kYellow,
+                       TileColor::kRed, TileColor::kBlack}},
+                     {{TileColor::kBlack, TileColor::kWhite, TileColor::kBlue,
+                       TileColor::kYellow, TileColor::kRed}},
+                     {{TileColor::kRed, TileColor::kBlack, TileColor::kWhite,
+                       TileColor::kBlue, TileColor::kYellow}},
+                     {{TileColor::kYellow, TileColor::kRed, TileColor::kBlack,
+                       TileColor::kWhite, TileColor::kBlue}}}};
 
 // Represents a factory display
 struct Factory {
   std::array<int, kNumTileColors> tiles;
-  
-  Factory() {
-    tiles.fill(0);
-  }
-  
+
+  Factory() { tiles.fill(0); }
+
   bool IsEmpty() const {
     for (int count : tiles) {
       if (count > 0) return false;
     }
     return true;
   }
-  
+
   int TotalTiles() const {
     int total = 0;
     for (int count : tiles) {
@@ -111,16 +115,18 @@ struct PlayerBoard {
   struct PatternLine {
     TileColor color;
     int count;
-    
-    PatternLine() : color(TileColor::kBlue), count(0) {}  // color is irrelevant when count is 0
-    
+
+    PatternLine()
+        : color(TileColor::kBlue),
+          count(0) {}  // color is irrelevant when count is 0
+
     bool IsEmpty() const { return count == 0; }
     bool IsFull(int line_index) const { return count == line_index + 1; }
     bool CanAccept(TileColor tile_color, int line_index) const {
       return IsEmpty() || (color == tile_color && !IsFull(line_index));
     }
   };
-  
+
   std::array<PatternLine, kNumPatternLines> pattern_lines;
   // Wall (5x5 grid)
   std::array<std::array<bool, kWallSize>, kWallSize> wall;
@@ -128,7 +134,7 @@ struct PlayerBoard {
   std::vector<TileColor> floor_line;
   // Score
   int score;
-  
+
   PlayerBoard() : score(0) {
     for (int i = 0; i < kWallSize; ++i) {
       wall[i].fill(false);
@@ -143,7 +149,7 @@ class AzulState : public State {
   AzulState(std::shared_ptr<const Game> game, int num_players);
 
   AzulState(const AzulState&) = default;
-  AzulState& operator=(const AzulState&) = default;
+  AzulState& operator=(const AzulState&) = delete;
 
   Player CurrentPlayer() const override;
   std::vector<Action> LegalActions() const override;
@@ -162,10 +168,14 @@ class AzulState : public State {
   // Game-specific methods
   const std::vector<Factory>& Factories() const { return factories_; }
   const Factory& CenterPile() const { return center_pile_; }
-  const std::vector<PlayerBoard>& PlayerBoards() const { return player_boards_; }
-  const PlayerBoard& GetPlayerBoard(Player player) const { return player_boards_[player]; }
+  const std::vector<PlayerBoard>& PlayerBoards() const {
+    return player_boards_;
+  }
+  const PlayerBoard& GetPlayerBoard(Player player) const {
+    return player_boards_[player];
+  }
   bool HasFirstPlayerTile() const { return first_player_tile_available_; }
-  
+
   // Public for testing
   std::vector<Factory> factories_;
   Factory center_pile_;
@@ -182,7 +192,7 @@ class AzulState : public State {
   void FillFactories();
   bool IsWallComplete(Player player) const;
   int GetNumFactories() const { return 2 * num_players_ + 1; }
-  
+
   // Decode action
   struct DecodedAction {
     bool from_center;
@@ -190,10 +200,11 @@ class AzulState : public State {
     TileColor color;
     int destination;  // Pattern line (0-4) or -1 for floor
   };
-  
+
   DecodedAction DecodeAction(Action action) const;
-  Action EncodeAction(bool from_center, int factory_id, TileColor color, int destination) const;
-  
+  Action EncodeAction(bool from_center, int factory_id, TileColor color,
+                      int destination) const;
+
   // Game state
   int num_players_;
   Player current_player_;
@@ -210,19 +221,23 @@ class AzulState : public State {
 class AzulGame : public Game {
  public:
   explicit AzulGame(const GameParameters& params);
-  
+
   int NumDistinctActions() const override { return kNumDistinctActions; }
   std::unique_ptr<State> NewInitialState() const override {
     return std::make_unique<AzulState>(shared_from_this(), num_players_);
   }
   int NumPlayers() const override { return num_players_; }
   double MinUtility() const override { return -1; }  // Losing player utility
-  absl::optional<double> UtilitySum() const override { return 0.0; }  // Zero-sum
-  double MaxUtility() const override { return 1; }   // Winning player utility
+  absl::optional<double> UtilitySum() const override {
+    return 0.0;
+  }  // Zero-sum
+  double MaxUtility() const override { return 1; }  // Winning player utility
   std::vector<int> ObservationTensorShape() const override;
   int MaxGameLength() const override { return kMaxGameLength; }
-  int MaxChanceOutcomes() const override { return kTotalTilesPerColor * kNumTileColors; }  // Max tiles that can be shuffled
-  
+  int MaxChanceOutcomes() const override {
+    return kTotalTilesPerColor * kNumTileColors;
+  }  // Max tiles that can be shuffled
+
   // RNG support for deterministic shuffling
   std::mt19937& GetRNG() const { return rng_; }
   int GetOriginalSeed() const { return original_seed_; }
@@ -246,4 +261,4 @@ inline std::ostream& operator<<(std::ostream& os, TileColor color) {
 }  // namespace azul
 }  // namespace open_spiel
 
-#endif  // OPEN_SPIEL_GAMES_AZUL_H_ 
+#endif  // OPEN_SPIEL_GAMES_AZUL_H_

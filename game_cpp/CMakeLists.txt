@@ -40,7 +40,16 @@ set(OPENSPIEL_INCLUDE_DIRS
     ${OPENSPIEL_ROOT}/open_spiel/abseil-cpp
 )
 
+# Suppress warnings for OpenSpiel includes by treating them as system includes
+include_directories(SYSTEM ${OPENSPIEL_INCLUDE_DIRS})
 
+# Add compiler flags to suppress OpenSpiel warnings
+if(NOT MSVC)
+    # Add flags to suppress common OpenSpiel warnings
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-reorder")
+    # Optionally suppress all warnings for third-party code
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-unused-but-set-variable")
+endif()
 
 # Create local Azul game library
 add_library(azul_local STATIC
@@ -48,7 +57,7 @@ add_library(azul_local STATIC
     azul.h
 )
 
-target_include_directories(azul_local PRIVATE ${OPENSPIEL_INCLUDE_DIRS})
+# OpenSpiel includes are now handled as system includes globally
 
 # Agent evaluation library
 add_library(azul_evaluation STATIC
@@ -61,7 +70,6 @@ add_library(azul_evaluation STATIC
 )
 
 target_include_directories(azul_evaluation PRIVATE 
-    ${OPENSPIEL_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -71,7 +79,6 @@ add_executable(azul_evaluation_demo
 )
 
 target_include_directories(azul_evaluation_demo PRIVATE 
-    ${OPENSPIEL_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

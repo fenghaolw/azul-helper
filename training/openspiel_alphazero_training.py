@@ -16,14 +16,14 @@ from absl import app, flags
 # Add parent directory to path so we can import from game
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# OpenSpiel imports
+from open_spiel.python.algorithms.alpha_zero import alpha_zero
+
 # Register our custom Azul game with OpenSpiel
 from game import register_azul
 
 # Our game implementation
 from game.azul_openspiel import AzulGame
-
-# OpenSpiel imports
-from open_spiel.python.algorithms.alpha_zero import alpha_zero
 
 FLAGS = flags.FLAGS
 

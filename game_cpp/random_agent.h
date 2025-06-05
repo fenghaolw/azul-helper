@@ -1,10 +1,10 @@
 #pragma once
 
-#include "open_spiel/spiel.h"
-
 #include <memory>
 #include <random>
 #include <vector>
+
+#include "open_spiel/spiel.h"
 
 namespace azul {
 
@@ -17,33 +17,35 @@ using GameStateType = open_spiel::State;
  * Now supports OpenSpiel game states.
  */
 class RandomAgent {
-public:
-    explicit RandomAgent(int player_id, int seed = -1);
-    
-    // Get a random legal action for the current state
-    [[nodiscard]] auto get_action(const GameStateType& state) -> ActionType;
-    
-    // Get uniform action probabilities over legal actions
-    [[nodiscard]] auto get_action_probabilities(const GameStateType& state) -> std::vector<double>;
-    
-    // Reset the agent (reseed random number generator)
-    void reset();
-    
-    // Configuration
-    void set_seed(int seed);
-    
-    [[nodiscard]] auto player_id() const -> int { return player_id_; }
-    [[nodiscard]] auto seed() const -> int { return seed_; }
+ public:
+  explicit RandomAgent(int player_id, int seed = -1);
 
-private:
-    int player_id_;
-    int seed_;
-    std::mt19937 rng_;
-    
-    void initialize_rng();
+  // Get a random legal action for the current state
+  [[nodiscard]] auto get_action(const GameStateType& state) -> ActionType;
+
+  // Get uniform action probabilities over legal actions
+  [[nodiscard]] auto get_action_probabilities(const GameStateType& state)
+      -> std::vector<double>;
+
+  // Reset the agent (reseed random number generator)
+  void reset();
+
+  // Configuration
+  void set_seed(int seed);
+
+  [[nodiscard]] auto player_id() const -> int { return player_id_; }
+  [[nodiscard]] auto seed() const -> int { return seed_; }
+
+ private:
+  int player_id_;
+  int seed_;
+  std::mt19937 rng_;
+
+  void initialize_rng();
 };
 
 // Factory function for creating random agents
-[[nodiscard]] auto create_random_agent(int player_id, int seed = -1) -> std::unique_ptr<RandomAgent>;
+[[nodiscard]] auto create_random_agent(int player_id, int seed = -1)
+    -> std::unique_ptr<RandomAgent>;
 
-} // namespace azul 
+}  // namespace azul

@@ -17,12 +17,13 @@ import time
 # Add parent directory to path so we can import from game
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.openspiel_agents import OpenSpielMCTSAgent
-from game.azul_openspiel import AzulGame, AzulState
-from game.game_state import GameState
 from open_spiel.python.algorithms import mcts
 from open_spiel.python.algorithms.alpha_zero import evaluator as az_evaluator
 from open_spiel.python.algorithms.alpha_zero import model as az_model
+
+from agents.openspiel_agents import OpenSpielMCTSAgent
+from game.azul_openspiel import AzulGame, AzulState
+from game.game_state import GameState
 
 # Global variables to store the shared evaluator (PERFORMANCE FIX!)
 _shared_nn_evaluator = None
