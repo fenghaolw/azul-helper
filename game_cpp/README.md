@@ -58,6 +58,72 @@ This project uses a **local forked Azul game** approach rather than depending on
    ./azul_profiling_demo     # Profile agent performance (use --help for options)
    ```
 
+### LibTorch AlphaZero Setup (Optional)
+
+To use LibTorch AlphaZero training instead of Python-based training, complete these additional steps **before building**:
+
+#### Prerequisites for LibTorch Support
+
+1. **Install required system dependencies**:
+   ```bash
+   # Install wget (required for OpenSpiel's install script)
+   brew install wget
+   
+   # Install OpenMP (required for LibTorch runtime)
+   brew install libomp
+   ```
+
+2. **Configure OpenSpiel for LibTorch**:
+   ```bash
+   cd /path/to/open_spiel
+   
+   # Edit global_variables.sh to enable LibTorch support
+   # Set these variables:
+   export OPEN_SPIEL_BUILD_WITH_LIBNOP="ON"
+   export OPEN_SPIEL_BUILD_WITH_LIBTORCH="ON"
+   export OPEN_SPIEL_BUILD_WITH_LIBTORCH_DOWNLOAD_URL="https://download.pytorch.org/libtorch/cpu/libtorch-macos-arm64-2.3.0.zip"
+   ```
+
+3. **Download LibTorch and dependencies**:
+   ```bash
+   # Run OpenSpiel install script to download LibTorch and libnop
+   ./install.sh
+   ```
+
+4. **Fix OpenMP runtime linking** (macOS specific):
+   ```bash
+   # Create symbolic link for OpenMP library
+   ln -sf /opt/homebrew/opt/libomp/lib/libomp.dylib ./open_spiel/libtorch/libtorch/lib/libomp.dylib
+   ```
+
+5. **Build OpenSpiel with LibTorch support**:
+   ```bash
+   rm -rf build && mkdir build && cd build
+   BUILD_SHARED_LIB=ON CXX=clang++ cmake -DPython3_EXECUTABLE=$(which python3) -DCMAKE_CXX_COMPILER=${CXX} ../open_spiel
+   make -j$(nproc) open_spiel
+   ```
+
+#### Using LibTorch AlphaZero
+
+Once setup is complete, you can use LibTorch AlphaZero training:
+
+```bash
+# Build with LibTorch support (from game_cpp directory)
+mkdir -p build && cd build
+cmake ..
+make
+
+# Run LibTorch AlphaZero training
+./train_neural_mcts.sh --libtorch --device=cpu    # CPU training
+./train_neural_mcts.sh --libtorch --device=mps    # Apple Silicon GPU training
+```
+
+**Benefits of LibTorch Integration**:
+- 🚀 **Pure C++ Performance**: No Python overhead
+- 🧠 **Direct Tensor Operations**: Same operations as PyTorch but in C++
+- 💾 **Better Memory Efficiency**: Optimized for large-scale training
+- 📦 **Production Ready**: Deploy without Python dependencies
+
 ## 🎮 Available Demos & Tools
 
 ### Agent Evaluation Demo (`azul_evaluation_demo`)
