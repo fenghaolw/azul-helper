@@ -6,9 +6,7 @@
 #include <iostream>
 #include <chrono>
 
-#ifdef WITH_OPENSPIEL
 #include "open_spiel/algorithms/minimax.h"
-#endif
 
 namespace azul {
 
@@ -20,7 +18,6 @@ MinimaxAgent::MinimaxAgent(int player_id, int depth, bool enable_alpha_beta, int
 }
 
 ActionType MinimaxAgent::get_action(const GameStateType& state) {
-#ifdef WITH_OPENSPIEL
     if (state.IsTerminal()) {
         throw std::runtime_error("Cannot get action from terminal state");
     }
@@ -95,24 +92,9 @@ ActionType MinimaxAgent::get_action(const GameStateType& state) {
             
             return best_action;
         }
-#else
-    // Fallback implementation for non-OpenSpiel builds
-    if (state.is_game_over()) {
-        throw std::runtime_error("Cannot get action from terminal state");
-    }
-    
-    auto legal_actions = state.get_legal_actions();
-    if (legal_actions.empty()) {
-        throw std::runtime_error("No legal actions available");
-    }
-    
-    // Simple fallback: return first legal action
-    return legal_actions[0];
-#endif
 }
 
 std::vector<double> MinimaxAgent::get_action_probabilities(const GameStateType& state) {
-#ifdef WITH_OPENSPIEL
     if (state.IsTerminal()) {
         return {};
     }
@@ -137,21 +119,6 @@ std::vector<double> MinimaxAgent::get_action_probabilities(const GameStateType& 
     }
     
     return probabilities;
-#else
-    if (state.is_game_over()) {
-        return {};
-    }
-    
-    auto legal_actions = state.get_legal_actions(player_id_);
-    
-    if (legal_actions.empty()) {
-        return {};
-    }
-    
-    // Simple fallback: uniform probabilities
-    double uniform_prob = 1.0 / static_cast<double>(legal_actions.size());
-    return std::vector<double>(legal_actions.size(), uniform_prob);
-#endif
 }
 
 void MinimaxAgent::reset() {
@@ -166,19 +133,13 @@ void MinimaxAgent::reset_stats() {
 // Minimax search is now handled by OpenSpiel, so this method is simplified
 double MinimaxAgent::minimax(const GameStateType& state, int depth, bool maximizing_player,
                             double alpha, double beta) const {
-#ifdef WITH_OPENSPIEL
     // This method is now primarily for compatibility
     // The actual minimax is handled by OpenSpiel's algorithms
-    return evaluate_state(state);
-#else
-    // Fallback for non-OpenSpiel builds would go here
     (void)depth; (void)maximizing_player; (void)alpha; (void)beta;
     return evaluate_state(state);
-#endif
 }
 
 double MinimaxAgent::evaluate_state(const GameStateType& state) const {
-#ifdef WITH_OPENSPIEL
     if (state.IsTerminal()) {
         // Terminal state evaluation - use OpenSpiel's Returns for zero-sum games
         auto returns = state.Returns();
@@ -217,18 +178,10 @@ double MinimaxAgent::evaluate_state(const GameStateType& state) const {
         // If state parsing fails, return neutral evaluation
         return 0.0;
     }
-#else
-    // Fallback for non-OpenSpiel builds would implement custom evaluation
-    return 0.0;
-#endif
 }
 
 bool MinimaxAgent::is_maximizing_player(const GameStateType& state) const {
-#ifdef WITH_OPENSPIEL
     return state.CurrentPlayer() == player_id_;
-#else
-    return state.current_player() == player_id_;
-#endif
 }
 
 // Simplified helper methods since OpenSpiel handles the search

@@ -4,9 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 
-#ifdef WITH_OPENSPIEL
 #include "open_spiel/spiel.h"
-#endif
 
 namespace azul {
 
@@ -26,7 +24,6 @@ void RandomAgent::initialize_rng() {
 }
 
 ActionType RandomAgent::get_action(const GameStateType& state) {
-#ifdef WITH_OPENSPIEL
     if (state.IsTerminal()) {
         throw std::runtime_error("Cannot get action from terminal state");
     }
@@ -43,28 +40,9 @@ ActionType RandomAgent::get_action(const GameStateType& state) {
     size_t action_index = dist(rng_);
     
     return legal_actions[action_index];
-#else
-    if (state.is_game_over()) {
-        throw std::runtime_error("Cannot get action from terminal state");
-    }
-    
-    // Get legal actions for the current player
-    auto legal_actions = state.get_legal_actions(player_id_);
-    
-    if (legal_actions.empty()) {
-        throw std::runtime_error("No legal actions available");
-    }
-    
-    // Select random action
-    std::uniform_int_distribution<size_t> dist(0, legal_actions.size() - 1);
-    size_t action_index = dist(rng_);
-    
-    return legal_actions[action_index];
-#endif
 }
 
 std::vector<double> RandomAgent::get_action_probabilities(const GameStateType& state) {
-#ifdef WITH_OPENSPIEL
     if (state.IsTerminal()) {
         return {};
     }
@@ -79,22 +57,6 @@ std::vector<double> RandomAgent::get_action_probabilities(const GameStateType& s
     // Return uniform probabilities
     double uniform_prob = 1.0 / static_cast<double>(legal_actions.size());
     return std::vector<double>(legal_actions.size(), uniform_prob);
-#else
-    if (state.is_game_over()) {
-        return {};
-    }
-    
-    // Get legal actions for the current player
-    auto legal_actions = state.get_legal_actions(player_id_);
-    
-    if (legal_actions.empty()) {
-        return {};
-    }
-    
-    // Return uniform probabilities
-    double uniform_prob = 1.0 / static_cast<double>(legal_actions.size());
-    return std::vector<double>(legal_actions.size(), uniform_prob);
-#endif
 }
 
 void RandomAgent::reset() {
@@ -112,7 +74,6 @@ std::unique_ptr<RandomAgent> create_random_agent(int player_id, int seed) {
 
 } // namespace azul
 
-#ifdef WITH_OPENSPIEL
 // Include our local Azul game for registration
 #include "azul.h"
 
@@ -248,10 +209,4 @@ int main() {
     }
     
     return 0;
-}
-#else
-int main() {
-    std::cout << "❌ OpenSpiel support not available" << std::endl;
-    return 1;
-}
-#endif 
+} 

@@ -1,11 +1,6 @@
 #pragma once
 
-#ifdef WITH_OPENSPIEL
 #include "open_spiel/spiel.h"
-#else
-#include "action.h"
-#include "game_state.h"
-#endif
 
 #include <memory>
 #include <random>
@@ -13,13 +8,8 @@
 
 namespace azul {
 
-#ifdef WITH_OPENSPIEL
 using ActionType = open_spiel::Action;
 using GameStateType = open_spiel::State;
-#else
-using ActionType = Action;
-using GameStateType = GameState;
-#endif
 
 /**
  * Random agent that selects actions uniformly at random from legal actions.

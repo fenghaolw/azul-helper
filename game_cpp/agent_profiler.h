@@ -9,6 +9,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include "open_spiel/spiel.h"
 
 namespace azul {
 
@@ -16,9 +17,7 @@ namespace azul {
 class GameState;
 class Action;
 class MinimaxAgent;
-#ifdef WITH_OPENSPIEL
 class AzulMCTSAgent;
-#endif
 
 /**
  * High-resolution timer for precise performance measurements
@@ -181,7 +180,6 @@ private:
     std::unique_ptr<MinimaxAgent> agent_;
 };
 
-#ifdef WITH_OPENSPIEL
 /**
  * Profiling wrapper for MCTS agent
  */
@@ -200,7 +198,6 @@ public:
 private:
     std::unique_ptr<AzulMCTSAgent> agent_;
 };
-#endif
 
 // Convenience macros for profiling
 #define PROFILE_FUNCTION() ScopedProfiler _prof(__FUNCTION__)
@@ -211,9 +208,7 @@ private:
                                                 bool enable_alpha_beta = true,
                                                 int seed = -1) -> std::unique_ptr<ProfiledMinimaxAgent>;
 
-#ifdef WITH_OPENSPIEL
 [[nodiscard]] auto create_profiled_mcts_agent(int player_id, int num_simulations = 1000, 
                                              double uct_c = 1.4, int seed = -1) -> std::unique_ptr<ProfiledMCTSAgent>;
-#endif
 
 } // namespace azul 

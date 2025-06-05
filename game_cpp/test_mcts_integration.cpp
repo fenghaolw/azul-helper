@@ -1,7 +1,5 @@
 #include <iostream>
 #include <memory>
-
-#ifdef WITH_OPENSPIEL
 #include "open_spiel/spiel.h"
 #include "open_spiel/algorithms/mcts.h"
 // Include our local Azul game (which auto-registers itself)
@@ -14,14 +12,12 @@ void force_azul_registration() {
     (void)open_spiel::azul::TileColorToString(open_spiel::azul::TileColor::kBlue);
 }
 }
-#endif
 
 int main() {
     std::cout << "=== Local Azul MCTS Demo ===" << std::endl;
     std::cout << "Using local forked Azul game with OpenSpiel MCTS" << std::endl;
     std::cout << std::endl;
     
-#ifdef WITH_OPENSPIEL
     try {
         // Force registration by calling the function (this ensures linking)
         force_azul_registration();
@@ -85,11 +81,6 @@ int main() {
         std::cerr << "❌ Error: " << e.what() << std::endl;
         return 1;
     }
-#else
-    std::cout << "❌ OpenSpiel not available - cannot run demo" << std::endl;
-    std::cout << "   Please ensure WITH_OPENSPIEL is defined" << std::endl;
-    return 1;
-#endif
     
     return 0;
 } 

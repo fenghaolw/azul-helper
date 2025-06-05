@@ -6,10 +6,8 @@
 #include <iomanip>
 #include <sstream>
 
-#ifdef WITH_OPENSPIEL
 #include "mcts_agent.h"
 #include "open_spiel/spiel.h"
-#endif
 
 namespace azul {
 
@@ -196,7 +194,6 @@ void ProfiledMinimaxAgent::reset() {
     agent_->reset();
 }
 
-#ifdef WITH_OPENSPIEL
 // ProfiledMCTSAgent implementation
 ProfiledMCTSAgent::ProfiledMCTSAgent(std::unique_ptr<AzulMCTSAgent> agent)
     : agent_(std::move(agent)) {}
@@ -228,7 +225,6 @@ void ProfiledMCTSAgent::reset() {
     PROFILE_FUNCTION();
     agent_->reset();
 }
-#endif
 
 // Factory functions
 std::unique_ptr<ProfiledMinimaxAgent> create_profiled_minimax_agent(int player_id, int depth, 
@@ -238,12 +234,10 @@ std::unique_ptr<ProfiledMinimaxAgent> create_profiled_minimax_agent(int player_i
     return std::make_unique<ProfiledMinimaxAgent>(std::move(agent));
 }
 
-#ifdef WITH_OPENSPIEL
 std::unique_ptr<ProfiledMCTSAgent> create_profiled_mcts_agent(int player_id, int num_simulations, 
                                                              double uct_c, int seed) {
     auto agent = create_mcts_agent(player_id, num_simulations, uct_c, seed);
     return std::make_unique<ProfiledMCTSAgent>(std::move(agent));
 }
-#endif
 
 } // namespace azul 

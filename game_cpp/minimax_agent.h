@@ -1,12 +1,6 @@
 #pragma once
 
-#ifdef WITH_OPENSPIEL
 #include "open_spiel/spiel.h"
-#else
-#include "action.h"
-#include "game_state.h"
-#include "player_board.h"
-#endif
 
 #include <memory>
 #include <vector>
@@ -16,13 +10,8 @@
 
 namespace azul {
 
-#ifdef WITH_OPENSPIEL
 using ActionType = open_spiel::Action;
 using GameStateType = open_spiel::State;
-#else
-using ActionType = Action;
-using GameStateType = GameState;
-#endif
 
 /**
  * Minimax agent with alpha-beta pruning for Azul.
@@ -85,10 +74,7 @@ private:
     // Evaluation function for non-terminal states
     [[nodiscard]] auto evaluate_state(const GameStateType& state) const -> double;
     
-#ifndef WITH_OPENSPIEL
-    // Evaluation helper method (only needed for custom game state)
-    [[nodiscard]] auto calculate_round_end_score(const PlayerBoard& player_board) const -> double;
-#endif
+
     
     // Helper methods
     [[nodiscard]] auto is_maximizing_player(const GameStateType& state) const -> bool;

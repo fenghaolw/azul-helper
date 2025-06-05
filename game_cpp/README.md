@@ -138,7 +138,7 @@ std::cout << "Explored " << agent.nodes_explored() << " nodes" << std::endl;
 ### Adding New Agents
 
 1. **Create Agent Files**: Follow the pattern of `random_agent.h/cpp`
-2. **OpenSpiel Integration**: Use conditional compilation with `#ifdef WITH_OPENSPIEL`
+2. **OpenSpiel Integration**: Always uses OpenSpiel for game state management
 3. **Type Aliases**: Use `ActionType` and `GameStateType` for compatibility
 4. **Update CMakeLists.txt**: Add new source files to build targets
 
