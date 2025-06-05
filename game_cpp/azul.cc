@@ -18,13 +18,13 @@
 #include <ctime>
 #include <memory>
 #include <random>
+#include <utility>
 #include <vector>
 
 #include "open_spiel/abseil-cpp/absl/strings/str_cat.h"
 #include "open_spiel/spiel_utils.h"
 
-namespace open_spiel {
-namespace azul {
+namespace open_spiel::azul {
 namespace {
 
 // Facts about the game.
@@ -45,7 +45,8 @@ const GameType kGameType{/*short_name=*/"azul",
                          {{"num_players", GameParameter(kDefaultNumPlayers)},
                           {"rng_seed", GameParameter(kDefaultSeed)}}};
 
-std::shared_ptr<const Game> GameFactory(const GameParameters& params) {
+[[nodiscard]] auto GameFactory(const GameParameters& params)
+    -> std::shared_ptr<const Game> {
   return std::shared_ptr<const Game>(new AzulGame(params));
 }
 
@@ -58,7 +59,7 @@ const std::vector<int> kFloorPenalties = {-1, -1, -2, -2, -2, -3, -3};
 
 }  // namespace
 
-std::string TileColorToString(TileColor color) {
+[[nodiscard]] auto TileColorToString(TileColor color) -> std::string {
   switch (color) {
     case TileColor::kBlue:
       return "B";
@@ -77,25 +78,36 @@ std::string TileColorToString(TileColor color) {
   }
 }
 
-TileColor StringToTileColor(const std::string& str) {
-  if (str == "B" || str == "Blue") return TileColor::kBlue;
-  if (str == "Y" || str == "Yellow") return TileColor::kYellow;
-  if (str == "R" || str == "Red") return TileColor::kRed;
-  if (str == "K" || str == "Black") return TileColor::kBlack;
-  if (str == "W" || str == "White") return TileColor::kWhite;
-  if (str == "F" || str == "FirstPlayer") return TileColor::kFirstPlayer;
+[[nodiscard]] auto StringToTileColor(const std::string& str) -> TileColor {
+  if (str == "B" || str == "Blue") {
+    return TileColor::kBlue;
+  }
+  if (str == "Y" || str == "Yellow") {
+    return TileColor::kYellow;
+  }
+  if (str == "R" || str == "Red") {
+    return TileColor::kRed;
+  }
+  if (str == "K" || str == "Black") {
+    return TileColor::kBlack;
+  }
+  if (str == "W" || str == "White") {
+    return TileColor::kWhite;
+  }
+  if (str == "F" || str == "FirstPlayer") {
+    return TileColor::kFirstPlayer;
+  }
   return TileColor::kBlue;  // Default to a valid color instead of kEmpty
 }
 
 AzulState::AzulState(std::shared_ptr<const Game> game)
-    : State(game),
+    : State(std::move(game)),
       num_players_(kDefaultNumPlayers),
       current_player_(0),
       factories_(GetNumFactories()),
       player_boards_(num_players_),
       first_player_tile_available_(true),
       first_player_next_round_(0),
-      game_ended_(false),
       round_number_(1),
       needs_bag_shuffle_(false) {
   // Initialize bag with tiles in a deterministic but balanced order
@@ -113,14 +125,13 @@ AzulState::AzulState(std::shared_ptr<const Game> game)
 }
 
 AzulState::AzulState(std::shared_ptr<const Game> game, int num_players)
-    : State(game),
+    : State(std::move(game)),
       num_players_(num_players),
       current_player_(0),
       factories_(GetNumFactories()),
       player_boards_(num_players),
       first_player_tile_available_(true),
       first_player_next_round_(0),
-      game_ended_(false),
       round_number_(1),
       needs_bag_shuffle_(false) {
   // Initialize bag with tiles in a deterministic but balanced order
@@ -139,9 +150,13 @@ AzulState::AzulState(std::shared_ptr<const Game> game, int num_players)
   SetupNewRound();
 }
 
-Player AzulState::CurrentPlayer() const {
-  if (IsTerminal()) return kTerminalPlayerId;
-  if (needs_bag_shuffle_) return kChancePlayerId;
+auto AzulState::CurrentPlayer() const -> Player {
+  if (IsTerminal()) {
+    return kTerminalPlayerId;
+  }
+  if (needs_bag_shuffle_) {
+    return kChancePlayerId;
+  }
   return current_player_;
 }
 
@@ -189,8 +204,10 @@ void AzulState::FillFactories() {
   }
 }
 
-std::vector<Action> AzulState::LegalActions() const {
-  if (IsTerminal()) return {};
+auto AzulState::LegalActions() const -> std::vector<Action> {
+  if (IsTerminal()) {
+    return {};
+  }
 
   // Handle chance node for bag shuffling
   if (needs_bag_shuffle_) {
@@ -203,12 +220,16 @@ std::vector<Action> AzulState::LegalActions() const {
   for (int factory_id = 0; factory_id < static_cast<int>(factories_.size());
        ++factory_id) {
     const azul::Factory& factory = factories_[factory_id];
-    if (factory.IsEmpty()) continue;
+    if (factory.IsEmpty()) {
+      continue;
+    }
 
     for (int color = 0; color < kNumTileColors; ++color) {
-      if (factory.tiles[color] == 0) continue;
+      if (factory.tiles[color] == 0) {
+        continue;
+      }
 
-      TileColor tile_color = static_cast<TileColor>(color);
+      auto tile_color = static_cast<TileColor>(color);
 
       // Can go to pattern lines
       for (int line = 0; line < kNumPatternLines; ++line) {
@@ -242,9 +263,11 @@ std::vector<Action> AzulState::LegalActions() const {
   // Actions from center pile
   if (!center_pile_.IsEmpty()) {
     for (int color = 0; color < kNumTileColors; ++color) {
-      if (center_pile_.tiles[color] == 0) continue;
+      if (center_pile_.tiles[color] == 0) {
+        continue;
+      }
 
-      TileColor tile_color = static_cast<TileColor>(color);
+      auto tile_color = static_cast<TileColor>(color);
 
       // Can go to pattern lines
       for (int line = 0; line < kNumPatternLines; ++line) {
@@ -487,7 +510,7 @@ void AzulState::EndRoundScoring() {
   }
 }
 
-bool AzulState::IsWallComplete(Player player) const {
+[[nodiscard]] auto AzulState::IsWallComplete(Player player) const -> bool {
   const auto& wall = player_boards_[player].wall;
   for (int row = 0; row < kWallSize; ++row) {
     bool row_complete = true;
@@ -497,12 +520,14 @@ bool AzulState::IsWallComplete(Player player) const {
         break;
       }
     }
-    if (row_complete) return true;
+    if (row_complete) {
+      return true;
+    }
   }
   return false;
 }
 
-int AzulState::CalculateScore(Player player) const {
+[[nodiscard]] auto AzulState::CalculateScore(Player player) const -> int {
   const PlayerBoard& board = player_boards_[player];
   int final_score = board.score;
 
@@ -515,7 +540,9 @@ int AzulState::CalculateScore(Player player) const {
         break;
       }
     }
-    if (complete) final_score += 2;
+    if (complete) {
+      final_score += 2;
+    }
   }
 
   // Bonus points for complete columns
@@ -527,7 +554,9 @@ int AzulState::CalculateScore(Player player) const {
         break;
       }
     }
-    if (complete) final_score += 7;
+    if (complete) {
+      final_score += 7;
+    }
   }
 
   // Bonus points for complete colors
@@ -547,23 +576,28 @@ int AzulState::CalculateScore(Player player) const {
         break;
       }
     }
-    if (complete) final_score += 10;
+    if (complete) {
+      final_score += 10;
+    }
   }
 
   return final_score;
 }
 
-AzulState::DecodedAction AzulState::DecodeAction(Action action) const {
+[[nodiscard]] auto AzulState::DecodeAction(Action action) const
+    -> DecodedAction {
   DecodedAction decoded;
 
   // Linear encoding scheme to match kNumDistinctActions calculation
   // Actions are ordered as:
-  // 1. Factory to pattern line: factory_id * kNumTileColors * kNumPatternLines
+  // 1. Factory to pattern line: factory_id * kNumTileColors *
+  // kNumPatternLines
   // + color * kNumPatternLines + line
   // 2. Center to pattern line: (max_factories * kNumTileColors *
   // kNumPatternLines) + color * kNumPatternLines + line
-  // 3. Factory to floor: (max_factories * kNumTileColors * kNumPatternLines) +
-  // (kNumTileColors * kNumPatternLines) + factory_id * kNumTileColors + color
+  // 3. Factory to floor: (max_factories * kNumTileColors * kNumPatternLines)
+  // + (kNumTileColors * kNumPatternLines) + factory_id * kNumTileColors +
+  // color
   // 4. Center to floor: (max_factories * kNumTileColors * kNumPatternLines) +
   // (kNumTileColors * kNumPatternLines) + (max_factories * kNumTileColors) +
   // color
@@ -619,24 +653,26 @@ Action AzulState::EncodeAction(bool from_center, int factory_id,
 
   if (!from_center && destination >= 0) {
     // Factory to pattern line
-    return factory_id * kNumTileColors * kNumPatternLines +
-           static_cast<int>(color) * kNumPatternLines + destination;
-  } else if (from_center && destination >= 0) {
+    return (factory_id * kNumTileColors * kNumPatternLines) +
+           (static_cast<int>(color) * kNumPatternLines) + destination;
+  }
+  if (from_center && destination >= 0) {
     // Center to pattern line
     return factory_pattern_actions +
-           static_cast<int>(color) * kNumPatternLines + destination;
-  } else if (!from_center && destination == -1) {
+           (static_cast<int>(color) * kNumPatternLines) + destination;
+  }
+  if (!from_center && destination == -1) {
     // Factory to floor
     return factory_pattern_actions + center_pattern_actions +
-           factory_id * kNumTileColors + static_cast<int>(color);
-  } else {
-    // Center to floor
-    return factory_pattern_actions + center_pattern_actions +
-           factory_floor_actions + static_cast<int>(color);
+           (factory_id * kNumTileColors) + static_cast<int>(color);
   }
+  // Center to floor
+  return factory_pattern_actions + center_pattern_actions +
+         factory_floor_actions + static_cast<int>(color);
 }
 
-std::string AzulState::ActionToString(Player player, Action action) const {
+[[nodiscard]] auto AzulState::ActionToString(Player player, Action action) const
+    -> std::string {
   DecodedAction decoded = DecodeAction(action);
   std::string source = decoded.from_center
                            ? "Center"
@@ -648,7 +684,7 @@ std::string AzulState::ActionToString(Player player, Action action) const {
                       source, " to ", destination);
 }
 
-std::string AzulState::ToString() const {
+[[nodiscard]] auto AzulState::ToString() const -> std::string {
   std::string str = absl::StrCat("Round: ", round_number_, "\n");
   str += absl::StrCat("Current Player: ", current_player_, "\n");
 
@@ -666,7 +702,9 @@ std::string AzulState::ToString() const {
 
   // Show center
   str += "Center: ";
-  if (first_player_tile_available_) str += "F";
+  if (first_player_tile_available_) {
+    str += "F";
+  }
   for (int color = 0; color < kNumTileColors; ++color) {
     int count = center_pile_.tiles[color];
     for (int j = 0; j < count; ++j) {
@@ -760,7 +798,9 @@ std::vector<double> AzulState::Returns() const {
           break;
         }
       }
-      if (complete) completed_rows[player]++;
+      if (complete) {
+        completed_rows[player]++;
+      }
     }
   }
 
@@ -816,23 +856,25 @@ std::vector<double> AzulState::Returns() const {
   return returns;
 }
 
-std::string AzulState::InformationStateString(Player player) const {
+[[nodiscard]] auto AzulState::InformationStateString(Player player) const
+    -> std::string {
   return ToString();
 }
 
-std::string AzulState::ObservationString(Player player) const {
+[[nodiscard]] auto AzulState::ObservationString(Player player) const
+    -> std::string {
   return ToString();
 }
 
 void AzulState::ObservationTensor(Player player,
                                   absl::Span<float> values) const {
   SPIEL_CHECK_EQ(values.size(), game_->ObservationTensorSize());
-  std::fill(values.begin(), values.end(), 0.0f);
+  std::fill(values.begin(), values.end(), 0.0F);
 
   int offset = 0;
 
   // Factories: 9 factories * 5 colors = 45 values
-  int max_factories = 2 * kMaxNumPlayers + 1;  // 9 for max players
+  int max_factories = (2 * kMaxNumPlayers) + 1;  // 9 for max players
   for (int f = 0; f < max_factories; ++f) {
     for (int c = 0; c < kNumTileColors; ++c) {
       if (f < static_cast<int>(factories_.size())) {
@@ -849,17 +891,17 @@ void AzulState::ObservationTensor(Player player,
   }
 
   // First player tile available: 1 value
-  values[offset] = first_player_tile_available_ ? 1.0f : 0.0f;
+  values[offset] = first_player_tile_available_ ? 1.0F : 0.0F;
   offset++;
 
   // Round number: 1 value (normalized)
   values[offset] = static_cast<float>(round_number_) /
-                   10.0f;  // Normalize assuming max ~10 rounds
+                   10.0F;  // Normalize assuming max ~10 rounds
   offset++;
 
   // Current player (one-hot): 4 values
   for (int p = 0; p < kMaxNumPlayers; ++p) {
-    values[offset] = (p == current_player_) ? 1.0f : 0.0f;
+    values[offset] = (p == current_player_) ? 1.0F : 0.0F;
     offset++;
   }
 
@@ -909,8 +951,8 @@ void AzulState::ObservationTensor(Player player,
         for (int c = 0; c < kNumTileColors; ++c) {
           values[offset] = (!pattern_line.IsEmpty() &&
                             pattern_line.color == static_cast<TileColor>(c))
-                               ? 1.0f
-                               : 0.0f;
+                               ? 1.0F
+                               : 0.0F;
           offset++;
         }
 
@@ -924,7 +966,7 @@ void AzulState::ObservationTensor(Player player,
       // Wall: 5x5 = 25 values
       for (int row = 0; row < kWallSize; ++row) {
         for (int col = 0; col < kWallSize; ++col) {
-          values[offset] = board.wall[row][col] ? 1.0f : 0.0f;
+          values[offset] = board.wall[row][col] ? 1.0F : 0.0F;
           offset++;
         }
       }
@@ -935,30 +977,30 @@ void AzulState::ObservationTensor(Player player,
         if (pos < static_cast<int>(board.floor_line.size())) {
           TileColor tile = board.floor_line[pos];
           if (tile == TileColor::kFirstPlayer) {
-            values[offset] = 6.0f;  // First player marker
+            values[offset] = 6.0F;  // First player marker
           } else {
-            values[offset] = static_cast<float>(tile) + 1.0f;  // Colors 1-5
+            values[offset] = static_cast<float>(tile) + 1.0F;  // Colors 1-5
           }
         } else {
-          values[offset] = 0.0f;  // Empty position
+          values[offset] = 0.0F;  // Empty position
         }
         offset++;
       }
 
       // Score (normalized)
       values[offset] = static_cast<float>(board.score) /
-                       100.0f;  // Normalize assuming max ~100 points
+                       100.0F;  // Normalize assuming max ~100 points
       offset++;
 
     } else {
       // Pad with zeros for non-existent players
       int player_size =
-          kNumPatternLines * (kNumTileColors + 1) +  // Pattern lines: 30
-          kWallSize * kWallSize +                    // Wall: 25
-          7 +                                        // Floor line positions: 7
-          1;                                         // Score: 1
+          (kNumPatternLines * (kNumTileColors + 1)) +  // Pattern lines: 30
+          (kWallSize * kWallSize) +                    // Wall: 25
+          7 +  // Floor line positions: 7
+          1;   // Score: 1
       for (int i = 0; i < player_size; ++i) {
-        values[offset] = 0.0f;
+        values[offset] = 0.0F;
         offset++;
       }
     }
@@ -967,7 +1009,7 @@ void AzulState::ObservationTensor(Player player,
   SPIEL_CHECK_EQ(offset, values.size());
 }
 
-std::unique_ptr<State> AzulState::Clone() const {
+[[nodiscard]] auto AzulState::Clone() const -> std::unique_ptr<State> {
   return std::make_unique<AzulState>(*this);
 }
 
@@ -977,7 +1019,8 @@ void AzulState::UndoAction(Player player, Action action) {
   SpielFatalError("UndoAction not implemented for Azul");
 }
 
-std::vector<std::pair<Action, double>> AzulState::ChanceOutcomes() const {
+auto AzulState::ChanceOutcomes() const
+    -> std::vector<std::pair<Action, double>> {
   if (needs_bag_shuffle_) {
     // For bag shuffling, we have a single outcome with probability 1.0
     // The actual shuffling is handled deterministically by the RNG
@@ -1001,7 +1044,8 @@ AzulGame::AzulGame(const GameParameters& params)
                        : ParameterValue<int>("rng_seed");
 }
 
-std::vector<int> AzulGame::ObservationTensorShape() const {
+[[nodiscard]] auto AzulGame::ObservationTensorShape() const
+    -> std::vector<int> {
   // Calculate the exact tensor size:
   // Factories: 9 factories * 5 colors = 45
   // Center: 5 colors = 5
@@ -1017,7 +1061,7 @@ std::vector<int> AzulGame::ObservationTensorShape() const {
   //   Total per player: 30 + 25 + 7 + 1 = 63
   // Total: 45 + 5 + 1 + 1 + 4 + 10 + (63 * 4) = 318
 
-  int max_factories = 2 * kMaxNumPlayers + 1;           // 9
+  int max_factories = (2 * kMaxNumPlayers) + 1;         // 9
   int factories_size = max_factories * kNumTileColors;  // 45
   int center_size = kNumTileColors;                     // 5
   int global_info_size =
@@ -1025,10 +1069,10 @@ std::vector<int> AzulGame::ObservationTensorShape() const {
   int tile_supply_size = 2 * kNumTileColors;  // bag + discard pile = 10
 
   int per_player_size =
-      kNumPatternLines * (kNumTileColors + 1) +  // Pattern lines: 30
-      kWallSize * kWallSize +                    // Wall: 25
-      7 +                                        // Floor positions: 7
-      1;                                         // Score: 1
+      (kNumPatternLines * (kNumTileColors + 1)) +  // Pattern lines: 30
+      (kWallSize * kWallSize) +                    // Wall: 25
+      7 +                                          // Floor positions: 7
+      1;                                           // Score: 1
 
   int total_size = factories_size + center_size + global_info_size +
                    tile_supply_size + (per_player_size * kMaxNumPlayers);
@@ -1041,5 +1085,4 @@ std::string ActionToString(Action action, int num_players) {
   return absl::StrCat("Action ", action);
 }
 
-}  // namespace azul
-}  // namespace open_spiel
+}  // namespace open_spiel::azul

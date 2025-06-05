@@ -15,7 +15,9 @@
 #ifndef OPEN_SPIEL_GAMES_AZUL_H_
 #define OPEN_SPIEL_GAMES_AZUL_H_
 
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <random>
 #include <string>
@@ -33,8 +35,7 @@
 //       "num_players"    int      number of players (2-4, default: 2)
 //
 
-namespace open_spiel {
-namespace azul {
+namespace open_spiel::azul {
 
 // Forward declarations
 class AzulGame;
@@ -58,14 +59,14 @@ inline constexpr int kMaxGameLength = 400;
 // Total distinct actions: Factory selection (factory_id * color) + Center
 // selection (colors)
 inline constexpr int kNumDistinctActions =
-    (kMaxNumPlayers * 2 + 1) * kNumTileColors *
-        kNumPatternLines +                       // Factory to pattern line
-    kNumTileColors * kNumPatternLines +          // Center to pattern line
-    (kMaxNumPlayers * 2 + 1) * kNumTileColors +  // Factory to floor
-    kNumTileColors;                              // Center to floor
+    ((kMaxNumPlayers * 2 + 1) * kNumTileColors *
+     kNumPatternLines) +                           // Factory to pattern line
+    (kNumTileColors * kNumPatternLines) +          // Center to pattern line
+    ((kMaxNumPlayers * 2 + 1) * kNumTileColors) +  // Factory to floor
+    kNumTileColors;                                // Center to floor
 
 // Tile colors
-enum class TileColor {
+enum class TileColor : std::uint8_t {
   kBlue = 0,
   kYellow = 1,
   kRed = 2,
@@ -92,20 +93,13 @@ struct Factory {
   std::array<int, kNumTileColors> tiles;
 
   Factory() { tiles.fill(0); }
-
-  bool IsEmpty() const {
-    for (int count : tiles) {
-      if (count > 0) return false;
-    }
-    return true;
+  [[nodiscard]] auto IsEmpty() const -> bool {
+    return std::all_of(tiles.begin(), tiles.end(),
+                       [](int count) { return count == 0; });
   }
 
-  int TotalTiles() const {
-    int total = 0;
-    for (int count : tiles) {
-      total += count;
-    }
-    return total;
+  [[nodiscard]] auto TotalTiles() const -> int {
+    return std::accumulate(tiles.begin(), tiles.end(), 0);
   }
 };
 
@@ -113,16 +107,17 @@ struct Factory {
 struct PlayerBoard {
   // Pattern lines (1 to 5 tiles) - each line can only contain one color
   struct PatternLine {
-    TileColor color;
-    int count;
+    TileColor color{};
+    int count{};
 
-    PatternLine()
-        : color(TileColor::kBlue),
-          count(0) {}  // color is irrelevant when count is 0
+    PatternLine() = default;  // color is irrelevant when count is 0
 
-    bool IsEmpty() const { return count == 0; }
-    bool IsFull(int line_index) const { return count == line_index + 1; }
-    bool CanAccept(TileColor tile_color, int line_index) const {
+    [[nodiscard]] auto IsEmpty() const -> bool { return count == 0; }
+    [[nodiscard]] auto IsFull(int line_index) const -> bool {
+      return count == line_index + 1;
+    }
+    [[nodiscard]] auto CanAccept(TileColor tile_color, int line_index) const
+        -> bool {
       return IsEmpty() || (color == tile_color && !IsFull(line_index));
     }
   };
@@ -133,9 +128,9 @@ struct PlayerBoard {
   // Floor line (penalty tiles)
   std::vector<TileColor> floor_line;
   // Score
-  int score;
+  int score{0};
 
-  PlayerBoard() : score(0) {
+  PlayerBoard() {
     for (int i = 0; i < kWallSize; ++i) {
       wall[i].fill(false);
     }
@@ -149,40 +144,51 @@ class AzulState : public State {
   AzulState(std::shared_ptr<const Game> game, int num_players);
 
   AzulState(const AzulState&) = default;
-  AzulState& operator=(const AzulState&) = delete;
+  auto operator=(const AzulState&) -> AzulState& = delete;
 
-  Player CurrentPlayer() const override;
-  std::vector<Action> LegalActions() const override;
-  std::string ActionToString(Player player, Action action) const override;
-  std::string ToString() const override;
-  bool IsTerminal() const override;
-  std::vector<double> Returns() const override;
-  std::string InformationStateString(Player player) const override;
-  std::string ObservationString(Player player) const override;
+  [[nodiscard]] auto CurrentPlayer() const -> Player override;
+  [[nodiscard]] auto LegalActions() const -> std::vector<Action> override;
+  [[nodiscard]] auto ActionToString(Player player, Action action) const
+      -> std::string override;
+  [[nodiscard]] auto ToString() const -> std::string override;
+  [[nodiscard]] auto IsTerminal() const -> bool override;
+  [[nodiscard]] auto Returns() const -> std::vector<double> override;
+  [[nodiscard]] auto InformationStateString(Player player) const
+      -> std::string override;
+  [[nodiscard]] auto ObservationString(Player player) const
+      -> std::string override;
   void ObservationTensor(Player player,
                          absl::Span<float> values) const override;
-  std::unique_ptr<State> Clone() const override;
+  [[nodiscard]] auto Clone() const -> std::unique_ptr<State> override;
   void UndoAction(Player player, Action action) override;
-  std::vector<std::pair<Action, double>> ChanceOutcomes() const override;
+  [[nodiscard]] auto ChanceOutcomes() const
+      -> std::vector<std::pair<Action, double>> override;
 
   // Game-specific methods
-  const std::vector<Factory>& Factories() const { return factories_; }
-  const Factory& CenterPile() const { return center_pile_; }
-  const std::vector<PlayerBoard>& PlayerBoards() const {
+  [[nodiscard]] auto Factories() const -> const std::vector<Factory>& {
+    return factories_;
+  }
+  [[nodiscard]] auto CenterPile() const -> const Factory& {
+    return center_pile_;
+  }
+  [[nodiscard]] auto PlayerBoards() const -> const std::vector<PlayerBoard>& {
     return player_boards_;
   }
-  const PlayerBoard& GetPlayerBoard(Player player) const {
+  [[nodiscard]] auto GetPlayerBoard(Player player) const -> const PlayerBoard& {
     return player_boards_[player];
   }
-  bool HasFirstPlayerTile() const { return first_player_tile_available_; }
+  [[nodiscard]] auto HasFirstPlayerTile() const -> bool {
+    return first_player_tile_available_;
+  }
 
   // Public for testing
   std::vector<Factory> factories_;
   Factory center_pile_;
+  int num_players_;
   std::vector<PlayerBoard> player_boards_;
-  bool game_ended_;
+  bool game_ended_{false};
   void EndRoundScoring();
-  int CalculateScore(Player player) const;
+  [[nodiscard]] auto CalculateScore(Player player) const -> int;
 
  protected:
   void DoApplyAction(Action action) override;
@@ -190,8 +196,10 @@ class AzulState : public State {
  private:
   void SetupNewRound();
   void FillFactories();
-  bool IsWallComplete(Player player) const;
-  int GetNumFactories() const { return 2 * num_players_ + 1; }
+  [[nodiscard]] auto IsWallComplete(Player player) const -> bool;
+  [[nodiscard]] auto GetNumFactories() const -> int {
+    return (2 * num_players_) + 1;
+  }
 
   // Decode action
   struct DecodedAction {
@@ -201,12 +209,12 @@ class AzulState : public State {
     int destination;  // Pattern line (0-4) or -1 for floor
   };
 
-  DecodedAction DecodeAction(Action action) const;
-  Action EncodeAction(bool from_center, int factory_id, TileColor color,
-                      int destination) const;
+  [[nodiscard]] auto DecodeAction(Action action) const -> DecodedAction;
+  [[nodiscard]] auto EncodeAction(bool from_center, int factory_id,
+                                  TileColor color, int destination) const
+      -> Action;
 
   // Game state
-  int num_players_;
   Player current_player_;
   std::vector<TileColor> bag_;
   std::vector<TileColor> discard_pile_;
@@ -222,25 +230,35 @@ class AzulGame : public Game {
  public:
   explicit AzulGame(const GameParameters& params);
 
-  int NumDistinctActions() const override { return kNumDistinctActions; }
-  std::unique_ptr<State> NewInitialState() const override {
+  [[nodiscard]] auto NumDistinctActions() const -> int override {
+    return kNumDistinctActions;
+  }
+  [[nodiscard]] auto NewInitialState() const
+      -> std::unique_ptr<State> override {
     return std::make_unique<AzulState>(shared_from_this(), num_players_);
   }
-  int NumPlayers() const override { return num_players_; }
-  double MinUtility() const override { return -1; }  // Losing player utility
-  absl::optional<double> UtilitySum() const override {
+  [[nodiscard]] auto NumPlayers() const -> int override { return num_players_; }
+  [[nodiscard]] auto MinUtility() const -> double override {
+    return -1;
+  }  // Losing player utility
+  [[nodiscard]] auto UtilitySum() const -> absl::optional<double> override {
     return 0.0;
   }  // Zero-sum
-  double MaxUtility() const override { return 1; }  // Winning player utility
-  std::vector<int> ObservationTensorShape() const override;
-  int MaxGameLength() const override { return kMaxGameLength; }
-  int MaxChanceOutcomes() const override {
+  [[nodiscard]] auto MaxUtility() const -> double override {
+    return 1;
+  }  // Winning player utility
+  [[nodiscard]] auto ObservationTensorShape() const
+      -> std::vector<int> override;
+  [[nodiscard]] auto MaxGameLength() const -> int override {
+    return kMaxGameLength;
+  }
+  [[nodiscard]] auto MaxChanceOutcomes() const -> int override {
     return kTotalTilesPerColor * kNumTileColors;
   }  // Max tiles that can be shuffled
 
   // RNG support for deterministic shuffling
-  std::mt19937& GetRNG() const { return rng_; }
-  int GetOriginalSeed() const { return original_seed_; }
+  [[nodiscard]] auto GetRNG() const -> std::mt19937& { return rng_; }
+  [[nodiscard]] auto GetOriginalSeed() const -> int { return original_seed_; }
 
  private:
   int num_players_;
@@ -249,16 +267,16 @@ class AzulGame : public Game {
 };
 
 // Utility functions
-std::string TileColorToString(TileColor color);
-TileColor StringToTileColor(const std::string& str);
-std::string ActionToString(Action action, int num_players);
+[[nodiscard]] auto TileColorToString(TileColor color) -> std::string;
+[[nodiscard]] auto StringToTileColor(const std::string& str) -> TileColor;
+[[nodiscard]] auto ActionToString(Action action, int num_players)
+    -> std::string;
 
 // Stream operator for TileColor
-inline std::ostream& operator<<(std::ostream& os, TileColor color) {
+inline auto operator<<(std::ostream& os, TileColor color) -> std::ostream& {
   return os << TileColorToString(color);
 }
 
-}  // namespace azul
-}  // namespace open_spiel
+}  // namespace open_spiel::azul
 
 #endif  // OPEN_SPIEL_GAMES_AZUL_H_

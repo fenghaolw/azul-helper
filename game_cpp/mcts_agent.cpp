@@ -48,7 +48,8 @@ void AzulMCTSAgent::initialize_mcts() {
   );
 }
 
-open_spiel::Action AzulMCTSAgent::get_action(const open_spiel::State& state) {
+auto AzulMCTSAgent::get_action(const open_spiel::State& state)
+    -> open_spiel::Action {
   auto start_time = std::chrono::high_resolution_clock::now();
 
   // Get action from MCTS bot
@@ -69,8 +70,9 @@ open_spiel::Action AzulMCTSAgent::get_action(const open_spiel::State& state) {
   return action;
 }
 
-std::vector<double> AzulMCTSAgent::get_action_probabilities(
-    const open_spiel::State& state, double temperature) {
+auto AzulMCTSAgent::get_action_probabilities(const open_spiel::State& state,
+                                             double temperature)
+    -> std::vector<double> {
   auto legal_actions = state.LegalActions();
   std::vector<double> probabilities(legal_actions.size(), 0.0);
 
@@ -98,9 +100,8 @@ void AzulMCTSAgent::reset_stats() {
   moves_played_ = 0;
 }
 
-std::unique_ptr<AzulMCTSAgent> create_mcts_agent(int player_id,
-                                                 int num_simulations,
-                                                 double uct_c, int seed) {
+auto create_mcts_agent(int player_id, int num_simulations, double uct_c,
+                       int seed) -> std::unique_ptr<AzulMCTSAgent> {
   return std::make_unique<AzulMCTSAgent>(player_id, num_simulations, uct_c,
                                          seed);
 }

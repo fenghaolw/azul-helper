@@ -26,8 +26,8 @@ EvaluationResult AgentEvaluator::evaluate_agent(
 
   if (config_.verbose) {
     std::cout << "Starting evaluation: " << test_agent.get_name() << " vs "
-              << baseline_agent.get_name() << std::endl;
-    std::cout << "Playing " << game_plans.size() << " games..." << std::endl;
+              << baseline_agent.get_name() << '\n';
+    std::cout << "Playing " << game_plans.size() << " games..." << '\n';
   }
 
   // Run all games
@@ -62,14 +62,14 @@ EvaluationResult AgentEvaluator::evaluate_agent(
 
     } catch (const std::exception& e) {
       if (config_.verbose) {
-        std::cout << "Game " << game_id << " failed: " << e.what() << std::endl;
+        std::cout << "Game " << game_id << " failed: " << e.what() << '\n';
       }
       result.errors++;
     }
 
     if (config_.verbose && (game_id + 1) % 10 == 0) {
       std::cout << "Completed " << (game_id + 1) << "/" << game_plans.size()
-                << " games" << std::endl;
+                << " games" << '\n';
     }
   }
 
@@ -88,11 +88,11 @@ EvaluationResult AgentEvaluator::evaluate_agent(
   result.is_statistically_significant = is_significant;
 
   if (config_.verbose) {
-    std::cout << "Evaluation complete!" << std::endl;
+    std::cout << "Evaluation complete!" << '\n';
     std::cout << "Results: " << test_agent.get_name() << " "
               << (result.test_agent_win_rate * 100) << "% vs "
               << baseline_agent.get_name() << " "
-              << (result.baseline_agent_win_rate * 100) << "%" << std::endl;
+              << (result.baseline_agent_win_rate * 100) << "%" << '\n';
   }
 
   return result;
@@ -109,11 +109,11 @@ EvaluationResult AgentEvaluator::quick_evaluation(
   return quick_evaluator.evaluate_agent(test_agent, baseline_agent);
 }
 
-GameResult AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
-                                           EvaluationAgent& baseline_agent,
-                                           int game_id, int test_agent_player,
-                                           int baseline_agent_player,
-                                           int seed) {
+auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
+                                     EvaluationAgent& baseline_agent,
+                                     int game_id, int test_agent_player,
+                                     int baseline_agent_player, int seed) const
+    -> GameResult {
   auto start_time = std::chrono::high_resolution_clock::now();
 
   // Create OpenSpiel game
@@ -154,18 +154,17 @@ GameResult AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
           // Take the first (usually only) chance outcome
           game_state->ApplyAction(chance_outcomes[0].first);
           continue;
-        } else {
-          // No chance outcomes available, this shouldn't happen
-          throw std::runtime_error("Chance node with no outcomes available");
         }
+        // No chance outcomes available, this shouldn't happen
+        throw std::runtime_error("Chance node with no outcomes available");
       }
 
       // Validate current player for regular (non-chance, non-terminal) states
       if (current_player < 0 || current_player >= config_.num_players) {
         throw std::runtime_error(
             "Invalid current player: " + std::to_string(current_player) +
-            " (game terminal: " + std::to_string(game_state->IsTerminal()) +
-            ")");
+            " (game terminal: " +
+            std::to_string(static_cast<int>(game_state->IsTerminal())) + ")");
       }
 
       ActionType action = -1;  // Default initialization for OpenSpiel action
@@ -192,7 +191,7 @@ GameResult AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
           action = legal_actions[0];
           if (config_.verbose) {
             std::cout << "Agent failed, using fallback action: " << e.what()
-                      << std::endl;
+                      << '\n';
           }
         } else {
           throw std::runtime_error("No legal actions and agent failed: " +
@@ -208,7 +207,7 @@ GameResult AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
         timeout_occurred = true;
         if (config_.verbose) {
           std::cout << "Timeout in game " << game_id << ", move " << total_moves
-                    << std::endl;
+                    << '\n';
         }
         // Continue with the action anyway, but mark timeout
       }
@@ -228,7 +227,7 @@ GameResult AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
           action = legal_actions[0];  // Use first legal action as fallback
           if (config_.verbose) {
             std::cout << "Invalid action in game " << game_id
-                      << ", using fallback" << std::endl;
+                      << ", using fallback" << '\n';
           }
         } else {
           throw std::runtime_error("No legal actions available in game " +
@@ -253,7 +252,7 @@ GameResult AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
   } catch (const std::exception& e) {
     error_log = e.what();
     if (config_.verbose) {
-      std::cout << "Game " << game_id << " error: " << error_log << std::endl;
+      std::cout << "Game " << game_id << " error: " << error_log << '\n';
     }
   }
 
@@ -326,8 +325,9 @@ std::vector<std::tuple<int, int, int, int>> AgentEvaluator::plan_games() const {
   return plans;
 }
 
-std::pair<double, bool> AgentEvaluator::calculate_statistical_significance(
-    int test_wins, int total_games) const {
+auto AgentEvaluator::calculate_statistical_significance(int test_wins,
+                                                        int total_games)
+    -> std::pair<double, bool> {
   if (total_games == 0) {
     return {1.0, false};
   }
@@ -349,16 +349,16 @@ std::pair<double, bool> AgentEvaluator::calculate_statistical_significance(
 
     bool is_significant = p_value < 0.05;
     return {p_value, is_significant};
-  } else {
-    // For small samples, use a simplified approach
-    double p_value = std::abs(observed_rate - 0.5) > 0.3 ? 0.01 : 0.5;
-    bool is_significant = p_value < 0.05;
-    return {p_value, is_significant};
   }
+  // For small samples, use a simplified approach
+  double p_value = std::abs(observed_rate - 0.5) > 0.3 ? 0.01 : 0.5;
+  bool is_significant = p_value < 0.05;
+  return {p_value, is_significant};
 }
 
-std::pair<double, double> AgentEvaluator::calculate_confidence_interval(
-    int wins, int total_games) const {
+auto AgentEvaluator::calculate_confidence_interval(int wins,
+                                                   int total_games) const
+    -> std::pair<double, double> {
   if (total_games == 0) {
     return {0.0, 0.0};
   }
@@ -400,7 +400,7 @@ TournamentResult Tournament::run_tournament() {
 
   if (config_.verbose) {
     std::cout << "Starting tournament with " << agents_.size() << " agents"
-              << std::endl;
+              << '\n';
   }
 
   // Run round-robin evaluation
@@ -408,7 +408,7 @@ TournamentResult Tournament::run_tournament() {
     for (size_t j = i + 1; j < agents_.size(); ++j) {
       if (config_.verbose) {
         std::cout << "Evaluating " << agents_[i]->get_name() << " vs "
-                  << agents_[j]->get_name() << std::endl;
+                  << agents_[j]->get_name() << '\n';
       }
 
       EvaluationResult result =
@@ -445,13 +445,13 @@ TournamentResult Tournament::run_tournament() {
             });
 
   if (config_.verbose) {
-    std::cout << "Tournament complete!" << std::endl;
-    std::cout << "Final rankings:" << std::endl;
+    std::cout << "Tournament complete!" << '\n';
+    std::cout << "Final rankings:" << '\n';
     for (size_t i = 0; i < tournament_result.agent_stats.size(); ++i) {
       const auto& stats = tournament_result.agent_stats[i];
       std::cout << (i + 1) << ". " << stats.agent_name
                 << " - Win rate: " << (stats.win_rate * 100) << "%"
-                << ", Avg score: " << stats.avg_score << std::endl;
+                << ", Avg score: " << stats.avg_score << '\n';
     }
   }
 

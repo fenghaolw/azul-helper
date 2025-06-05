@@ -11,7 +11,7 @@ namespace azul {
 MinimaxAgent::MinimaxAgent(int player_id, int depth)
     : player_id_(player_id), depth_(depth) {}
 
-ActionType MinimaxAgent::get_action(const GameStateType& state) {
+auto MinimaxAgent::get_action(const GameStateType& state) -> ActionType {
   if (state.IsTerminal()) {
     throw std::runtime_error("Cannot get action from terminal state");
   }
@@ -74,8 +74,8 @@ void MinimaxAgent::reset_stats() {
   nodes_explored_ = 0;
 }
 
-std::vector<double> MinimaxAgent::get_action_probabilities(
-    const GameStateType& state) {
+auto MinimaxAgent::get_action_probabilities(const GameStateType& state)
+    -> std::vector<double> {
   if (state.IsTerminal()) {
     return {};
   }
@@ -102,7 +102,7 @@ std::vector<double> MinimaxAgent::get_action_probabilities(
   return probabilities;
 }
 
-double MinimaxAgent::evaluate_state(const GameStateType& state) const {
+auto MinimaxAgent::evaluate_state(const GameStateType& state) const -> double {
   if (state.IsTerminal()) {
     // Terminal state evaluation - use OpenSpiel's Returns for zero-sum games
     auto returns = state.Returns();

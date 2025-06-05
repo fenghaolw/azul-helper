@@ -9,6 +9,10 @@ all: build
 build:
 	@mkdir -p build
 	@cd build && cmake .. && make
+	@if [ -f build/compile_commands.json ]; then \
+		echo "Copying compile_commands.json for IDE support..."; \
+		cp build/compile_commands.json ./compile_commands.json; \
+	fi
 
 # Clean build artifacts
 clean:

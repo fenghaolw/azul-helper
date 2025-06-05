@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <memory>
 #include <string>
 
@@ -19,19 +18,25 @@ class AzulMCTSAgent {
   ~AzulMCTSAgent() = default;
 
   // Core agent interface
-  open_spiel::Action get_action(const open_spiel::State& state);
-  std::vector<double> get_action_probabilities(const open_spiel::State& state,
-                                               double temperature = 1.0);
+  [[nodiscard]] auto get_action(const open_spiel::State& state)
+      -> open_spiel::Action;
+  [[nodiscard]] static auto get_action_probabilities(
+      const open_spiel::State& state, double temperature = 1.0)
+      -> std::vector<double>;
 
   // Agent information
-  int player_id() const { return player_id_; }
-  std::string get_name() const { return name_; }
+  [[nodiscard]] auto player_id() const -> int { return player_id_; }
+  [[nodiscard]] auto get_name() const -> std::string { return name_; }
 
   // Performance tracking
   void reset();
   void reset_stats();
-  size_t get_nodes_explored() const { return nodes_explored_; }
-  double get_thinking_time() const { return total_thinking_time_; }
+  [[nodiscard]] auto get_nodes_explored() const -> size_t {
+    return nodes_explored_;
+  }
+  [[nodiscard]] auto get_thinking_time() const -> double {
+    return total_thinking_time_;
+  }
 
   // Configuration
   void set_num_simulations(int num_simulations) {

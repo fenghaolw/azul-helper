@@ -198,7 +198,7 @@ class AgentEvaluator {
   GameResult run_single_game(EvaluationAgent& test_agent,
                              EvaluationAgent& baseline_agent, int game_id,
                              int test_agent_player, int baseline_agent_player,
-                             int seed);
+                             int seed) const;
 
   /**
    * Plan which games to play, including player position swapping.
@@ -208,8 +208,8 @@ class AgentEvaluator {
   /**
    * Calculate statistical significance using binomial test.
    */
-  std::pair<double, bool> calculate_statistical_significance(
-      int test_wins, int total_games) const;
+  static std::pair<double, bool> calculate_statistical_significance(
+      int test_wins, int total_games);
 
   /**
    * Calculate confidence interval for win rate.

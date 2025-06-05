@@ -24,7 +24,7 @@ class RandomAgent {
   [[nodiscard]] auto get_action(const GameStateType& state) -> ActionType;
 
   // Get uniform action probabilities over legal actions
-  [[nodiscard]] auto get_action_probabilities(const GameStateType& state)
+  [[nodiscard]] static auto get_action_probabilities(const GameStateType& state)
       -> std::vector<double>;
 
   // Reset the agent (reseed random number generator)
