@@ -1,6 +1,7 @@
 import { WebAppGameState } from './GameState.js';
 import { GameRenderer } from './GameRenderer.js';
 import { ApiAI } from './ApiAI.js';
+import { GamePhase } from './types.js';
 
 class AzulApp {
   private gameState: WebAppGameState;
@@ -15,6 +16,8 @@ class AzulApp {
   private aiToggleBtn!: HTMLButtonElement;
   private gameInfo!: HTMLDivElement;
   private aiStats!: HTMLDivElement;
+  private scoringExplanation!: HTMLDivElement;
+  private lastRoundScoring!: HTMLDivElement;
 
   constructor() {
     this.canvas = this.setupUI();
@@ -54,22 +57,26 @@ class AzulApp {
       border-right: 1px solid #e0e0e0;
     `;
 
-    // Create sidebar
+    // Create sidebar with scrolling
     const sidebar = document.createElement('div');
     sidebar.style.cssText = `
-      width: 350px;
+      width: 380px;
       background: white;
       box-shadow: -2px 0 8px rgba(0,0,0,0.1);
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      max-height: 100vh;
     `;
 
     const colors = {
       primary: '#1976d2',
       surface: '#ffffff',
       onSurface: '#1c1b1f',
-      purple: '#7b1fa2'
+      purple: '#7b1fa2',
+      green: '#388e3c',
+      orange: '#f57c00',
+      red: '#d32f2f'
     };
 
     // Header
@@ -78,6 +85,7 @@ class AzulApp {
       padding: 24px 20px;
       background: ${colors.primary};
       color: white;
+      flex-shrink: 0;
     `;
 
     const title = document.createElement('h1');
@@ -104,6 +112,7 @@ class AzulApp {
     controlsSection.style.cssText = `
       padding: 20px;
       border-bottom: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
     `;
 
     const controlsTitle = document.createElement('h2');
@@ -135,6 +144,7 @@ class AzulApp {
     infoSection.style.cssText = `
       padding: 20px;
       border-bottom: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
     `;
 
     const infoTitle = document.createElement('h2');
@@ -160,11 +170,78 @@ class AzulApp {
     infoSection.appendChild(infoTitle);
     infoSection.appendChild(this.gameInfo);
 
+    // Last Round Scoring section
+    const lastRoundSection = document.createElement('div');
+    lastRoundSection.style.cssText = `
+      padding: 20px;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
+    `;
+
+    const lastRoundTitle = document.createElement('h2');
+    lastRoundTitle.textContent = 'Last Round Scoring';
+    lastRoundTitle.style.cssText = `
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      font-weight: 500;
+      color: ${colors.onSurface};
+    `;
+
+    this.lastRoundScoring = document.createElement('div');
+    this.lastRoundScoring.style.cssText = `
+      background: rgba(56, 142, 60, 0.04);
+      border-radius: 4px;
+      padding: 16px;
+      border-left: 4px solid ${colors.green};
+      font-size: 14px;
+      line-height: 1.5;
+      color: ${colors.onSurface};
+    `;
+
+    this.lastRoundScoring.innerHTML = '<div style="color: #999; font-style: italic;">No scoring yet this game.</div>';
+
+    lastRoundSection.appendChild(lastRoundTitle);
+    lastRoundSection.appendChild(this.lastRoundScoring);
+
+    // Scoring explanation section
+    const scoringSection = document.createElement('div');
+    scoringSection.style.cssText = `
+      padding: 20px;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
+    `;
+
+    const scoringTitle = document.createElement('h2');
+    scoringTitle.textContent = 'Scoring Rules';
+    scoringTitle.style.cssText = `
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      font-weight: 500;
+      color: ${colors.onSurface};
+    `;
+
+    this.scoringExplanation = document.createElement('div');
+    this.scoringExplanation.style.cssText = `
+      background: rgba(245, 124, 0, 0.04);
+      border-radius: 4px;
+      padding: 16px;
+      border-left: 4px solid ${colors.orange};
+      font-size: 14px;
+      line-height: 1.5;
+      color: ${colors.onSurface};
+    `;
+
+    this.updateScoringExplanation();
+
+    scoringSection.appendChild(scoringTitle);
+    scoringSection.appendChild(this.scoringExplanation);
+
     // AI stats section
     const statsSection = document.createElement('div');
     statsSection.style.cssText = `
       padding: 20px;
       border-bottom: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
     `;
 
     const statsTitle = document.createElement('h2');
@@ -198,12 +275,14 @@ class AzulApp {
     sidebar.appendChild(header);
     sidebar.appendChild(controlsSection);
     sidebar.appendChild(infoSection);
+    sidebar.appendChild(lastRoundSection);
+    sidebar.appendChild(scoringSection);
     sidebar.appendChild(statsSection);
 
     container.appendChild(canvas);
     container.appendChild(sidebar);
-
     document.body.appendChild(container);
+
     return canvas;
   }
 
@@ -260,6 +339,15 @@ class AzulApp {
     this.updateGameInfo();
     this.updateAIStats();
 
+    // Check if we just finished a round (round scoring occurred)
+    if (this.gameState.phase === GamePhase.TileSelection && this.gameState.round > 1) {
+      // Try to capture scoring details from the game state
+      // This is a simplified version - in a real implementation, we'd capture this during the actual scoring
+      this.updateLastRoundScoring();
+    }
+
+    this.renderer.render();
+
     // Handle AI turn
     if (this.ai && this.aiEnabled && this.gameState.currentPlayer === 1 && !this.gameState.gameOver && !this.isAIThinking) {
       this.handleAITurn();
@@ -308,6 +396,34 @@ class AzulApp {
           </div>
         `;
       }
+
+      // Show final bonus scoring
+      html += '<div style="margin-top: 15px;"><strong>Final Bonuses:</strong></div>';
+      for (let i = 0; i < this.gameState.playerBoards.length; i++) {
+        const board = this.gameState.playerBoards[i];
+        const finalScoreResult = board.getFinalScoreCalculation();
+        const playerName = i === 0 ? 'Human' : 'AI';
+
+        if (finalScoreResult.bonus > 0) {
+          html += `
+            <div style="margin-left: 10px; margin-bottom: 8px;">
+              <div style="font-weight: bold;">${playerName} Final Bonuses:</div>
+              <div style="margin-left: 15px; font-size: 12px;">
+                ${finalScoreResult.details.completedRows > 0 ? `• Rows: ${finalScoreResult.details.completedRows} × 2 = ${finalScoreResult.details.rowBonus} pts<br>` : ''}
+                ${finalScoreResult.details.completedColumns > 0 ? `• Columns: ${finalScoreResult.details.completedColumns} × 7 = ${finalScoreResult.details.columnBonus} pts<br>` : ''}
+                ${finalScoreResult.details.completedColors > 0 ? `• Colors: ${finalScoreResult.details.completedColors} × 10 = ${finalScoreResult.details.colorBonus} pts<br>` : ''}
+                <strong>Total Bonus: +${finalScoreResult.bonus} points</strong>
+              </div>
+            </div>
+          `;
+        } else {
+          html += `
+            <div style="margin-left: 10px; color: #666;">
+              ${playerName}: No bonuses earned
+            </div>
+          `;
+        }
+      }
     } else {
       const currentPlayerName = this.gameState.currentPlayer === 0 ? 'Human' : 'AI';
       html += `
@@ -341,6 +457,185 @@ class AzulApp {
     });
 
     this.gameInfo.innerHTML = html;
+  }
+
+  private updateScoringExplanation(): void {
+    const html = `
+      <div style="margin-bottom: 12px;">
+        <h3 style="margin: 0 0 8px 0; color: #f57c00; font-size: 16px;">📊 How Scoring Works</h3>
+        <button id="toggleScoringDetails" style="background: none; border: 1px solid #f57c00; color: #f57c00; padding: 4px 8px; font-size: 11px; border-radius: 3px; cursor: pointer;">
+          Show Examples
+        </button>
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <h4 style="margin: 0 0 5px 0; font-size: 14px; color: #333;">🎯 Round Scoring (Each Turn)</h4>
+        <div style="font-size: 12px; margin-left: 10px; line-height: 1.4;">
+          When you complete a pattern line and move a tile to the wall:
+          <br>• <strong>Base:</strong> 1 point for the tile
+          <br>• <strong>Horizontal line:</strong> +1 point for each connected tile in the same row
+          <br>• <strong>Vertical line:</strong> +1 point for each connected tile in the same column
+
+          <div id="scoringExamples" style="display: none; margin-top: 8px; padding: 6px; background: rgba(25, 118, 210, 0.1); border-radius: 3px; font-size: 11px;">
+            <strong>Examples:</strong>
+            <br>• Isolated tile: 1 point
+            <br>• 3-tile horizontal line: 3 points
+            <br>• 2-tile vertical line: 2 points
+            <br>• Corner connection (3H + 2V): 5 points
+            <br>• Cross pattern (3H + 3V): 5 points (tile counted once)
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <h4 style="margin: 0 0 5px 0; font-size: 14px; color: #333;">💰 Floor Penalties</h4>
+        <div style="font-size: 12px; margin-left: 10px; line-height: 1.4;">
+          Floor tiles penalty: -1, -1, -2, -2, -2, -3, -3 points
+          <br><span style="color: #d32f2f;">Avoid filling your floor line!</span>
+
+          <div id="floorExamples" style="display: none; margin-top: 6px; padding: 6px; background: rgba(211, 47, 47, 0.1); border-radius: 3px; font-size: 11px; color: #d32f2f;">
+            <strong>Floor Examples:</strong>
+            <br>• 1 tile: -1 point
+            <br>• 3 tiles: -4 points (-1, -1, -2)
+            <br>• 7 tiles: -14 points (maximum penalty)
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <h4 style="margin: 0 0 5px 0; font-size: 14px; color: #333;">🏆 End-Game Bonuses</h4>
+        <div style="font-size: 12px; margin-left: 10px; line-height: 1.4;">
+          <div style="margin-bottom: 4px;"><strong>Complete Rows:</strong> +2 points each</div>
+          <div style="margin-bottom: 4px;"><strong>Complete Columns:</strong> +7 points each</div>
+          <div style="margin-bottom: 4px;"><strong>Complete Colors:</strong> +10 points each</div>
+          <div style="color: #388e3c; font-style: italic;">Focus on completing rows and colors for big bonuses!</div>
+
+          <div id="bonusExamples" style="display: none; margin-top: 6px; padding: 6px; background: rgba(56, 142, 60, 0.1); border-radius: 3px; font-size: 11px; color: #388e3c;">
+            <strong>Bonus Strategy:</strong>
+            <br>• Top 3 rows are easiest to complete
+            <br>• Columns give highest individual bonus
+            <br>• Color sets give highest overall bonus
+            <br>• Maximum possible bonus: 59 points!
+          </div>
+        </div>
+      </div>
+
+      <div style="background: rgba(25, 118, 210, 0.1); padding: 8px; border-radius: 4px; margin-top: 10px;">
+        <div style="font-size: 12px; color: #1976d2; font-weight: bold;">💡 Pro Tip</div>
+        <div style="font-size: 11px; color: #1976d2; margin-top: 2px;">
+          Plan for adjacency! Placing tiles next to existing ones multiplies your points.
+        </div>
+      </div>
+    `;
+
+    this.scoringExplanation.innerHTML = html;
+
+    // Add event listener for the toggle button
+    const toggleButton = document.getElementById('toggleScoringDetails');
+    if (toggleButton) {
+      toggleButton.addEventListener('click', () => {
+        const examples = ['scoringExamples', 'floorExamples', 'bonusExamples'];
+        const currentlyVisible = document.getElementById('scoringExamples')?.style.display !== 'none';
+
+        examples.forEach(id => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.style.display = currentlyVisible ? 'none' : 'block';
+          }
+        });
+
+        toggleButton.textContent = currentlyVisible ? 'Show Examples' : 'Hide Examples';
+      });
+    }
+  }
+
+  private updateLastRoundScoring(scoringDetails?: { playerIndex: number; details: any }[]): void {
+    if (!scoringDetails || scoringDetails.length === 0) {
+      // Show general information about what happened last round if available
+      if (this.gameState.round > 1) {
+        let html = `<div style="margin-bottom: 10px;"><strong>Round ${this.gameState.round - 1} Completed</strong></div>`;
+
+        // Show current scores as an indication of what happened
+        const result = this.gameState.getResult();
+        html += '<div style="font-size: 12px;">';
+        result.scores.forEach((score, index) => {
+          const playerName = index === 0 ? 'Human' : 'AI';
+          html += `
+            <div style="margin-bottom: 4px;">
+              ${playerName}: ${score} points
+            </div>
+          `;
+        });
+        html += '</div>';
+
+        html += `
+          <div style="margin-top: 8px; padding: 6px; background: rgba(25, 118, 210, 0.1); border-radius: 3px; font-size: 11px; color: #1976d2;">
+            💡 Each player moved completed pattern lines to their wall and applied floor penalties.
+          </div>
+        `;
+
+        this.lastRoundScoring.innerHTML = html;
+      } else {
+        this.lastRoundScoring.innerHTML = '<div style="color: #999; font-style: italic;">No scoring yet this game.</div>';
+      }
+      return;
+    }
+
+    let html = `<div style="margin-bottom: 10px;"><strong>Round ${this.gameState.round - 1} Scoring:</strong></div>`;
+
+    for (const playerScoring of scoringDetails) {
+      const playerName = playerScoring.playerIndex === 0 ? 'Human' : 'AI';
+      const details = playerScoring.details;
+
+      html += `
+        <div style="margin-bottom: 12px; padding: 8px; background: rgba(56, 142, 60, 0.1); border-radius: 4px;">
+          <div style="font-weight: bold; margin-bottom: 6px;">${playerName}</div>
+      `;
+
+      if (details.tilesPlaced && details.tilesPlaced.length > 0) {
+        html += '<div style="font-size: 12px; margin-bottom: 4px;"><strong>Tiles Placed:</strong></div>';
+        for (const tilePlacement of details.tilesPlaced) {
+          const tileEmoji = this.getTileEmoji(tilePlacement.tile);
+          html += `
+            <div style="font-size: 11px; margin-left: 10px; margin-bottom: 2px;">
+              ${tileEmoji} Row ${tilePlacement.row + 1}: ${tilePlacement.score} points
+              ${tilePlacement.adjacentTiles.horizontal > 1 || tilePlacement.adjacentTiles.vertical > 1 ?
+              ` (${tilePlacement.adjacentTiles.horizontal}H + ${tilePlacement.adjacentTiles.vertical}V)` : ''}
+            </div>
+          `;
+        }
+      }
+
+      if (details.totalFloorPenalty < 0) {
+        html += `
+          <div style="font-size: 12px; color: #d32f2f; margin-top: 4px;">
+            Floor Penalty: ${details.totalFloorPenalty} points
+          </div>
+        `;
+      }
+
+      const netScore = details.totalTileScore + details.totalFloorPenalty;
+      html += `
+        <div style="font-size: 12px; font-weight: bold; margin-top: 4px; color: ${netScore >= 0 ? '#388e3c' : '#d32f2f'};">
+          Round Total: ${netScore >= 0 ? '+' : ''}${netScore} points
+        </div>
+      `;
+
+      html += '</div>';
+    }
+
+    this.lastRoundScoring.innerHTML = html;
+  }
+
+  private getTileEmoji(tile: string): string {
+    switch (tile.toLowerCase()) {
+      case 'red': return '🔴';
+      case 'blue': return '🔵';
+      case 'yellow': return '🟡';
+      case 'black': return '⚫';
+      case 'white': return '⚪';
+      default: return '🟦';
+    }
   }
 
   private updateAIStats(): void {

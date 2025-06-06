@@ -30,11 +30,24 @@ export class PlayerBoard {
   lines: Array<Array<Tile>> = [[], [], [], [], []];
   floor: Array<Tile> = [];
   score: number = 0;
+  private finalScoringApplied: boolean = false;
 
   constructor() {
     // Initialize wall with nulls and lines with empty arrays
     for (let i = 0; i < 5; i++) {
       this.wall[i] = Array(5).fill(null); // Wall spots are initially empty (null)
+      this.lines[i] = [];
+    }
+  }
+
+  // Reset the board for a new game
+  reset(): void {
+    this.score = 0;
+    this.finalScoringApplied = false;
+    this.floor = [];
+
+    for (let i = 0; i < 5; i++) {
+      this.wall[i] = Array(5).fill(null);
       this.lines[i] = [];
     }
   }
@@ -342,6 +355,19 @@ export class PlayerBoard {
 
   // Calculate final bonus scores
   calculateFinalScore(): { bonus: number; details: FinalScoreDetails } {
+    const result = this.getFinalScoreCalculation();
+
+    // Only apply the bonus once
+    if (!this.finalScoringApplied) {
+      this.score += result.bonus;
+      this.finalScoringApplied = true;
+    }
+
+    return result;
+  }
+
+  // Calculate final bonus scores without modifying the board (for UI display)
+  getFinalScoreCalculation(): { bonus: number; details: FinalScoreDetails } {
     let bonus = 0;
     const details: FinalScoreDetails = {
       completedRows: 0,
@@ -397,7 +423,6 @@ export class PlayerBoard {
       }
     }
 
-    this.score += bonus;
     return { bonus, details };
   }
 
@@ -405,6 +430,7 @@ export class PlayerBoard {
   clone(): PlayerBoard {
     const cloned = new PlayerBoard();
     cloned.score = this.score;
+    cloned.finalScoringApplied = this.finalScoringApplied;
 
     // Deep copy wall
     for (let i = 0; i < 5; i++) {

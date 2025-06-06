@@ -809,23 +809,121 @@ export class GameRenderer {
   }
 
   private drawPlayerBoard(x: number, y: number, width: number, height: number, board: PlayerBoard, playerIndex: number): void {
-    const isCurrentPlayer = this.gameState.currentPlayer === playerIndex;
+    const isCurrentPlayer = playerIndex === this.gameState.currentPlayer;
+
+    // Background with azulejo pattern
     this.drawAzulejoPlayerBoard(x, y, width, height, isCurrentPlayer);
-    const patternLinesStartX = x + 20;
-    const patternLinesLayout = this.layout.playerBoards.patternLines;
+
+    // Player name and score
+    this.ctx.fillStyle = isCurrentPlayer ? '#2c3e50' : '#5d6d7e';
+    this.ctx.font = isCurrentPlayer ? 'bold 18px "Georgia", serif' : 'bold 16px "Georgia", serif';
+    this.ctx.textAlign = 'left';
+    this.ctx.fillText(`Player ${playerIndex + 1}`, x + 10, y + 25);
+
+    this.ctx.font = 'bold 16px "Georgia", serif';
+    this.ctx.fillStyle = isCurrentPlayer ? '#d4af37' : '#5d6d7e';
+    this.ctx.fillText(`Score: ${board.score}`, x + 10, y + height - 10);
+
+    // Draw pattern lines with scoring indicators
+    const patternY = y + this.layout.playerBoards.patternLines.startY;
     for (let i = 0; i < 5; i++) {
-      this.drawPatternLine(
-        patternLinesStartX,
-        y + patternLinesLayout.startY + i * (patternLinesLayout.height + patternLinesLayout.spacing),
-        i,
-        board.lines[i],
-        playerIndex
-      );
+      const lineY = patternY + i * (this.layout.playerBoards.patternLines.height + this.layout.playerBoards.patternLines.spacing);
+
+      // Check if line is complete and ready to score
+      const isComplete = board.lines[i].length === i + 1;
+      if (isComplete && board.lines[i].length > 0) {
+        // Draw scoring indicator
+        this.ctx.fillStyle = 'rgba(56, 142, 60, 0.2)';
+        this.ctx.fillRect(x + 5, lineY - 2, 160, this.layout.playerBoards.patternLines.height + 4);
+
+        // Add "READY!" text
+        this.ctx.fillStyle = '#388e3c';
+        this.ctx.font = 'bold 10px "Arial", sans-serif';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText('READY!', x + 160, lineY + this.layout.playerBoards.patternLines.height - 5);
+        this.ctx.textAlign = 'left';
+      }
+
+      this.drawPatternLine(x + 10, lineY, i, board.lines[i], playerIndex);
     }
+
+    // Draw wall with completion indicators
     const wallBounds = this.getWallBounds(playerIndex);
     this.drawWall(wallBounds.x, wallBounds.y, board.wall);
-    const floorBounds = this.getFloorBounds(playerIndex);
-    this.drawFloor(floorBounds.x, floorBounds.y, floorBounds.width, board.floor, playerIndex);
+
+    // Add visual indicators for completed rows/columns/colors
+    this.drawCompletionIndicators(wallBounds, board);
+
+    // Draw floor with penalty indicator
+    const floorY = y + this.layout.playerBoards.floor.startY;
+    this.drawFloor(x + 10, floorY, width - 20, board.floor, playerIndex);
+
+    // Show floor penalty if there are tiles
+    if (board.floor.length > 0) {
+      const penalties = [-1, -1, -2, -2, -2, -3, -3];
+      let totalPenalty = 0;
+      for (let i = 0; i < Math.min(board.floor.length, penalties.length); i++) {
+        totalPenalty += penalties[i];
+      }
+
+      if (totalPenalty < 0) {
+        this.ctx.fillStyle = '#d32f2f';
+        this.ctx.font = 'bold 12px "Arial", sans-serif';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`${totalPenalty} pts`, x + width - 10, floorY + this.layout.playerBoards.floor.height - 5);
+        this.ctx.textAlign = 'left';
+      }
+    }
+  }
+
+  private drawCompletionIndicators(wallBounds: any, board: PlayerBoard): void {
+    // Check for completed rows
+    for (let row = 0; row < 5; row++) {
+      if (board.wall[row].filter(tile => tile !== null).length === 5) {
+        // Draw row completion indicator
+        this.ctx.strokeStyle = '#388e3c';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.moveTo(wallBounds.x - 5, wallBounds.y + row * (wallBounds.tileSize + wallBounds.spacing) + wallBounds.tileSize / 2);
+        this.ctx.lineTo(wallBounds.x + 5 * (wallBounds.tileSize + wallBounds.spacing), wallBounds.y + row * (wallBounds.tileSize + wallBounds.spacing) + wallBounds.tileSize / 2);
+        this.ctx.stroke();
+
+        // Add "+2" indicator
+        this.ctx.fillStyle = '#388e3c';
+        this.ctx.font = 'bold 10px "Arial", sans-serif';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText('+2', wallBounds.x + 5 * (wallBounds.tileSize + wallBounds.spacing) + 15, wallBounds.y + row * (wallBounds.tileSize + wallBounds.spacing) + wallBounds.tileSize / 2 + 3);
+        this.ctx.textAlign = 'left';
+      }
+    }
+
+    // Check for completed columns
+    for (let col = 0; col < 5; col++) {
+      let columnComplete = true;
+      for (let row = 0; row < 5; row++) {
+        if (board.wall[row][col] === null) {
+          columnComplete = false;
+          break;
+        }
+      }
+
+      if (columnComplete) {
+        // Draw column completion indicator
+        this.ctx.strokeStyle = '#1976d2';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.moveTo(wallBounds.x + col * (wallBounds.tileSize + wallBounds.spacing) + wallBounds.tileSize / 2, wallBounds.y - 5);
+        this.ctx.lineTo(wallBounds.x + col * (wallBounds.tileSize + wallBounds.spacing) + wallBounds.tileSize / 2, wallBounds.y + 5 * (wallBounds.tileSize + wallBounds.spacing));
+        this.ctx.stroke();
+
+        // Add "+7" indicator
+        this.ctx.fillStyle = '#1976d2';
+        this.ctx.font = 'bold 10px "Arial", sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('+7', wallBounds.x + col * (wallBounds.tileSize + wallBounds.spacing) + wallBounds.tileSize / 2, wallBounds.y - 10);
+        this.ctx.textAlign = 'left';
+      }
+    }
   }
 
   private drawPatternLine(x: number, y: number, lineIndex: number, tiles: Tile[], playerIndex: number): void {
@@ -1088,12 +1186,61 @@ export class GameRenderer {
     if (!this.gameState.gameOver) {
       this.ctx.fillText(`Current Player: ${this.gameState.currentPlayer + 1}`, infoX, infoY + 25);
       this.ctx.fillText(`Available Moves: ${this.gameState.availableMoves.length}`, infoX, infoY + 50);
+
+      // Show scoring hint for current player
+      if (this.gameState.currentPlayer !== undefined) {
+        const currentBoard = this.gameState.playerBoards[this.gameState.currentPlayer];
+        let completedLines = 0;
+        for (let i = 0; i < 5; i++) {
+          if (currentBoard.lines[i].length === i + 1) {
+            completedLines++;
+          }
+        }
+
+        if (completedLines > 0) {
+          this.ctx.fillStyle = '#388e3c';
+          this.ctx.font = 'italic 14px "Georgia", serif';
+          this.ctx.fillText(`${completedLines} line${completedLines > 1 ? 's' : ''} ready to score!`, infoX, infoY + 75);
+        }
+      }
     } else {
       const result = this.gameState.getResult();
       if (result.winner !== -1) {
+        this.ctx.fillStyle = '#388e3c';
+        this.ctx.font = 'bold 20px "Georgia", serif';
         this.ctx.fillText(`Winner: Player ${result.winner + 1}!`, infoX, infoY + 25);
       } else {
+        this.ctx.fillStyle = '#f57c00';
+        this.ctx.font = 'bold 20px "Georgia", serif';
         this.ctx.fillText('Game ended in a tie!', infoX, infoY + 25);
+      }
+
+      // Show final bonuses summary
+      this.ctx.fillStyle = '#2c3e50';
+      this.ctx.font = 'bold 16px "Georgia", serif';
+      this.ctx.fillText('Final Bonuses:', infoX, infoY + 55);
+
+      let yOffset = 75;
+      for (let i = 0; i < this.gameState.playerBoards.length; i++) {
+        const board = this.gameState.playerBoards[i];
+        const finalResult = board.getFinalScoreCalculation();
+
+        this.ctx.fillStyle = '#5d6d7e';
+        this.ctx.font = '14px "Georgia", serif';
+        this.ctx.fillText(`Player ${i + 1}: +${finalResult.bonus}`, infoX, infoY + yOffset);
+
+        if (finalResult.bonus > 0) {
+          let bonusDetails = '';
+          if (finalResult.details.completedRows > 0) bonusDetails += `${finalResult.details.completedRows}R `;
+          if (finalResult.details.completedColumns > 0) bonusDetails += `${finalResult.details.completedColumns}C `;
+          if (finalResult.details.completedColors > 0) bonusDetails += `${finalResult.details.completedColors}Color `;
+
+          this.ctx.fillStyle = '#388e3c';
+          this.ctx.font = 'italic 12px "Georgia", serif';
+          this.ctx.fillText(`(${bonusDetails.trim()})`, infoX + 80, infoY + yOffset);
+        }
+
+        yOffset += 20;
       }
     }
 
@@ -1105,19 +1252,19 @@ export class GameRenderer {
 
       // Draw a small tile indicator
       const tileX = infoX;
-      const tileY = infoY + 70;
+      const tileY = infoY + 120;
       this.drawTile(tileX, tileY, this.STANDARD_TILE_SIZE, this.selectedTile);
 
-      this.ctx.fillText(`Selected: ${this.selectedTile.charAt(0).toUpperCase() + this.selectedTile.slice(1)} tiles from ${factoryText}`, infoX + 30, infoY + 85);
+      this.ctx.fillText(`Selected: ${this.selectedTile.charAt(0).toUpperCase() + this.selectedTile.slice(1)} tiles from ${factoryText}`, infoX + 30, infoY + 135);
       this.ctx.font = 'italic 14px "Georgia", serif';
       this.ctx.fillStyle = '#5d6d7e';
-      this.ctx.fillText('Click a pattern line or floor to place tiles', infoX, infoY + 105);
+      this.ctx.fillText('Click a pattern line or floor to place tiles', infoX, infoY + 155);
     } else if (this.hoveredTile && this.hoveredFactory !== -2) {
       const factoryText = this.hoveredFactory === -1 ? 'Center' : `Factory ${this.hoveredFactory + 1}`;
       this.ctx.fillStyle = '#5d6d7e';
       this.ctx.font = 'italic 14px "Georgia", serif';
-      this.ctx.fillText(`Hover: ${this.hoveredTile.charAt(0).toUpperCase() + this.hoveredTile.slice(1)} tiles in ${factoryText}`, infoX, infoY + 75);
-      this.ctx.fillText('Click to select these tiles', infoX, infoY + 95);
+      this.ctx.fillText(`Hover: ${this.hoveredTile.charAt(0).toUpperCase() + this.hoveredTile.slice(1)} tiles in ${factoryText}`, infoX, infoY + 125);
+      this.ctx.fillText('Click to select these tiles', infoX, infoY + 145);
     }
   }
 
