@@ -32,7 +32,7 @@ struct LibTorchAZConfig {
   // Learning parameters
   double learning_rate = 0.001;
   double weight_decay = 1e-4;
-  int train_batch_size = 32;
+  int train_batch_size = 256;
   // This should ideally match the number of actors to avoid contention.
   int inference_batch_size = 4;
   int inference_threads = 1;
@@ -40,6 +40,8 @@ struct LibTorchAZConfig {
   // MCTS generates millions of states to be evaluated. A small cache size will
   // significantly slow down training.
   int inference_cache = 2000000;
+  // We should further increase this to 1000000, but we cannot change this
+  // during the middle of a training run.
   int replay_buffer_size = 100000;
   int replay_buffer_reuse = 10;
   int checkpoint_freq = 100;
