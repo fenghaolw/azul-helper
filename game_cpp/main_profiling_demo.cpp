@@ -11,13 +11,14 @@
 
 // Simple command line argument parsing
 struct ProfilingConfig {
-  std::string agent_type = "mcts";  // "mcts" or "minimax"
-  int depth = 4;                    // for minimax
-  int simulations = 1000;           // for mcts
-  double uct_c = 1.4;               // for mcts
-  int num_games = 5;                // number of profiling games
-  int seed = 42;                    // random seed
-  bool verbose = true;              // verbose output
+  std::string agent_type = "mcts";   // "mcts", "minimax", or "alphazero"
+  int depth = 4;                     // for minimax
+  int simulations = 1000;            // for mcts
+  double uct_c = 1.4;                // for mcts
+  int num_games = 5;                 // number of profiling games
+  int seed = 42;                     // random seed
+  bool verbose = true;               // verbose output
+  std::string checkpoint_path = "";  // for alphazero
 };
 
 namespace {
@@ -29,19 +30,24 @@ void force_azul_registration() {
 void print_usage(const char* program_name) {
   std::cout << "Usage: " << program_name << " [options]\n";
   std::cout << "Options:\n";
-  std::cout << "  --agent <type>     Agent type: 'mcts' or 'minimax' (default: "
+  std::cout << "  --agent <type>       Agent type: 'mcts', 'minimax', or "
+               "'alphazero' (default: "
                "mcts)\n";
-  std::cout << "  --depth <n>        Minimax depth (default: 4)\n";
-  std::cout << "  --simulations <n>  MCTS simulations (default: 1000)\n";
-  std::cout << "  --uct <c>          MCTS UCT constant (default: 1.4)\n";
-  std::cout << "  --games <n>        Number of profiling games (default: 5)\n";
-  std::cout << "  --seed <n>         Random seed (default: 42)\n";
-  std::cout << "  --quiet            Reduce output verbosity\n";
-  std::cout << "  --help             Show this help message\n";
+  std::cout << "  --depth <n>          Minimax depth (default: 4)\n";
+  std::cout << "  --simulations <n>    MCTS simulations (default: 1000)\n";
+  std::cout << "  --uct <c>            MCTS UCT constant (default: 1.4)\n";
+  std::cout
+      << "  --games <n>          Number of profiling games (default: 5)\n";
+  std::cout << "  --seed <n>           Random seed (default: 42)\n";
+  std::cout << "  --checkpoint <path>  AlphaZero checkpoint path (required for "
+               "alphazero)\n";
+  std::cout << "  --quiet              Reduce output verbosity\n";
+  std::cout << "  --help               Show this help message\n";
 }
 
 ProfilingConfig parse_arguments(int argc, char* argv[]) {
   ProfilingConfig config;
+  config.verbose = true;
 
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
@@ -51,8 +57,10 @@ ProfilingConfig parse_arguments(int argc, char* argv[]) {
       exit(0);
     } else if (arg == "--agent" && i + 1 < argc) {
       config.agent_type = argv[++i];
-      if (config.agent_type != "mcts" && config.agent_type != "minimax") {
-        std::cerr << "Error: Invalid agent type. Use 'mcts' or 'minimax'\n";
+      if (config.agent_type != "mcts" && config.agent_type != "minimax" &&
+          config.agent_type != "alphazero") {
+        std::cerr << "Error: Invalid agent type. Use 'mcts', 'minimax', or "
+                     "'alphazero'\n";
         exit(1);
       }
     } else if (arg == "--depth" && i + 1 < argc) {
@@ -81,6 +89,8 @@ ProfilingConfig parse_arguments(int argc, char* argv[]) {
       }
     } else if (arg == "--seed" && i + 1 < argc) {
       config.seed = std::stoi(argv[++i]);
+    } else if (arg == "--checkpoint" && i + 1 < argc) {
+      config.checkpoint_path = argv[++i];
     } else if (arg == "--quiet") {
       config.verbose = false;
     } else {
@@ -88,6 +98,12 @@ ProfilingConfig parse_arguments(int argc, char* argv[]) {
       print_usage(argv[0]);
       exit(1);
     }
+  }
+
+  // Validate alphazero requirements
+  if (config.agent_type == "alphazero" && config.checkpoint_path.empty()) {
+    std::cerr << "Error: --checkpoint path is required for alphazero agent\n";
+    exit(1);
   }
 
   return config;
@@ -101,6 +117,8 @@ auto main(int argc, char* argv[]) -> int {
   std::cout << "Agent: " << config.agent_type;
   if (config.agent_type == "minimax") {
     std::cout << " (depth: " << config.depth << ")";
+  } else if (config.agent_type == "alphazero") {
+    std::cout << " (checkpoint: " << config.checkpoint_path << ")";
   } else {
     std::cout << " (simulations: " << config.simulations
               << ", UCT: " << config.uct_c << ")";
@@ -130,12 +148,27 @@ auto main(int argc, char* argv[]) -> int {
     // Create profiled agent based on configuration
     std::unique_ptr<azul::ProfiledMinimaxAgent> profiled_minimax;
     std::unique_ptr<azul::ProfiledMCTSAgent> profiled_mcts;
+    std::unique_ptr<azul::ProfiledAlphaZeroMCTSAgent> profiled_alphazero;
 
     if (config.agent_type == "minimax") {
       profiled_minimax = azul::create_profiled_minimax_agent(0, config.depth);
       if (config.verbose) {
         std::cout << "Created profiled Minimax agent (depth " << config.depth
                   << ")" << '\n';
+      }
+    } else if (config.agent_type == "alphazero") {
+      try {
+        profiled_alphazero = azul::create_profiled_alphazero_agent(
+            config.checkpoint_path, config.simulations, config.uct_c,
+            config.seed);
+        if (config.verbose) {
+          std::cout << "Created profiled AlphaZero agent (checkpoint: "
+                    << config.checkpoint_path << ", " << config.simulations
+                    << " sims, UCT " << config.uct_c << ")" << '\n';
+        }
+      } catch (const std::exception& e) {
+        std::cerr << "❌ Failed to load AlphaZero model: " << e.what() << '\n';
+        return 1;
       }
     } else {
       profiled_mcts = azul::create_profiled_mcts_agent(
@@ -181,6 +214,8 @@ auto main(int argc, char* argv[]) -> int {
           // Profiled agent
           if (config.agent_type == "minimax") {
             action = profiled_minimax->get_action(*state);
+          } else if (config.agent_type == "alphazero") {
+            action = profiled_alphazero->get_action(*state);
           } else {
             action = profiled_mcts->get_action(*state);
           }
@@ -215,6 +250,20 @@ auto main(int argc, char* argv[]) -> int {
     std::string filename = "profiling_" + config.agent_type;
     if (config.agent_type == "minimax") {
       filename += "_d" + std::to_string(config.depth);
+    } else if (config.agent_type == "alphazero") {
+      // Extract just the filename from checkpoint path for cleaner filename
+      std::string checkpoint_name = config.checkpoint_path;
+      size_t last_slash = checkpoint_name.find_last_of("/\\");
+      if (last_slash != std::string::npos) {
+        checkpoint_name = checkpoint_name.substr(last_slash + 1);
+      }
+      // Remove file extension if present
+      size_t last_dot = checkpoint_name.find_last_of(".");
+      if (last_dot != std::string::npos) {
+        checkpoint_name = checkpoint_name.substr(0, last_dot);
+      }
+      filename +=
+          "_" + checkpoint_name + "_s" + std::to_string(config.simulations);
     } else {
       filename += "_s" + std::to_string(config.simulations) + "_uct" +
                   std::to_string((int)(config.uct_c * 10));

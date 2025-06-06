@@ -68,7 +68,7 @@ auto main() -> int {
     azul::EvaluationConfig tournament_config;
     tournament_config.num_games =
         30;  // 30 games per matchup for reliable results
-    tournament_config.verbose = false;  // Less verbose for tournament
+    tournament_config.verbose = true;
     tournament_config.swap_player_positions = true;
 
     azul::Tournament tournament(tournament_config);

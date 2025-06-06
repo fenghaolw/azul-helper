@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "open_spiel/spiel.h"
@@ -17,6 +18,7 @@ namespace azul {
 // Forward declarations
 class MinimaxAgent;
 class AzulMCTSAgent;
+class AlphaZeroMCTSAgentWrapper;
 
 // Type aliases for compatibility
 using GameState = open_spiel::State;
@@ -98,7 +100,7 @@ struct MemoryStats {
  */
 class AgentProfiler {
  public:
-  static AgentProfiler& instance() {
+  static auto instance() -> AgentProfiler& {
     static AgentProfiler instance;
     return instance;
   }
@@ -163,8 +165,8 @@ class AgentProfiler {
  */
 class ScopedProfiler {
  public:
-  explicit ScopedProfiler(const std::string& function_name)
-      : function_name_(function_name) {
+  explicit ScopedProfiler(std::string function_name)
+      : function_name_(std::move(function_name)) {
     if (AgentProfiler::instance().is_profiling()) {
       AgentProfiler::instance().start_function(function_name_);
     }
@@ -189,8 +191,8 @@ class ProfiledMinimaxAgent {
 
   [[nodiscard]] auto get_action(const open_spiel::State& state)
       -> open_spiel::Action;
-  [[nodiscard]] auto get_action_probabilities(const open_spiel::State& state)
-      -> std::vector<double>;
+  [[nodiscard]] static auto get_action_probabilities(
+      const open_spiel::State& state) -> std::vector<double>;
   void reset();
 
   // Access to underlying agent
@@ -223,6 +225,28 @@ class ProfiledMCTSAgent {
   std::unique_ptr<AzulMCTSAgent> agent_;
 };
 
+/**
+ * Profiling wrapper for AlphaZero MCTS agent
+ */
+class ProfiledAlphaZeroMCTSAgent {
+ public:
+  explicit ProfiledAlphaZeroMCTSAgent(
+      std::unique_ptr<AlphaZeroMCTSAgentWrapper> agent);
+
+  [[nodiscard]] auto get_action(const open_spiel::State& state)
+      -> open_spiel::Action;
+  void reset();
+
+  // Access to underlying agent
+  [[nodiscard]] auto agent() const -> const AlphaZeroMCTSAgentWrapper& {
+    return *agent_;
+  }
+  [[nodiscard]] auto agent() -> AlphaZeroMCTSAgentWrapper& { return *agent_; }
+
+ private:
+  std::unique_ptr<AlphaZeroMCTSAgentWrapper> agent_;
+};
+
 // Convenience macros for profiling
 #define PROFILE_FUNCTION() ScopedProfiler _prof(__FUNCTION__)
 #define PROFILE_SCOPE(name) ScopedProfiler _prof(name)
@@ -235,5 +259,10 @@ class ProfiledMCTSAgent {
                                               int num_simulations = 1000,
                                               double uct_c = 1.4, int seed = -1)
     -> std::unique_ptr<ProfiledMCTSAgent>;
+
+[[nodiscard]] auto create_profiled_alphazero_agent(
+    const std::string& checkpoint_path, int num_simulations = 400,
+    double uct_c = 1.4, int seed = -1)
+    -> std::unique_ptr<ProfiledAlphaZeroMCTSAgent>;
 
 }  // namespace azul

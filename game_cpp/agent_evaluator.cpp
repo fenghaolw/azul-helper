@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 
@@ -67,11 +68,6 @@ auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
       }
       result.errors++;
     }
-
-    if (config_.verbose && (game_id + 1) % 10 == 0) {
-      std::cout << "Completed " << (game_id + 1) << "/" << game_plans.size()
-                << " games" << '\n';
-    }
   }
 
   result.games_played = static_cast<int>(result.game_results.size());
@@ -89,19 +85,37 @@ auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
   result.is_statistically_significant = is_significant;
 
   if (config_.verbose) {
-    std::cout << "Evaluation complete!" << '\n';
-    std::cout << "Results: " << test_agent.get_name() << " "
-              << (result.test_agent_win_rate * 100) << "% vs "
-              << baseline_agent.get_name() << " "
-              << (result.baseline_agent_win_rate * 100) << "%" << '\n';
+    std::cout << "\n=== Evaluation Summary ===" << '\n';
+    std::cout << "Total games: " << result.games_played << '\n';
+    std::cout << "Results: " << test_agent.get_name() << " " << std::fixed
+              << std::setprecision(1) << (result.test_agent_win_rate * 100)
+              << "% vs " << baseline_agent.get_name() << " "
+              << (result.baseline_agent_win_rate * 100) << "%";
+    if (result.draws > 0) {
+      double draw_rate =
+          static_cast<double>(result.draws) / result.games_played;
+      std::cout << " (Draws: " << std::setprecision(1) << (draw_rate * 100)
+                << "%)";
+    }
+    std::cout << '\n';
+    if (result.timeouts > 0) {
+      std::cout << "Timeouts: " << result.timeouts << '\n';
+    }
+    if (result.errors > 0) {
+      std::cout << "Errors: " << result.errors << '\n';
+    }
+    std::cout << "Statistical significance: "
+              << (result.is_statistically_significant ? "Yes" : "No")
+              << " (p=" << std::setprecision(3) << result.p_value << ")"
+              << '\n';
   }
 
   return result;
 }
 
-EvaluationResult AgentEvaluator::quick_evaluation(
-    EvaluationAgent& test_agent, EvaluationAgent& baseline_agent,
-    int num_games) {
+auto AgentEvaluator::quick_evaluation(EvaluationAgent& test_agent,
+                                      EvaluationAgent& baseline_agent,
+                                      int num_games) -> EvaluationResult {
   EvaluationConfig quick_config = config_;
   quick_config.num_games = num_games;
   quick_config.verbose = true;
@@ -116,6 +130,17 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
                                      int baseline_agent_player, int seed) const
     -> GameResult {
   auto start_time = std::chrono::high_resolution_clock::now();
+
+  if (config_.verbose) {
+    std::cout << "Starting game " << (game_id + 1) << ": "
+              << test_agent.get_name() << " (P" << test_agent_player << ") vs "
+              << baseline_agent.get_name() << " (P" << baseline_agent_player
+              << ")";
+    if (seed != -1) {
+      std::cout << " [seed: " << seed << "]";
+    }
+    std::cout << '\n';
+  }
 
   // Create OpenSpiel game
   open_spiel::GameParameters params;
@@ -266,17 +291,59 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
   std::vector<int> final_scores;
 
   if (game_state->IsTerminal()) {
-    auto returns = game_state->Returns();
-    final_scores.resize(returns.size());
+    // Get actual game scores, not utility values
+    const auto* azul_state =
+        dynamic_cast<const open_spiel::azul::AzulState*>(game_state.get());
+    final_scores.resize(config_.num_players);
 
-    // Convert returns to scores (assuming returns are in [-1, 1] range)
-    double max_return = *std::max_element(returns.begin(), returns.end());
-    for (size_t i = 0; i < returns.size(); ++i) {
-      final_scores[i] = static_cast<int>(
-          returns[i] * 100);  // Scale to reasonable score range
-      if (returns[i] == max_return) {
-        winner = static_cast<int>(i);
+    // Get actual Azul scores for each player
+    int max_score = -1;
+    for (int i = 0; i < config_.num_players; ++i) {
+      final_scores[i] = azul_state->CalculateScore(i);
+      if (final_scores[i] > max_score) {
+        max_score = final_scores[i];
+        winner = i;
       }
+    }
+
+    // Handle ties - use the same tiebreaker logic as AzulState::Returns()
+    std::vector<int> tied_players;
+    for (int i = 0; i < config_.num_players; ++i) {
+      if (final_scores[i] == max_score) {
+        tied_players.push_back(i);
+      }
+    }
+
+    if (tied_players.size() > 1) {
+      // Tiebreaker: most completed rows
+      int max_completed_rows = -1;
+      winner = -1;  // Reset winner for tiebreaker
+
+      for (int player : tied_players) {
+        int completed_rows = 0;
+        const auto& player_boards = azul_state->PlayerBoards();
+        const auto& wall = player_boards[player].wall;
+
+        for (int row = 0; row < open_spiel::azul::kWallSize; ++row) {
+          bool row_complete = true;
+          for (int col = 0; col < open_spiel::azul::kWallSize; ++col) {
+            if (!wall[row][col]) {
+              row_complete = false;
+              break;
+            }
+          }
+          if (row_complete) {
+            completed_rows++;
+          }
+        }
+
+        if (completed_rows > max_completed_rows) {
+          max_completed_rows = completed_rows;
+          winner = player;
+        }
+      }
+
+      // If still tied, winner remains -1 (draw)
     }
   }
 
@@ -290,6 +357,37 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
   result.error_log = error_log;
   result.test_agent_nodes = test_nodes_after - test_nodes_before;
   result.baseline_agent_nodes = baseline_nodes_after - baseline_nodes_before;
+
+  if (config_.verbose) {
+    std::cout << "Game " << (game_id + 1) << " completed: ";
+    if (winner == test_agent_player) {
+      std::cout << "Winner: " << test_agent.get_name();
+    } else if (winner == baseline_agent_player) {
+      std::cout << "Winner: " << baseline_agent.get_name();
+    } else {
+      std::cout << "Result: Draw";
+    }
+    std::cout << " | Duration: " << std::fixed << std::setprecision(2)
+              << (game_duration.count() / 1000.0) << "s"
+              << " | Moves: " << total_moves;
+    if (!final_scores.empty()) {
+      std::cout << " | Scores: [";
+      for (size_t i = 0; i < final_scores.size(); ++i) {
+        if (i > 0) {
+          std::cout << ", ";
+        }
+        std::cout << final_scores[i];
+      }
+      std::cout << "]";
+    }
+    if (timeout_occurred) {
+      std::cout << " | TIMEOUT";
+    }
+    if (!error_log.empty()) {
+      std::cout << " | ERROR: " << error_log;
+    }
+    std::cout << '\n';
+  }
 
   return result;
 }
@@ -380,11 +478,11 @@ auto AgentEvaluator::calculate_confidence_interval(int wins,
 Tournament::Tournament(const EvaluationConfig& config)
     : config_(config), evaluator_(config) {}
 
-void Tournament::add_agent(std::unique_ptr<EvaluationAgent> agent) {
+auto Tournament::add_agent(std::unique_ptr<EvaluationAgent> agent) -> void {
   agents_.push_back(std::move(agent));
 }
 
-TournamentResult Tournament::run_tournament() {
+auto Tournament::run_tournament() -> TournamentResult {
   if (agents_.size() < 2) {
     throw std::runtime_error("Tournament requires at least 2 agents");
   }
@@ -405,15 +503,28 @@ TournamentResult Tournament::run_tournament() {
   }
 
   // Run round-robin evaluation
+  int total_matchups =
+      static_cast<int>(agents_.size() * (agents_.size() - 1) / 2);
+  int completed_matchups = 0;
+
   for (size_t i = 0; i < agents_.size(); ++i) {
     for (size_t j = i + 1; j < agents_.size(); ++j) {
+      completed_matchups++;
+
       if (config_.verbose) {
+        std::cout << "\n=== Matchup " << completed_matchups << "/"
+                  << total_matchups << " ===\n";
         std::cout << "Evaluating " << agents_[i]->get_name() << " vs "
                   << agents_[j]->get_name() << '\n';
       }
 
+      auto matchup_start = std::chrono::high_resolution_clock::now();
       EvaluationResult result =
           evaluator_.evaluate_agent(*agents_[i], *agents_[j]);
+      auto matchup_end = std::chrono::high_resolution_clock::now();
+      auto matchup_duration = std::chrono::duration_cast<std::chrono::seconds>(
+          matchup_end - matchup_start);
+
       tournament_result.matchup_results.push_back(result);
 
       // Update agent stats
@@ -425,6 +536,39 @@ TournamentResult Tournament::run_tournament() {
           result.test_agent_avg_score * result.games_played;
       tournament_result.agent_stats[j].total_score +=
           result.baseline_agent_avg_score * result.games_played;
+
+      if (config_.verbose) {
+        std::cout << "Matchup completed in " << matchup_duration.count()
+                  << "s - " << agents_[i]->get_name() << ": "
+                  << result.test_agent_wins << " wins, "
+                  << agents_[j]->get_name() << ": "
+                  << result.baseline_agent_wins << " wins";
+        if (result.draws > 0) {
+          std::cout << ", " << result.draws << " draws";
+        }
+        std::cout << '\n';
+
+        // Show current tournament standings
+        std::cout << "Current standings:\n";
+        std::vector<std::pair<std::string, double>> temp_standings;
+        for (size_t k = 0; k < agents_.size(); ++k) {
+          if (tournament_result.agent_stats[k].games_played > 0) {
+            double win_rate =
+                static_cast<double>(tournament_result.agent_stats[k].wins) /
+                tournament_result.agent_stats[k].games_played;
+            temp_standings.emplace_back(agents_[k]->get_name(), win_rate);
+          }
+        }
+        std::sort(
+            temp_standings.begin(), temp_standings.end(),
+            [](const auto& a, const auto& b) { return a.second > b.second; });
+
+        for (size_t k = 0; k < temp_standings.size(); ++k) {
+          std::cout << "  " << (k + 1) << ". " << temp_standings[k].first
+                    << " - " << std::fixed << std::setprecision(1)
+                    << (temp_standings[k].second * 100) << "% win rate\n";
+        }
+      }
     }
   }
 
@@ -460,24 +604,26 @@ TournamentResult Tournament::run_tournament() {
 }
 
 // Factory functions
-std::unique_ptr<EvaluationAgent> create_random_evaluation_agent(
-    int seed, const std::string& name) {
+auto create_random_evaluation_agent(int seed, const std::string& name)
+    -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<RandomAgentWrapper>(seed, name);
 }
 
-std::unique_ptr<EvaluationAgent> create_minimax_evaluation_agent(
-    int depth, const std::string& name) {
+auto create_minimax_evaluation_agent(int depth, const std::string& name)
+    -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<MinimaxAgentWrapper>(depth, name);
 }
 
-std::unique_ptr<EvaluationAgent> create_mcts_evaluation_agent(
-    int num_simulations, double uct_c, int seed, const std::string& name) {
+auto create_mcts_evaluation_agent(int num_simulations, double uct_c, int seed,
+                                  const std::string& name)
+    -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<MCTSAgentWrapper>(num_simulations, uct_c, seed, name);
 }
 
-std::unique_ptr<EvaluationAgent> create_alphazero_mcts_evaluation_agent(
-    const std::string& checkpoint_path, int num_simulations, double uct_c,
-    int seed, const std::string& name) {
+auto create_alphazero_mcts_evaluation_agent(const std::string& checkpoint_path,
+                                            int num_simulations, double uct_c,
+                                            int seed, const std::string& name)
+    -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<AlphaZeroMCTSAgentWrapper>(
       checkpoint_path, num_simulations, uct_c, seed, name);
 }

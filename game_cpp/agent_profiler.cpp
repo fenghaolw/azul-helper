@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "agent_evaluator.h"
 #include "mcts_agent.h"
 #include "minimax_agent.h"
 #include "open_spiel/spiel.h"
@@ -11,13 +12,17 @@ namespace azul {
 
 // AgentProfiler implementation
 void AgentProfiler::start_function(const std::string& function_name) {
-  if (!profiling_enabled_) return;
+  if (!profiling_enabled_) {
+    return;
+  }
 
   active_timers_[function_name].reset();
 }
 
 void AgentProfiler::end_function(const std::string& function_name) {
-  if (!profiling_enabled_) return;
+  if (!profiling_enabled_) {
+    return;
+  }
 
   auto timer_it = active_timers_.find(function_name);
   if (timer_it != active_timers_.end()) {
@@ -29,14 +34,18 @@ void AgentProfiler::end_function(const std::string& function_name) {
 
 void AgentProfiler::track_memory_allocation(const std::string& context,
                                             size_t size_bytes) {
-  if (!profiling_enabled_) return;
+  if (!profiling_enabled_) {
+    return;
+  }
 
   memory_stats_.track_allocation(size_bytes);
 }
 
 void AgentProfiler::track_memory_deallocation(const std::string& context,
                                               size_t size_bytes) {
-  if (!profiling_enabled_) return;
+  if (!profiling_enabled_) {
+    return;
+  }
 
   memory_stats_.track_deallocation(size_bytes);
 }
@@ -44,7 +53,9 @@ void AgentProfiler::track_memory_deallocation(const std::string& context,
 void AgentProfiler::profile_minimax_search(
     const std::function<open_spiel::Action()>& search_func,
     const std::string& context) {
-  if (!profiling_enabled_) return;
+  if (!profiling_enabled_) {
+    return;
+  }
 
   Timer timer;
   open_spiel::Action result = search_func();
@@ -56,7 +67,9 @@ void AgentProfiler::profile_minimax_search(
 void AgentProfiler::profile_mcts_search(
     const std::function<open_spiel::Action()>& search_func,
     const std::string& context) {
-  if (!profiling_enabled_) return;
+  if (!profiling_enabled_) {
+    return;
+  }
 
   Timer timer;
   open_spiel::Action result = search_func();
@@ -143,7 +156,9 @@ void AgentProfiler::print_hotspots(std::ostream& os, size_t top_n) const {
 
   size_t count = 0;
   for (const auto& [name, stats] : sorted_stats) {
-    if (count >= top_n) break;
+    if (count >= top_n) {
+      break;
+    }
 
     os << (count + 1) << ". " << name << "\n";
     os << "   Time: " << std::fixed << std::setprecision(2)
@@ -217,13 +232,46 @@ open_spiel::Action ProfiledMCTSAgent::get_action(
   return result;
 }
 
-std::vector<double> ProfiledMCTSAgent::get_action_probabilities(
-    const open_spiel::State& state, double temperature) {
+auto get_action_probabilities(const open_spiel::State& state,
+                              double temperature) -> std::vector<double> {
   PROFILE_FUNCTION();
-  return agent_->get_action_probabilities(state, temperature);
+  return azul::AzulMCTSAgent::get_action_probabilities(state, temperature);
 }
 
 void ProfiledMCTSAgent::reset() {
+  PROFILE_FUNCTION();
+  agent_->reset();
+}
+
+// ProfiledAlphaZeroMCTSAgent implementation
+ProfiledAlphaZeroMCTSAgent::ProfiledAlphaZeroMCTSAgent(
+    std::unique_ptr<AlphaZeroMCTSAgentWrapper> agent)
+    : agent_(std::move(agent)) {}
+
+open_spiel::Action ProfiledAlphaZeroMCTSAgent::get_action(
+    const open_spiel::State& state) {
+  PROFILE_FUNCTION();
+
+  auto& profiler = AgentProfiler::instance();
+
+  open_spiel::Action result;
+  profiler.profile_mcts_search(
+      [&]() -> Action {
+        {
+          PROFILE_SCOPE("alphazero_neural_network_inference");
+          // This encompasses the neural network forward pass and MCTS tree
+          // search
+          result = agent_->get_action(state, state.CurrentPlayer());
+        }
+
+        return 0;  // Return dummy action for the lambda
+      },
+      "ProfiledAlphaZeroMCTSAgent::get_action");
+
+  return result;
+}
+
+void ProfiledAlphaZeroMCTSAgent::reset() {
   PROFILE_FUNCTION();
   agent_->reset();
 }
@@ -239,6 +287,16 @@ std::unique_ptr<ProfiledMCTSAgent> create_profiled_mcts_agent(
     int player_id, int num_simulations, double uct_c, int seed) {
   auto agent = create_mcts_agent(player_id, num_simulations, uct_c, seed);
   return std::make_unique<ProfiledMCTSAgent>(std::move(agent));
+}
+
+std::unique_ptr<ProfiledAlphaZeroMCTSAgent> create_profiled_alphazero_agent(
+    const std::string& checkpoint_path, int num_simulations, double uct_c,
+    int seed) {
+  // Create AlphaZeroMCTSAgentWrapper directly to avoid torch dependency here
+  auto alphazero_agent = std::make_unique<AlphaZeroMCTSAgentWrapper>(
+      checkpoint_path, num_simulations, uct_c, seed);
+  return std::make_unique<ProfiledAlphaZeroMCTSAgent>(
+      std::move(alphazero_agent));
 }
 
 }  // namespace azul

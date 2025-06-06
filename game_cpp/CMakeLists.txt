@@ -109,6 +109,25 @@ target_link_libraries(azul_evaluation_demo
     ${TORCH_LIBRARIES}
 )
 
+# Profiling demo executable
+add_executable(azul_profiling_demo
+    main_profiling_demo.cpp
+)
+
+target_include_directories(azul_profiling_demo PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ALPHA_ZERO_TORCH_DIR}
+    ${OPENSPIEL_ROOT}/open_spiel/libnop/libnop/include
+)
+
+target_link_libraries(azul_profiling_demo
+    azul_evaluation
+    azul_local
+    ${LOCAL_OPENSPIEL_LIB}
+    alpha_zero_torch
+    ${TORCH_LIBRARIES}
+)
+
 # Neural MCTS Training executable with LibTorch
 add_executable(neural_mcts_trainer
     neural_mcts_training.cpp
@@ -197,9 +216,10 @@ message(STATUS "✅ Simplified OpenSpiel Azul integration configured")
 message(STATUS "📁 OpenSpiel source: ${OPENSPIEL_ROOT}")
 message(STATUS "📚 Shared library: ${LOCAL_OPENSPIEL_LIB}")
 message(STATUS "🔥 LibTorch found: ${TORCH_INSTALL_PREFIX}")
-message(STATUS "🎯 Build targets: azul_evaluation_demo, neural_mcts_trainer")
+message(STATUS "🎯 Build targets: azul_evaluation_demo, azul_profiling_demo, neural_mcts_trainer")
 message(STATUS "")
 message(STATUS "🚀 To build and run:")
 message(STATUS "   make azul_evaluation_demo && ./azul_evaluation_demo")
+message(STATUS "   make azul_profiling_demo && ./azul_profiling_demo --help")
 message(STATUS "   make neural_mcts_trainer && ./neural_mcts_trainer")
 message(STATUS "")
