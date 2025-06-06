@@ -1,6 +1,4 @@
-#include <fstream>
 #include <iostream>
-#include <memory>
 
 #include "agent_evaluator.h"
 #include "evaluation_config.h"
@@ -14,13 +12,6 @@ void force_azul_registration() {
 
 auto main() -> int {
   std::cout << "=== AZUL AGENT EVALUATION & TOURNAMENT DEMO ===" << '\n';
-  std::cout << "Testing minimax vs MCTS agents with head-to-head and "
-               "tournament analysis"
-            << '\n';
-  std::cout
-      << "Note: For profiling, use the separate 'azul_profiling_demo' tool"
-      << '\n';
-  std::cout << '\n';
 
   try {
     // Force registration
@@ -34,13 +25,6 @@ auto main() -> int {
     }
     std::cout << "✅ Azul game loaded successfully" << '\n';
 
-    // =================================================================
-    // PART 1: HEAD-TO-HEAD EVALUATION
-    // =================================================================
-    std::cout << "\n" << std::string(60, '=') << '\n';
-    std::cout << "PART 1: HEAD-TO-HEAD AGENT EVALUATION" << '\n';
-    std::cout << std::string(60, '=') << '\n';
-
     // Configure evaluation
     azul::EvaluationConfig eval_config;
     eval_config.num_games = 50;
@@ -50,33 +34,35 @@ auto main() -> int {
 
     azul::AgentEvaluator evaluator(eval_config);
 
-    // Create agents for evaluation
-    auto minimax_agent = azul::create_minimax_evaluation_agent(4, "Minimax_D4");
-    auto mcts_agent =
-        azul::create_mcts_evaluation_agent(1000, 1.4, 42, "MCTS_1000");
-    auto random_agent = azul::create_random_evaluation_agent(42, "Random");
+    // // Test 1: Minimax vs MCTS
+    // std::cout << "\n--- Evaluation 1: Minimax vs MCTS ---" << '\n';
+    // auto result1 = evaluator.evaluate_agent(*minimax_agent, *mcts_agent);
+    // std::cout << result1.summary() << '\n';
 
-    // Test 1: Minimax vs MCTS
-    std::cout << "\n--- Evaluation 1: Minimax vs MCTS ---" << '\n';
-    auto result1 = evaluator.evaluate_agent(*minimax_agent, *mcts_agent);
-    std::cout << result1.summary() << '\n';
+    // // Test 2: Minimax vs Random (should win easily)
+    // std::cout << "\n--- Evaluation 2: Minimax vs Random ---" << '\n';
+    // auto result2 = evaluator.evaluate_agent(*minimax_agent, *random_agent);
+    // std::cout << result2.summary() << '\n';
 
-    // Test 2: Minimax vs Random (should win easily)
-    std::cout << "\n--- Evaluation 2: Minimax vs Random ---" << '\n';
-    auto result2 = evaluator.evaluate_agent(*minimax_agent, *random_agent);
-    std::cout << result2.summary() << '\n';
+    // // Test 3: MCTS vs Random (should win easily)
+    // std::cout << "\n--- Evaluation 3: MCTS vs Random ---" << '\n';
+    // auto result3 = evaluator.evaluate_agent(*mcts_agent, *random_agent);
+    // std::cout << result3.summary() << '\n';
 
-    // Test 3: MCTS vs Random (should win easily)
-    std::cout << "\n--- Evaluation 3: MCTS vs Random ---" << '\n';
-    auto result3 = evaluator.evaluate_agent(*mcts_agent, *random_agent);
-    std::cout << result3.summary() << '\n';
+    // Test 4: AlphaZero MCTS vs Random Rollout MCTS
+    // std::cout << "\n--- Evaluation 4: AlphaZero MCTS vs Random Rollout MCTS
+    // ---"
+    //           << '\n';
+    // std::string checkpoint_path =
+    //     "models/libtorch_alphazero_azul/checkpoint-0.pt";
+    // auto alphazero_mcts_agent = azul::create_alphazero_mcts_evaluation_agent(
+    //     checkpoint_path, 400, 1.4, 42, "AlphaZero_MCTS_400");
+    // auto result4 = evaluator.evaluate_agent(*alphazero_mcts_agent,
+    // *mcts_agent); std::cout << result4.summary() << '\n';
 
     // =================================================================
     // PART 2: TOURNAMENT EVALUATION
     // =================================================================
-    std::cout << "\n" << std::string(60, '=') << '\n';
-    std::cout << "PART 2: ROUND-ROBIN TOURNAMENT" << '\n';
-    std::cout << std::string(60, '=') << '\n';
 
     // Configure tournament
     azul::EvaluationConfig tournament_config;
@@ -92,8 +78,10 @@ auto main() -> int {
         azul::create_minimax_evaluation_agent(4, "Minimax_D4"));
     tournament.add_agent(
         azul::create_mcts_evaluation_agent(1000, 1.4, 42, "MCTS_1000"));
-    tournament.add_agent(
-        azul::create_mcts_evaluation_agent(1000, 2.0, 42, "MCTS_1000_UCT2"));
+    // Add AlphaZero MCTS agent to tournament
+    tournament.add_agent(azul::create_alphazero_mcts_evaluation_agent(
+        "models/libtorch_alphazero_azul/checkpoint--1", 400, 1.4, 42,
+        "AlphaZero_MCTS_400"));
 
     std::cout << "Starting tournament with " << tournament.get_num_agents()
               << " agents..." << '\n';
@@ -104,42 +92,6 @@ auto main() -> int {
     // Display results
     std::cout << "\nTOURNAMENT RESULTS:" << '\n';
     std::cout << tournament_result.summary() << '\n';
-
-    // =================================================================
-    // PART 3: SAVE DETAILED RESULTS
-    // =================================================================
-    std::cout << "\n" << std::string(60, '=') << '\n';
-    std::cout << "PART 3: SAVING DETAILED RESULTS" << '\n';
-    std::cout << std::string(60, '=') << '\n';
-
-    // Save evaluation results to file
-    std::ofstream results_file("evaluation_results.txt");
-    if (results_file.is_open()) {
-      results_file << "=== AZUL AGENT EVALUATION RESULTS ===" << '\n';
-      results_file << '\n';
-
-      results_file << "HEAD-TO-HEAD EVALUATIONS:" << '\n';
-      results_file << result1.summary() << '\n';
-      results_file << result2.summary() << '\n';
-      results_file << result3.summary() << '\n';
-
-      results_file << "TOURNAMENT RESULTS:" << '\n';
-      results_file << tournament_result.summary() << '\n';
-
-      results_file.close();
-      std::cout << "Detailed results saved to: evaluation_results.txt" << '\n';
-    }
-
-    std::cout << "\n" << std::string(60, '=') << '\n';
-    std::cout << "✅ EVALUATION DEMO COMPLETED SUCCESSFULLY!" << '\n';
-    std::cout << "Key outputs:" << '\n';
-    std::cout << "  - evaluation_results.txt: Detailed evaluation results"
-              << '\n';
-    std::cout << "Additional tools:" << '\n';
-    std::cout
-        << "  - azul_profiling_demo: Performance profiling with CLI options"
-        << '\n';
-    std::cout << std::string(60, '=') << '\n';
 
   } catch (const std::exception& e) {
     std::cerr << "❌ Error during evaluation: " << e.what() << '\n';

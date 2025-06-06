@@ -81,6 +81,13 @@ add_library(azul_evaluation STATIC
 
 target_include_directories(azul_evaluation PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ALPHA_ZERO_TORCH_DIR}
+    ${OPENSPIEL_ROOT}/open_spiel/libnop/libnop/include
+)
+
+# Link with LibTorch if available for AlphaZero support
+target_link_libraries(azul_evaluation
+    ${TORCH_LIBRARIES}
 )
 
 # Evaluation demo executable (comprehensive)
@@ -90,12 +97,16 @@ add_executable(azul_evaluation_demo
 
 target_include_directories(azul_evaluation_demo PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ALPHA_ZERO_TORCH_DIR}
+    ${OPENSPIEL_ROOT}/open_spiel/libnop/libnop/include
 )
 
 target_link_libraries(azul_evaluation_demo
     azul_evaluation
     azul_local
     ${LOCAL_OPENSPIEL_LIB}
+    alpha_zero_torch
+    ${TORCH_LIBRARIES}
 )
 
 # Neural MCTS Training executable with LibTorch
@@ -165,6 +176,12 @@ if(EXISTS "${ALPHA_ZERO_TORCH_DIR}/alpha_zero.cc")
         alpha_zero_torch
         azul_local
         ${LOCAL_OPENSPIEL_LIB}
+        ${TORCH_LIBRARIES}
+    )
+    
+    # Also add alpha_zero_torch support to evaluation demo
+    target_link_libraries(azul_evaluation_demo
+        alpha_zero_torch
         ${TORCH_LIBRARIES}
     )
     

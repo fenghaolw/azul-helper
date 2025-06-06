@@ -475,4 +475,11 @@ std::unique_ptr<EvaluationAgent> create_mcts_evaluation_agent(
   return std::make_unique<MCTSAgentWrapper>(num_simulations, uct_c, seed, name);
 }
 
+std::unique_ptr<EvaluationAgent> create_alphazero_mcts_evaluation_agent(
+    const std::string& checkpoint_path, int num_simulations, double uct_c,
+    int seed, const std::string& name) {
+  return std::make_unique<AlphaZeroMCTSAgentWrapper>(
+      checkpoint_path, num_simulations, uct_c, seed, name);
+}
+
 }  // namespace azul
