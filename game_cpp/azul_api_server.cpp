@@ -29,40 +29,80 @@ void force_azul_registration() {
 }  // namespace
 
 /**
- * C++ API Server for Azul AlphaZero Agent
+ * C++ API Server for Azul Agents
  *
  * This server provides a direct C++ HTTP API that:
  * 1. Receives JSON requests from the webapp
  * 2. Converts JSON gamestate to OpenSpiel AzulState
- * 3. Calls AlphaZero agent directly (no subprocess overhead)
+ * 3. Calls the selected agent directly (no subprocess overhead)
  * 4. Returns JSON responses
+ *
+ * Supports multiple agent types: AlphaZero, Random, MCTS, Minimax
  */
 class AzulApiServer {
  private:
   httplib::Server server_;
-  std::unique_ptr<AlphaZeroMCTSAgentWrapper> alphazero_agent_;
+  std::unique_ptr<azul::EvaluationAgent> current_agent_;
+  std::string agent_type_;
   std::string checkpoint_path_;
   int num_simulations_;
   double uct_c_;
   int port_;
+  int seed_;
 
  public:
-  AzulApiServer(const std::string& checkpoint_path, int num_simulations = 800,
-                double uct_c = 1.4, int port = 5001)
-      : checkpoint_path_(checkpoint_path),
+  AzulApiServer(const std::string& agent_type = "mcts",
+                const std::string& checkpoint_path = "",
+                int num_simulations = 2000, double uct_c = 1.4, int port = 5001,
+                int seed = -1)
+      : agent_type_(agent_type),
+        checkpoint_path_(checkpoint_path),
         num_simulations_(num_simulations),
         uct_c_(uct_c),
-        port_(port) {
+        port_(port),
+        seed_(seed) {
     // Force registration
     force_azul_registration();
 
-    // Initialize AlphaZero agent
-    std::cout << "🚀 Initializing AlphaZero agent..." << std::endl;
-    alphazero_agent_ = std::make_unique<AlphaZeroMCTSAgentWrapper>(
-        checkpoint_path_, num_simulations_, uct_c_, -1, "AlphaZero_API_Server");
-    std::cout << "✅ AlphaZero agent initialized" << std::endl;
-
+    // Initialize the selected agent
+    initialize_agent();
     setup_routes();
+  }
+
+ private:
+  void initialize_agent() {
+    std::cout << "🚀 Initializing " << agent_type_ << " agent..." << std::endl;
+
+    if (agent_type_ == "alphazero") {
+      if (checkpoint_path_.empty()) {
+        throw std::runtime_error("AlphaZero agent requires checkpoint path");
+      }
+      current_agent_ = azul::create_alphazero_mcts_evaluation_agent(
+          checkpoint_path_, num_simulations_, uct_c_, seed_,
+          "AlphaZero_API_Server");
+
+    } else if (agent_type_ == "random") {
+      current_agent_ =
+          azul::create_random_evaluation_agent(seed_, "Random_API_Server");
+
+    } else if (agent_type_ == "mcts") {
+      current_agent_ = azul::create_mcts_evaluation_agent(
+          num_simulations_, uct_c_, seed_, "MCTS_API_Server");
+
+    } else if (agent_type_ == "minimax") {
+      // For minimax, use num_simulations as depth (clamped to reasonable range)
+      int depth = std::max(1, std::min(6, num_simulations_ / 100));
+      current_agent_ =
+          azul::create_minimax_evaluation_agent(depth, "Minimax_API_Server");
+
+    } else {
+      throw std::runtime_error(
+          "Unknown agent type: " + agent_type_ +
+          ". Supported types: alphazero, random, mcts, minimax");
+    }
+
+    std::cout << "✅ " << current_agent_->get_name() << " initialized"
+              << std::endl;
   }
 
   void setup_routes() {
@@ -80,50 +120,17 @@ class AzulApiServer {
     server_.Options(
         ".*", [](const httplib::Request&, httplib::Response& res) { return; });
 
-    // Health check endpoint
+    // Simple health check endpoint
     server_.Get("/health",
                 [this](const httplib::Request&, httplib::Response& res) {
                   json response;
                   response["status"] = "healthy";
-                  response["agent_type"] = "alphazero";
-                  response["checkpoint_path"] = checkpoint_path_;
-                  response["num_simulations"] = num_simulations_;
-                  response["uct_c"] = uct_c_;
-                  response["port"] = port_;
-
+                  response["agent_type"] = agent_type_;
+                  response["agent_name"] = current_agent_->get_name();
                   res.set_content(response.dump(), "application/json");
                 });
 
-    // Agent info endpoint
-    server_.Get("/agent/info",
-                [this](const httplib::Request&, httplib::Response& res) {
-                  json response;
-                  response["agent_type"] = "alphazero";
-                  response["algorithm"] = "AlphaZero MCTS (" +
-                                          std::to_string(num_simulations_) +
-                                          " simulations)";
-                  response["checkpoint_path"] = checkpoint_path_;
-                  response["num_simulations"] = num_simulations_;
-                  response["uct_c"] = uct_c_;
-                  response["version"] = "C++ Direct API";
-                  response["description"] =
-                      "Direct C++ AlphaZero agent without Python wrapper";
-
-                  res.set_content(response.dump(), "application/json");
-                });
-
-    // Available agent types endpoint
-    server_.Get("/agent/types",
-                [](const httplib::Request&, httplib::Response& res) {
-                  json response;
-                  response["available_types"] = json::array({"alphazero"});
-                  response["current_type"] = "alphazero";
-                  response["description"] = "C++ Direct AlphaZero API Server";
-
-                  res.set_content(response.dump(), "application/json");
-                });
-
-    // Main move endpoint - get best move from AlphaZero
+    // Main move endpoint - get best move from current agent
     server_.Post("/agent/move", [this](const httplib::Request& req,
                                        httplib::Response& res) {
       try {
@@ -140,9 +147,9 @@ class AzulApiServer {
         // Record start time
         auto start_time = std::chrono::high_resolution_clock::now();
 
-        // Get action from AlphaZero
+        // Get action from current agent
         open_spiel::Action best_action =
-            alphazero_agent_->get_action(*state, player_id);
+            current_agent_->get_action(*state, player_id);
 
         // Calculate timing
         auto end_time = std::chrono::high_resolution_clock::now();
@@ -158,50 +165,10 @@ class AzulApiServer {
         response["success"] = true;
         response["move"] = action_json;
         response["stats"] = {
-            {"agent_type", "alphazero"},
-            {"algorithm", "AlphaZero MCTS (" +
-                              std::to_string(num_simulations_) +
-                              " simulations)"},
-            {"nodesEvaluated", alphazero_agent_->get_nodes_explored()},
+            {"agent_type", agent_type_},
+            {"agent_name", current_agent_->get_name()},
+            {"nodesEvaluated", current_agent_->get_nodes_explored()},
             {"searchTime", thinking_time}};
-
-        res.set_content(response.dump(), "application/json");
-
-      } catch (const std::exception& e) {
-        json error_response;
-        error_response["success"] = false;
-        error_response["error"] = e.what();
-        error_response["agent_type"] = "alphazero";
-
-        res.status = 400;
-        res.set_content(error_response.dump(), "application/json");
-      }
-    });
-
-    // Configuration endpoint
-    server_.Post("/agent/configure", [this](const httplib::Request& req,
-                                            httplib::Response& res) {
-      try {
-        json request_json = json::parse(req.body);
-
-        // Update configuration
-        if (request_json.contains("num_simulations")) {
-          num_simulations_ = request_json["num_simulations"];
-        }
-        if (request_json.contains("uct_c")) {
-          uct_c_ = request_json["uct_c"];
-        }
-
-        // Recreate agent with new parameters
-        alphazero_agent_ = std::make_unique<AlphaZeroMCTSAgentWrapper>(
-            checkpoint_path_, num_simulations_, uct_c_, -1,
-            "AlphaZero_API_Server");
-
-        json response;
-        response["success"] = true;
-        response["message"] = "AlphaZero agent reconfigured";
-        response["num_simulations"] = num_simulations_;
-        response["uct_c"] = uct_c_;
 
         res.set_content(response.dump(), "application/json");
 
@@ -216,18 +183,19 @@ class AzulApiServer {
     });
   }
 
+ public:
   void start() {
     std::cout << "🌐 Starting Azul C++ API Server on port " << port_
               << std::endl;
-    std::cout << "🧠 Agent: AlphaZero (" << num_simulations_
+    std::cout << "🧠 Agent: " << current_agent_->get_name() << " ("
+              << agent_type_ << ", " << num_simulations_
               << " simulations, UCT=" << uct_c_ << ")" << std::endl;
-    std::cout << "📁 Checkpoint: " << checkpoint_path_ << std::endl;
+    if (!checkpoint_path_.empty()) {
+      std::cout << "📁 Checkpoint: " << checkpoint_path_ << std::endl;
+    }
     std::cout << "🎯 Available endpoints:" << std::endl;
     std::cout << "  GET  /health - Health check" << std::endl;
-    std::cout << "  GET  /agent/info - Agent information" << std::endl;
-    std::cout << "  GET  /agent/types - Available agent types" << std::endl;
     std::cout << "  POST /agent/move - Get best move" << std::endl;
-    std::cout << "  POST /agent/configure - Configure agent" << std::endl;
     std::cout << "✅ Server ready!" << std::endl;
 
     server_.listen("0.0.0.0", port_);
@@ -270,115 +238,263 @@ class AzulApiServer {
   }
 
   /**
-   * Create OpenSpiel AzulState from webapp JSON gamestate
+   * Parse tiles array from JSON and convert to vector of TileColor
    */
-  std::unique_ptr<open_spiel::State> create_state_from_json(
+  std::vector<open_spiel::azul::TileColor> parse_tiles_array(
+      const json& tiles_json) {
+    std::vector<open_spiel::azul::TileColor> tiles;
+    if (tiles_json.is_array()) {
+      for (const auto& tile_str : tiles_json) {
+        if (tile_str.is_string()) {
+          tiles.push_back(string_to_tile_color(tile_str.get<std::string>()));
+        }
+      }
+    }
+    return tiles;
+  }
+
+  /**
+   * Parse factory from JSON object with color counts
+   */
+  open_spiel::azul::Factory parse_factory(const json& factory_json) {
+    open_spiel::azul::Factory factory;
+
+    if (factory_json.contains("red") &&
+        factory_json["red"].is_number_integer()) {
+      factory.tiles[static_cast<int>(open_spiel::azul::TileColor::kRed)] =
+          factory_json["red"];
+    }
+    if (factory_json.contains("blue") &&
+        factory_json["blue"].is_number_integer()) {
+      factory.tiles[static_cast<int>(open_spiel::azul::TileColor::kBlue)] =
+          factory_json["blue"];
+    }
+    if (factory_json.contains("yellow") &&
+        factory_json["yellow"].is_number_integer()) {
+      factory.tiles[static_cast<int>(open_spiel::azul::TileColor::kYellow)] =
+          factory_json["yellow"];
+    }
+    if (factory_json.contains("black") &&
+        factory_json["black"].is_number_integer()) {
+      factory.tiles[static_cast<int>(open_spiel::azul::TileColor::kBlack)] =
+          factory_json["black"];
+    }
+    if (factory_json.contains("white") &&
+        factory_json["white"].is_number_integer()) {
+      factory.tiles[static_cast<int>(open_spiel::azul::TileColor::kWhite)] =
+          factory_json["white"];
+    }
+
+    return factory;
+  }
+
+  /**
+   * Parse player board from JSON
+   */
+  open_spiel::azul::PlayerBoard parse_player_board(const json& player_json) {
+    open_spiel::azul::PlayerBoard board;
+
+    // Parse score
+    if (player_json.contains("score") &&
+        player_json["score"].is_number_integer()) {
+      board.score = player_json["score"];
+    }
+
+    // Parse pattern lines
+    if (player_json.contains("patternLines") &&
+        player_json["patternLines"].is_array()) {
+      const auto& pattern_lines_json = player_json["patternLines"];
+      for (size_t i = 0; i < pattern_lines_json.size() &&
+                         i < open_spiel::azul::kNumPatternLines;
+           ++i) {
+        const auto& line_json = pattern_lines_json[i];
+        if (line_json.is_object()) {
+          if (line_json.contains("count") &&
+              line_json["count"].is_number_integer()) {
+            board.pattern_lines[i].count = line_json["count"];
+          }
+          if (board.pattern_lines[i].count > 0 && line_json.contains("color") &&
+              line_json["color"].is_string()) {
+            std::string color_str = line_json["color"];
+            if (!color_str.empty()) {
+              board.pattern_lines[i].color = string_to_tile_color(color_str);
+            }
+          }
+        }
+      }
+    }
+
+    // Parse wall
+    if (player_json.contains("wall") && player_json["wall"].is_array()) {
+      const auto& wall_json = player_json["wall"];
+      for (size_t row = 0;
+           row < wall_json.size() && row < open_spiel::azul::kWallSize; ++row) {
+        if (wall_json[row].is_array()) {
+          const auto& wall_row = wall_json[row];
+          for (size_t col = 0;
+               col < wall_row.size() && col < open_spiel::azul::kWallSize;
+               ++col) {
+            if (wall_row[col].is_boolean()) {
+              board.wall[row][col] = wall_row[col];
+            }
+          }
+        }
+      }
+    }
+
+    // Parse floor line
+    if (player_json.contains("floorLine") &&
+        player_json["floorLine"].is_array()) {
+      board.floor_line = parse_tiles_array(player_json["floorLine"]);
+    }
+
+    return board;
+  }
+
+  /**
+   * Create OpenSpiel AzulState from webapp JSON gamestate with full
+   * reconstruction
+   */
+  std::unique_ptr<open_spiel::azul::AzulState> create_state_from_json(
       const json& game_state_json) {
-    // For now, create initial state - full reconstruction requires OpenSpiel
-    // modifications to expose private members or add state reconstruction API
+    // Determine number of players
+    int num_players = open_spiel::azul::kDefaultNumPlayers;
+    if (game_state_json.contains("players") &&
+        game_state_json["players"].is_array()) {
+      num_players =
+          std::min(static_cast<int>(game_state_json["players"].size()),
+                   open_spiel::azul::kMaxNumPlayers);
+    }
+
+    // Create new game instance with correct number of players
     open_spiel::GameParameters params;
-    params["num_players"] =
-        open_spiel::GameParameter(game_state_json.value("numPlayers", 2));
-
+    params["num_players"] = open_spiel::GameParameter(num_players);
     auto game = open_spiel::LoadGame("azul", params);
-    auto state = game->NewInitialState();
+    if (!game) {
+      throw std::runtime_error("Failed to load Azul game");
+    }
 
-    // Log the incoming gamestate for debugging
-    std::cout << "Received gamestate JSON for analysis (using initial state "
-                 "for now):\n";
-    std::cout << game_state_json.dump(2) << std::endl;
+    // Create initial state
+    auto state = std::unique_ptr<open_spiel::azul::AzulState>(
+        dynamic_cast<open_spiel::azul::AzulState*>(
+            game->NewInitialState().release()));
+
+    if (!state) {
+      throw std::runtime_error("Failed to create AzulState");
+    }
+
+    // Set number of players
+    state->num_players_ = num_players;
+
+    // Parse current player
+    if (game_state_json.contains("currentPlayer") &&
+        game_state_json["currentPlayer"].is_number_integer()) {
+      state->current_player_ = game_state_json["currentPlayer"];
+    }
+
+    // Parse round number
+    if (game_state_json.contains("roundNumber") &&
+        game_state_json["roundNumber"].is_number_integer()) {
+      state->round_number_ = game_state_json["roundNumber"];
+    }
+
+    // Parse game ended flag
+    if (game_state_json.contains("gameEnded") &&
+        game_state_json["gameEnded"].is_boolean()) {
+      state->game_ended_ = game_state_json["gameEnded"];
+    }
+
+    // Parse first player tile availability
+    if (game_state_json.contains("firstPlayerTileAvailable") &&
+        game_state_json["firstPlayerTileAvailable"].is_boolean()) {
+      state->first_player_tile_available_ =
+          game_state_json["firstPlayerTileAvailable"];
+    }
+
+    // Parse first player next round
+    if (game_state_json.contains("firstPlayerNextRound") &&
+        game_state_json["firstPlayerNextRound"].is_number_integer()) {
+      state->first_player_next_round_ = game_state_json["firstPlayerNextRound"];
+    }
+
+    // Parse bag shuffle flag
+    if (game_state_json.contains("needsBagShuffle") &&
+        game_state_json["needsBagShuffle"].is_boolean()) {
+      state->needs_bag_shuffle_ = game_state_json["needsBagShuffle"];
+    }
+
+    // Parse factories
+    if (game_state_json.contains("factories") &&
+        game_state_json["factories"].is_array()) {
+      const auto& factories_json = game_state_json["factories"];
+      state->factories_.clear();
+      for (const auto& factory_json : factories_json) {
+        state->factories_.push_back(parse_factory(factory_json));
+      }
+    }
+
+    // Parse center pile
+    if (game_state_json.contains("centerPile") &&
+        game_state_json["centerPile"].is_object()) {
+      state->center_pile_ = parse_factory(game_state_json["centerPile"]);
+    }
+
+    // Parse player boards
+    if (game_state_json.contains("players") &&
+        game_state_json["players"].is_array()) {
+      const auto& players_json = game_state_json["players"];
+      state->player_boards_.clear();
+      for (const auto& player_json : players_json) {
+        state->player_boards_.push_back(parse_player_board(player_json));
+      }
+    }
+
+    // Parse bag contents
+    if (game_state_json.contains("bag") && game_state_json["bag"].is_array()) {
+      state->bag_ = parse_tiles_array(game_state_json["bag"]);
+    }
+
+    // Parse discard pile
+    if (game_state_json.contains("discardPile") &&
+        game_state_json["discardPile"].is_array()) {
+      state->discard_pile_ = parse_tiles_array(game_state_json["discardPile"]);
+    }
 
     return state;
   }
 
   /**
-   * Decode OpenSpiel action to understand its components
-   */
-  struct DecodedAction {
-    bool from_center;
-    int factory_id;
-    open_spiel::azul::TileColor color;
-    int destination;  // Pattern line (0-4) or -1 for floor
-  };
-
-  DecodedAction decode_action(open_spiel::Action action, int num_players) {
-    DecodedAction decoded;
-
-    // Replicate OpenSpiel's action decoding logic
-    // Constants from OpenSpiel Azul implementation
-    const int kNumTileColors = 5;
-    const int kNumPatternLines = 5;
-
-    int max_factories = (2 * num_players) + 1;
-    int factory_pattern_actions =
-        max_factories * kNumTileColors * kNumPatternLines;
-    int center_pattern_actions = kNumTileColors * kNumPatternLines;
-    int factory_floor_actions = max_factories * kNumTileColors;
-
-    if (action < factory_pattern_actions) {
-      // Factory to pattern line
-      decoded.from_center = false;
-      decoded.factory_id = action / (kNumTileColors * kNumPatternLines);
-      int remainder = action % (kNumTileColors * kNumPatternLines);
-      decoded.color = static_cast<open_spiel::azul::TileColor>(
-          remainder / kNumPatternLines);
-      decoded.destination = remainder % kNumPatternLines;
-    } else if (action < factory_pattern_actions + center_pattern_actions) {
-      // Center to pattern line
-      decoded.from_center = true;
-      decoded.factory_id = -1;
-      int remainder = action - factory_pattern_actions;
-      decoded.color = static_cast<open_spiel::azul::TileColor>(
-          remainder / kNumPatternLines);
-      decoded.destination = remainder % kNumPatternLines;
-    } else if (action < factory_pattern_actions + center_pattern_actions +
-                            factory_floor_actions) {
-      // Factory to floor
-      decoded.from_center = false;
-      int remainder = action - factory_pattern_actions - center_pattern_actions;
-      decoded.factory_id = remainder / kNumTileColors;
-      decoded.color =
-          static_cast<open_spiel::azul::TileColor>(remainder % kNumTileColors);
-      decoded.destination = -1;
-    } else {
-      // Center to floor
-      decoded.from_center = true;
-      decoded.factory_id = -1;
-      int remainder = action - factory_pattern_actions -
-                      center_pattern_actions - factory_floor_actions;
-      decoded.color = static_cast<open_spiel::azul::TileColor>(remainder);
-      decoded.destination = -1;
-    }
-
-    return decoded;
-  }
-
-  /**
-   * Convert OpenSpiel action to webapp JSON format
+   * Convert OpenSpiel action to webapp JSON format using AzulState's
+   * DecodeAction
    */
   json action_to_json(open_spiel::Action action,
-                      const open_spiel::State& state) {
-    // Cast to AzulState to access number of players
-    const auto& azul_state =
-        static_cast<const open_spiel::azul::AzulState&>(state);
-
-    // Use our own action decoding implementation
-    auto decoded = decode_action(action, azul_state.num_players_);
-
+                      const open_spiel::azul::AzulState& state) {
     json action_json;
 
-    // Convert source: center = -1, factories = 0-4
-    if (decoded.from_center) {
-      action_json["factoryIndex"] = -1;
-    } else {
-      action_json["factoryIndex"] = decoded.factory_id;
+    try {
+      // Use the proper DecodeAction method from AzulState
+      auto decoded = state.DecodeAction(action);
+
+      // Map to webapp JSON format
+      if (decoded.from_center) {
+        // Center pile is represented as -1 in webapp
+        action_json["factoryIndex"] = -1;
+      } else {
+        action_json["factoryIndex"] = decoded.factory_id;
+      }
+
+      // Convert tile color to webapp string format
+      action_json["tile"] = tile_color_to_string(decoded.color);
+      action_json["lineIndex"] =
+          decoded.destination;  // Already -1 for floor line
+
+    } catch (const std::exception& e) {
+      // Fallback if decoding fails
+      action_json["factoryIndex"] = 0;
+      action_json["tile"] = "red";
+      action_json["lineIndex"] = 0;
+      action_json["error"] = "Action decoding failed: " + std::string(e.what());
     }
-
-    // Convert tile color to webapp format (integer)
-    action_json["tile"] = static_cast<int>(decoded.color);
-
-    // Convert destination: floor = -1, pattern lines = 0-4
-    action_json["lineIndex"] = decoded.destination;
 
     return action_json;
   }
@@ -387,20 +503,26 @@ class AzulApiServer {
 void print_usage(const char* program_name) {
   std::cout << "Usage: " << program_name << " [options]\n";
   std::cout << "Options:\n";
-  std::cout << "  --checkpoint <path>   AlphaZero checkpoint path (required)\n";
+  std::cout << "  --agent <type>       Agent type: alphazero, mcts, random, "
+               "minimax (default: mcts)\n";
+  std::cout << "  --checkpoint <path>  AlphaZero checkpoint path (required for "
+               "alphazero)\n";
   std::cout << "  --port <n>           Server port (default: 5001)\n";
   std::cout
       << "  --simulations <n>    Number of MCTS simulations (default: 800)\n";
   std::cout
       << "  --uct <c>            UCT exploration constant (default: 1.4)\n";
+  std::cout << "  --seed <n>           Random seed (default: -1 for random)\n";
   std::cout << "  --help               Show this help message\n";
 }
 
 int main(int argc, char* argv[]) {
+  std::string agent_type = "mcts";  // Default to MCTS with random rollouts
   std::string checkpoint_path;
   int port = 5001;
   int num_simulations = 800;
   double uct_c = 1.4;
+  int seed = -1;
 
   // Parse command line arguments
   for (int i = 1; i < argc; ++i) {
@@ -409,6 +531,8 @@ int main(int argc, char* argv[]) {
     if (arg == "--help") {
       print_usage(argv[0]);
       return 0;
+    } else if (arg == "--agent" && i + 1 < argc) {
+      agent_type = argv[++i];
     } else if (arg == "--checkpoint" && i + 1 < argc) {
       checkpoint_path = argv[++i];
     } else if (arg == "--port" && i + 1 < argc) {
@@ -417,19 +541,24 @@ int main(int argc, char* argv[]) {
       num_simulations = std::stoi(argv[++i]);
     } else if (arg == "--uct" && i + 1 < argc) {
       uct_c = std::stod(argv[++i]);
+    } else if (arg == "--seed" && i + 1 < argc) {
+      seed = std::stoi(argv[++i]);
     }
   }
 
   // Validate required parameters
-  if (checkpoint_path.empty()) {
-    std::cerr << "❌ Error: --checkpoint parameter is required" << std::endl;
+  if (agent_type == "alphazero" && checkpoint_path.empty()) {
+    std::cerr
+        << "❌ Error: --checkpoint parameter is required for alphazero agent"
+        << std::endl;
     print_usage(argv[0]);
     return 1;
   }
 
   try {
     // Create and start the server
-    AzulApiServer server(checkpoint_path, num_simulations, uct_c, port);
+    AzulApiServer server(agent_type, checkpoint_path, num_simulations, uct_c,
+                         port, seed);
 
     // Handle Ctrl+C gracefully
     std::signal(SIGINT, [](int) {

@@ -55,63 +55,26 @@ std::string tile_color_to_string(open_spiel::azul::TileColor color) {
 
 /**
  * Convert OpenSpiel AzulState action to webapp JSON format
- * Uses the private DecodeAction method via a const_cast hack since we made
- * members public
+ * Uses the DecodeAction method from AzulState
  */
 json action_to_json(open_spiel::Action action,
                     const open_spiel::azul::AzulState& state) {
   json result;
 
   try {
-    // Since we made the DecodeAction method accessible, we can use it
-    // We need to const_cast to call the method
-    auto mutable_state = const_cast<open_spiel::azul::AzulState*>(&state);
+    // Use the proper DecodeAction method from AzulState
+    auto decoded = state.DecodeAction(action);
 
-    // For now, let's implement a basic decoder based on the action space
-    // structure The exact encoding depends on the OpenSpiel implementation
-    // details
-
-    int action_int = static_cast<int>(action);
-    int num_factories = (state.num_players_ * 2) + 1;
-    int total_factory_actions = num_factories *
-                                open_spiel::azul::kNumTileColors *
-                                (open_spiel::azul::kNumPatternLines + 1);
-    int center_actions = open_spiel::azul::kNumTileColors *
-                         (open_spiel::azul::kNumPatternLines + 1);
-
-    if (action_int < total_factory_actions) {
-      // Factory action
-      int factory_color_line = action_int;
-      int factory_id =
-          factory_color_line / (open_spiel::azul::kNumTileColors *
-                                (open_spiel::azul::kNumPatternLines + 1));
-      int color_line =
-          factory_color_line % (open_spiel::azul::kNumTileColors *
-                                (open_spiel::azul::kNumPatternLines + 1));
-      int color_idx = color_line / (open_spiel::azul::kNumPatternLines + 1);
-      int line_idx = color_line % (open_spiel::azul::kNumPatternLines + 1);
-
-      result["factoryIndex"] = factory_id;
-      result["tile"] = tile_color_to_string(
-          static_cast<open_spiel::azul::TileColor>(color_idx));
-      result["lineIndex"] = (line_idx == open_spiel::azul::kNumPatternLines)
-                                ? -1
-                                : line_idx;  // -1 for floor
+    // Map to webapp JSON format
+    if (decoded.from_center) {
+      // Center pile is represented as the last factory index
+      result["factoryIndex"] = (state.num_players_ * 2) + 1;
     } else {
-      // Center action
-      int center_action = action_int - total_factory_actions;
-      int color_idx = center_action / (open_spiel::azul::kNumPatternLines + 1);
-      int line_idx = center_action % (open_spiel::azul::kNumPatternLines + 1);
-
-      result["factoryIndex"] =
-          num_factories;  // Center is represented as last factory index
-      result["tile"] = tile_color_to_string(
-          static_cast<open_spiel::azul::TileColor>(color_idx));
-      result["lineIndex"] = (line_idx == open_spiel::azul::kNumPatternLines)
-                                ? -1
-                                : line_idx;  // -1 for floor
+      result["factoryIndex"] = decoded.factory_id;
     }
 
+    result["tile"] = tile_color_to_string(decoded.color);
+    result["lineIndex"] = decoded.destination;  // Already -1 for floor line
     result["success"] = true;
 
   } catch (const std::exception& e) {

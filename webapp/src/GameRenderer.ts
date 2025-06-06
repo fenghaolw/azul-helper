@@ -352,11 +352,11 @@ export class GameRenderer {
         // Draw decorative cross pattern
         this.ctx.beginPath();
         // Vertical line
-        this.ctx.moveTo(x + patternSize/2, y + 10);
-        this.ctx.lineTo(x + patternSize/2, y + patternSize - 10);
+        this.ctx.moveTo(x + patternSize / 2, y + 10);
+        this.ctx.lineTo(x + patternSize / 2, y + patternSize - 10);
         // Horizontal line
-        this.ctx.moveTo(x + 10, y + patternSize/2);
-        this.ctx.lineTo(x + patternSize - 10, y + patternSize/2);
+        this.ctx.moveTo(x + 10, y + patternSize / 2);
+        this.ctx.lineTo(x + patternSize - 10, y + patternSize / 2);
         // Small decorative corners
         this.ctx.moveTo(x + 15, y + 15);
         this.ctx.lineTo(x + 25, y + 15);
@@ -392,7 +392,7 @@ export class GameRenderer {
     // Main ceramic body
     this.ctx.fillStyle = '#f8f9fa'; // Ceramic white
     this.ctx.beginPath();
-    this.ctx.arc(x + size/2, y + size/2, coasterRadius, 0, 2 * Math.PI);
+    this.ctx.arc(x + size / 2, y + size / 2, coasterRadius, 0, 2 * Math.PI);
     this.ctx.fill();
 
     // Reset shadow
@@ -405,14 +405,14 @@ export class GameRenderer {
     this.ctx.strokeStyle = '#2c3e50'; // Traditional blue
     this.ctx.lineWidth = 3;
     this.ctx.beginPath();
-    this.ctx.arc(x + size/2, y + size/2, coasterRadius, 0, 2 * Math.PI);
+    this.ctx.arc(x + size / 2, y + size / 2, coasterRadius, 0, 2 * Math.PI);
     this.ctx.stroke();
 
     // Inner decorative ring
     this.ctx.strokeStyle = '#d4af37'; // Gold accent
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    this.ctx.arc(x + size/2, y + size/2, coasterRadius - 4, 0, 2 * Math.PI);
+    this.ctx.arc(x + size / 2, y + size / 2, coasterRadius - 4, 0, 2 * Math.PI);
     this.ctx.stroke();
 
     // Selection/hover state with enhanced visual feedback
@@ -428,7 +428,7 @@ export class GameRenderer {
         this.ctx.lineWidth = isSelected ? 4 : 2;
       }
       this.ctx.beginPath();
-      this.ctx.arc(x + size/2, y + size/2, coasterRadius + 2, 0, 2 * Math.PI);
+      this.ctx.arc(x + size / 2, y + size / 2, coasterRadius + 2, 0, 2 * Math.PI);
       this.ctx.stroke();
 
       // Reset shadow
@@ -437,9 +437,9 @@ export class GameRenderer {
     }
 
     // Traditional azulejo-style decorative pattern in the center (smaller to not interfere with tiles)
-    const centerX = x + size/2;
-    const centerY = y + size/2;
-    const patternRadius = size/8; // Smaller pattern
+    const centerX = x + size / 2;
+    const centerY = y + size / 2;
+    const patternRadius = size / 8; // Smaller pattern
 
     this.ctx.strokeStyle = '#2c3e50';
     this.ctx.lineWidth = 1;
@@ -524,10 +524,10 @@ export class GameRenderer {
       // Draw traditional azulejo corner pattern
       this.ctx.beginPath();
       // Diagonal lines
-      this.ctx.moveTo(corner.x, corner.y + cornerSize/2);
-      this.ctx.lineTo(corner.x + cornerSize/2, corner.y);
-      this.ctx.moveTo(corner.x + cornerSize/2, corner.y + cornerSize);
-      this.ctx.lineTo(corner.x + cornerSize, corner.y + cornerSize/2);
+      this.ctx.moveTo(corner.x, corner.y + cornerSize / 2);
+      this.ctx.lineTo(corner.x + cornerSize / 2, corner.y);
+      this.ctx.moveTo(corner.x + cornerSize / 2, corner.y + cornerSize);
+      this.ctx.lineTo(corner.x + cornerSize, corner.y + cornerSize / 2);
       // Small decorative elements
       this.ctx.moveTo(corner.x + 5, corner.y + 5);
       this.ctx.lineTo(corner.x + 10, corner.y + 5);
@@ -618,10 +618,10 @@ export class GameRenderer {
     corners.forEach(corner => {
       this.ctx.beginPath();
       // Small decorative cross
-      this.ctx.moveTo(corner.x + cornerSize/2 - 3, corner.y + cornerSize/2);
-      this.ctx.lineTo(corner.x + cornerSize/2 + 3, corner.y + cornerSize/2);
-      this.ctx.moveTo(corner.x + cornerSize/2, corner.y + cornerSize/2 - 3);
-      this.ctx.lineTo(corner.x + cornerSize/2, corner.y + cornerSize/2 + 3);
+      this.ctx.moveTo(corner.x + cornerSize / 2 - 3, corner.y + cornerSize / 2);
+      this.ctx.lineTo(corner.x + cornerSize / 2 + 3, corner.y + cornerSize / 2);
+      this.ctx.moveTo(corner.x + cornerSize / 2, corner.y + cornerSize / 2 - 3);
+      this.ctx.lineTo(corner.x + cornerSize / 2, corner.y + cornerSize / 2 + 3);
       this.ctx.stroke();
     });
   }
@@ -1186,8 +1186,15 @@ export class GameRenderer {
 
   private handleClick(event: MouseEvent): void {
     const rect = this.canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Convert mouse coordinates to canvas logical coordinates
+    // The canvas has logical size set via CSS, so we need to use that ratio
+    const scaleX = this.layout.canvas.width / rect.width;
+    const scaleY = this.layout.canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+
+    // Debug logging to verify coordinate transformation
+    console.log(`Click: client(${event.clientX - rect.left}, ${event.clientY - rect.top}) -> canvas(${x.toFixed(1)}, ${y.toFixed(1)}) scale(${scaleX.toFixed(2)}, ${scaleY.toFixed(2)})`);
 
     // Check for specific tile clicks within factories/center
     const tileClick = this.getTileAt(x, y);
@@ -1214,8 +1221,12 @@ export class GameRenderer {
 
   private handleMouseMove(event: MouseEvent): void {
     const rect = this.canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Convert mouse coordinates to canvas logical coordinates
+    // The canvas has logical size set via CSS, so we need to use that ratio
+    const scaleX = this.layout.canvas.width / rect.width;
+    const scaleY = this.layout.canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     // Update hovered line
     const lineClick = this.getPatternLineAt(x, y);
@@ -1279,7 +1290,7 @@ export class GameRenderer {
 
     for (const { tile, x: tileX, y: tileY } of tilePositions) {
       if (x >= tileX && x <= tileX + this.STANDARD_TILE_SIZE &&
-          y >= tileY && y <= tileY + this.STANDARD_TILE_SIZE) {
+        y >= tileY && y <= tileY + this.STANDARD_TILE_SIZE) {
         return { factory: -1, tile };
       }
     }
@@ -1291,7 +1302,7 @@ export class GameRenderer {
       const tokenY = centerBounds.y + 15; // Match increased padding
 
       if (x >= tokenX && x <= tokenX + this.STANDARD_TILE_SIZE &&
-          y >= tokenY && y <= tokenY + this.STANDARD_TILE_SIZE) {
+        y >= tokenY && y <= tokenY + this.STANDARD_TILE_SIZE) {
         return { factory: -1, tile: Tile.FirstPlayer };
       }
     }
@@ -1301,7 +1312,7 @@ export class GameRenderer {
       const factoryBounds = this.getFactoryBounds(i);
 
       if (x >= factoryBounds.x && x <= factoryBounds.x + factoryBounds.width &&
-          y >= factoryBounds.y && y <= factoryBounds.y + factoryBounds.height) {
+        y >= factoryBounds.y && y <= factoryBounds.y + factoryBounds.height) {
 
         // Use the same positioning logic as drawing
         const tiles = this.gameState.factories[i];
@@ -1310,7 +1321,7 @@ export class GameRenderer {
 
         for (const { tile, x: tileX, y: tileY } of tilePositions) {
           if (x >= tileX && x <= tileX + tileSize &&
-              y >= tileY && y <= tileY + tileSize) {
+            y >= tileY && y <= tileY + tileSize) {
             return { factory: i, tile };
           }
         }
@@ -1329,12 +1340,12 @@ export class GameRenderer {
       const boardBounds = this.getPlayerBoardBounds(i);
 
       if (x >= boardBounds.x && x <= boardBounds.x + boardBounds.width &&
-          y >= boardBounds.y && y <= boardBounds.y + boardBounds.height) {
+        y >= boardBounds.y && y <= boardBounds.y + boardBounds.height) {
         // Check pattern lines
         for (let j = 0; j < 5; j++) {
           const lineBounds = this.getPatternLineBounds(i, j);
           if (x >= lineBounds.x && x <= lineBounds.x + lineBounds.width &&
-              y >= lineBounds.y && y <= lineBounds.y + lineBounds.height) {
+            y >= lineBounds.y && y <= lineBounds.y + lineBounds.height) {
             return { player: i, line: j };
           }
         }
@@ -1342,7 +1353,7 @@ export class GameRenderer {
         // Check floor
         const floorBounds = this.getFloorBounds(i);
         if (x >= floorBounds.x && x <= floorBounds.x + floorBounds.width &&
-            y >= floorBounds.y && y <= floorBounds.y + floorBounds.height) {
+          y >= floorBounds.y && y <= floorBounds.y + floorBounds.height) {
           return { player: i, line: -1 };
         }
       }

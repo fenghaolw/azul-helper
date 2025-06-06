@@ -33,7 +33,9 @@ def find_api_server_port(
                         return {
                             "port": port,
                             "url": f"http://localhost:{port}",
-                            "agent_type": data.get("active_agent_type", "unknown"),
+                            "agent_type": data.get(
+                                "agent_type", data.get("active_agent_type", "unknown")
+                            ),
                             "server_info": data.get("server", {}),
                             "health_data": data,
                         }

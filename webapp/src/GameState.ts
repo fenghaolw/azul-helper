@@ -3,19 +3,19 @@ import { PlayerBoard } from './PlayerBoard.js';
 
 // Helper function to safely convert string to Tile enum
 function stringToTile(tileString: string): Tile | null {
-    const s = tileString.toLowerCase();
-    // Direct comparison with enum values (which are strings themselves)
-    if (s === Tile.Red) return Tile.Red;
-    if (s === Tile.Blue) return Tile.Blue;
-    if (s === Tile.Yellow) return Tile.Yellow;
-    if (s === Tile.Black) return Tile.Black;
-    if (s === Tile.White) return Tile.White; // Tile.White is 'white'
-    if (s === Tile.FirstPlayer) return Tile.FirstPlayer; // Tile.FirstPlayer is 'firstPlayer'
-    // The BGA data for floor uses "firstplayer" (all lowercase for the token)
-    // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
+  const s = tileString.toLowerCase();
+  // Direct comparison with enum values (which are strings themselves)
+  if (s === Tile.Red) return Tile.Red;
+  if (s === Tile.Blue) return Tile.Blue;
+  if (s === Tile.Yellow) return Tile.Yellow;
+  if (s === Tile.Black) return Tile.Black;
+  if (s === Tile.White) return Tile.White; // Tile.White is 'white'
+  if (s === Tile.FirstPlayer) return Tile.FirstPlayer; // Tile.FirstPlayer is 'firstPlayer'
+  // The BGA data for floor uses "firstplayer" (all lowercase for the token)
+  // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
 
-    console.warn(`[GameState] Unknown tile string for enum conversion: "${tileString}"`);
-    return null;
+  console.warn(`[GameState] Unknown tile string for enum conversion: "${tileString}"`);
+  return null;
 }
 
 /**
@@ -23,6 +23,7 @@ function stringToTile(tileString: string): Tile | null {
  */
 export abstract class BaseGameState {
   tilebag: Array<Tile> = [];
+  discardPile: Array<Tile> = [];
   factories: Array<Array<Tile>> = [];
   center: Array<Tile> = [];
   playerBoards: Array<PlayerBoard> = [];
@@ -60,15 +61,15 @@ export abstract class BaseGameState {
 
     // Initialize center, carefully handling FirstPlayer token
     this.center = bgaData.center
-        .map(sTile => stringToTile(sTile))
-        .filter(t => t !== null) as Tile[];
+      .map(sTile => stringToTile(sTile))
+      .filter(t => t !== null) as Tile[];
 
     // Initialize player boards
     if (this.playerBoards.length !== this.numPlayers) {
-        this.playerBoards = [];
-        for (let i = 0; i < this.numPlayers; i++) {
-            this.playerBoards.push(new PlayerBoard());
-        }
+      this.playerBoards = [];
+      for (let i = 0; i < this.numPlayers; i++) {
+        this.playerBoards.push(new PlayerBoard());
+      }
     }
 
     let firstPlayerTokenFoundOnBoard = false;
@@ -85,16 +86,16 @@ export abstract class BaseGameState {
 
     // If first player token wasn't on a board, check if it's in the center
     if (!firstPlayerTokenFoundOnBoard && !this.center.includes(Tile.FirstPlayer)) {
-        // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
-        // This logic might need adjustment based on exact BGA state representation when center is emptied.
-        // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
-        // If center still has tiles but no token, it implies it was taken.
-        // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
-        // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
-        // The firstPlayerIndex would then be determined by who *takes* it from the center.
+      // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
+      // This logic might need adjustment based on exact BGA state representation when center is emptied.
+      // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
+      // If center still has tiles but no token, it implies it was taken.
+      // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
+      // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
+      // The firstPlayerIndex would then be determined by who *takes* it from the center.
     } else if (this.center.includes(Tile.FirstPlayer) && firstPlayerTokenFoundOnBoard) {
-        // If on a board AND in center, prioritize board, remove from center.
-        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+      // If on a board AND in center, prioritize board, remove from center.
+      this.center = this.center.filter(t => t !== Tile.FirstPlayer);
     }
 
     // If no player has the token yet and it's not in the center, this implies it hasn't been picked up.
@@ -112,6 +113,7 @@ export abstract class BaseGameState {
   // Initialize a new game
   newGame(): void {
     this.tilebag = [];
+    this.discardPile = []; // Initialize empty discard pile
     this.factories = [];
     this.center = [];
     this.playerBoards = [];
@@ -171,6 +173,14 @@ export abstract class BaseGameState {
     for (let f = 0; f < this.factories.length; f++) {
       this.factories[f] = [];
       for (let t = 0; t < 4; t++) {
+        // If bag is empty, reshuffle discard pile back into bag
+        if (this.tilebag.length === 0 && this.discardPile.length > 0) {
+          console.log(`Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`);
+          this.tilebag = [...this.discardPile];
+          this.discardPile = [];
+          this.shuffleArray(this.tilebag);
+        }
+
         if (this.tilebag.length > 0) {
           const tile = this.tilebag.pop()!;
           this.factories[f].push(tile);
@@ -321,7 +331,7 @@ export abstract class BaseGameState {
     // Move tiles from pattern lines to wall
     const roundScoringDetails = [];
     for (let i = 0; i < this.playerBoards.length; i++) {
-      const result = this.playerBoards[i].moveToWall();
+      const result = this.playerBoards[i].moveToWall(this.discardPile);
       roundScoringDetails.push({
         player: i,
         scoreGained: result.scoreGained,
@@ -491,10 +501,10 @@ export abstract class BaseGameState {
       if (line.length === i + 1 && line.length > 0) {
         const tile = line[0];
         const wallCol = PlayerBoard.getWallTile(i, 0) === tile ? 0 :
-                         PlayerBoard.getWallTile(i, 1) === tile ? 1 :
-                         PlayerBoard.getWallTile(i, 2) === tile ? 2 :
-                         PlayerBoard.getWallTile(i, 3) === tile ? 3 :
-                         PlayerBoard.getWallTile(i, 4) === tile ? 4 : -1;
+          PlayerBoard.getWallTile(i, 1) === tile ? 1 :
+            PlayerBoard.getWallTile(i, 2) === tile ? 2 :
+              PlayerBoard.getWallTile(i, 3) === tile ? 3 :
+                PlayerBoard.getWallTile(i, 4) === tile ? 4 : -1;
 
         if (wallCol !== -1 && !boardClone.wall[i].includes(tile)) {
           boardClone.wall[i].push(tile);
@@ -1322,6 +1332,7 @@ export class WebAppGameState extends BaseGameState {
   // Initialize a new game
   newGame(): void {
     this.tilebag = [];
+    this.discardPile = []; // Initialize empty discard pile
     this.factories = [];
     this.center = [];
     this.playerBoards = [];
@@ -1381,6 +1392,14 @@ export class WebAppGameState extends BaseGameState {
     for (let f = 0; f < this.factories.length; f++) {
       this.factories[f] = [];
       for (let t = 0; t < 4; t++) {
+        // If bag is empty, reshuffle discard pile back into bag
+        if (this.tilebag.length === 0 && this.discardPile.length > 0) {
+          console.log(`Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`);
+          this.tilebag = [...this.discardPile];
+          this.discardPile = [];
+          this.shuffleArray(this.tilebag);
+        }
+
         if (this.tilebag.length > 0) {
           const tile = this.tilebag.pop()!;
           this.factories[f].push(tile);
@@ -1399,6 +1418,7 @@ export class WebAppGameState extends BaseGameState {
     const cloned = new WebAppGameState(this.numPlayers);
 
     cloned.tilebag = [...this.tilebag];
+    cloned.discardPile = [...this.discardPile];
     cloned.center = [...this.center];
     cloned.currentPlayer = this.currentPlayer;
     cloned.round = this.round;
@@ -1446,15 +1466,15 @@ export class BGAGameState extends BaseGameState {
 
     // Initialize center, carefully handling FirstPlayer token
     this.center = bgaData.center
-        .map(sTile => stringToTile(sTile))
-        .filter(t => t !== null) as Tile[];
+      .map(sTile => stringToTile(sTile))
+      .filter(t => t !== null) as Tile[];
 
     // Initialize player boards
     if (this.playerBoards.length !== this.numPlayers) {
-        this.playerBoards = [];
-        for (let i = 0; i < this.numPlayers; i++) {
-            this.playerBoards.push(new PlayerBoard());
-        }
+      this.playerBoards = [];
+      for (let i = 0; i < this.numPlayers; i++) {
+        this.playerBoards.push(new PlayerBoard());
+      }
     }
 
     let firstPlayerTokenFoundOnBoard = false;
@@ -1471,16 +1491,16 @@ export class BGAGameState extends BaseGameState {
 
     // If first player token wasn't on a board, check if it's in the center
     if (!firstPlayerTokenFoundOnBoard && !this.center.includes(Tile.FirstPlayer)) {
-        // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
-        // This logic might need adjustment based on exact BGA state representation when center is emptied.
-        // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
-        // If center still has tiles but no token, it implies it was taken.
-        // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
-        // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
-        // The firstPlayerIndex would then be determined by who *takes* it from the center.
+      // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
+      // This logic might need adjustment based on exact BGA state representation when center is emptied.
+      // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
+      // If center still has tiles but no token, it implies it was taken.
+      // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
+      // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
+      // The firstPlayerIndex would then be determined by who *takes* it from the center.
     } else if (this.center.includes(Tile.FirstPlayer) && firstPlayerTokenFoundOnBoard) {
-        // If on a board AND in center, prioritize board, remove from center.
-        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+      // If on a board AND in center, prioritize board, remove from center.
+      this.center = this.center.filter(t => t !== Tile.FirstPlayer);
     }
 
     // If no player has the token yet and it's not in the center, this implies it hasn't been picked up.
@@ -1507,6 +1527,7 @@ export class BGAGameState extends BaseGameState {
     const cloned = new BGAGameState(this.numPlayers);
 
     cloned.tilebag = [...this.tilebag];
+    cloned.discardPile = [...this.discardPile];
     cloned.center = [...this.center];
     cloned.currentPlayer = this.currentPlayer;
     cloned.round = this.round;

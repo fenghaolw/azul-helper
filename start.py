@@ -17,17 +17,28 @@ from pathlib import Path
 from find_api_port import find_api_server_port
 
 
-def check_python_requirements():
-    """Check if required Python dependencies are installed."""
+def check_cpp_build_requirements():
+    """Check if C++ build requirements are available."""
     try:
-        import flask
-        import flask_cors
+        # Check if cmake is available
+        result = subprocess.run(["cmake", "--version"], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("❌ cmake not found")
+            return False
 
-        print("✅ Python dependencies found")
+        # Check if make is available
+        result = subprocess.run(["make", "--version"], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("❌ make not found")
+            return False
+
+        print("✅ C++ build tools found")
         return True
-    except ImportError as e:
-        print(f"❌ Missing Python dependencies: {e}")
-        print("💡 Install with: pip install flask flask-cors")
+    except FileNotFoundError:
+        print("❌ C++ build tools not found")
+        print(
+            "💡 Install with: brew install cmake (macOS) or apt-get install cmake make (Linux)"
+        )
         return False
 
 
@@ -54,11 +65,45 @@ def is_server_running():
     return find_api_server_port()
 
 
-def start_api_server(
-    port=5000, kill_existing=False, agent_type="auto", background=False
+def build_cpp_server():
+    """Build the C++ API server."""
+    print("🔨 Building C++ API server...")
+
+    game_cpp_dir = Path("game_cpp")
+    if not game_cpp_dir.exists():
+        print("❌ game_cpp directory not found")
+        return False
+
+    try:
+        # Build the C++ server
+        result = subprocess.run(
+            ["make", "build"], cwd=game_cpp_dir, capture_output=True, text=True
+        )
+
+        if result.returncode != 0:
+            print("❌ C++ build failed:")
+            print(result.stderr)
+            return False
+
+        # Check if the executable was created
+        server_executable = game_cpp_dir / "build" / "azul_api_server"
+        if not server_executable.exists():
+            print("❌ azul_api_server executable not found after build")
+            return False
+
+        print("✅ C++ API server built successfully")
+        return True
+
+    except Exception as e:
+        print(f"❌ Failed to build C++ server: {e}")
+        return False
+
+
+def start_cpp_api_server(
+    port=5001, kill_existing=False, agent_type="mcts", background=False
 ):
-    """Start the Python API server with smart port management."""
-    print("🐍 Starting Python API server...")
+    """Start the C++ API server with smart port management."""
+    print("🚀 Starting C++ API server...")
 
     # Check if server is already running
     existing_server = is_server_running()
@@ -66,18 +111,22 @@ def start_api_server(
         print(f"✅ API server already running on {existing_server['url']}")
         return existing_server, None
 
+    # Build the server first
+    if not build_cpp_server():
+        print("❌ Failed to build C++ server")
+        return None, None
+
     # Prepare server command
+    game_cpp_dir = Path("game_cpp")
+    server_executable = game_cpp_dir / "build" / "azul_api_server"
+
     cmd = [
-        sys.executable,
-        "api_server.py",
+        str(server_executable),
         "--port",
         str(port),
         "--agent-type",
         agent_type,
     ]
-
-    if kill_existing:
-        cmd.append("--kill-existing")
 
     try:
         if background:
@@ -95,11 +144,11 @@ def start_api_server(
             # Check if server is now running
             new_server = is_server_running()
             if new_server:
-                print(f"✅ API server started on {new_server['url']}")
+                print(f"✅ C++ API server started on {new_server['url']}")
                 print(f"   Agent: {new_server['agent_type']}")
                 return new_server, api_process
             else:
-                print("❌ API server failed to start")
+                print("❌ C++ API server failed to start")
                 return None, None
         else:
             # Start in foreground (for non-UI mode)
@@ -107,14 +156,14 @@ def start_api_server(
             time.sleep(2)
             new_server = is_server_running()
             if new_server:
-                print(f"✅ API server started on {new_server['url']}")
+                print(f"✅ C++ API server started on {new_server['url']}")
                 return new_server, api_process
             else:
-                print("❌ API server failed to start")
+                print("❌ C++ API server failed to start")
                 return None, None
 
     except Exception as e:
-        print(f"❌ Failed to start API server: {e}")
+        print(f"❌ Failed to start C++ API server: {e}")
         return None, None
 
 
@@ -186,8 +235,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=5000,
-        help="Preferred API server port (default: 5000)",
+        default=5001,
+        help="Preferred API server port (default: 5001)",
     )
     parser.add_argument(
         "--kill-existing",
@@ -198,9 +247,9 @@ def main():
     parser.add_argument(
         "--agent-type",
         "-a",
-        choices=["auto", "mcts", "heuristic", "improved_heuristic"],
-        default="auto",
-        help="Agent type (default: auto)",
+        choices=["mcts", "alphazero", "random", "minimax"],
+        default="mcts",
+        help="Agent type (default: mcts)",
     )
 
     # UI options
@@ -219,7 +268,7 @@ def main():
 
     args = parser.parse_args()
 
-    print("🎮 Azul AI Unified Startup Script")
+    print("🎮 Azul AI Unified Startup Script (C++ Server)")
     print("=" * 50)
 
     # Check-only mode
@@ -229,9 +278,11 @@ def main():
         # Check API server
         server_info = is_server_running()
         if server_info:
-            print(f"✅ API Server: {server_info['url']} ({server_info['agent_type']})")
+            print(
+                f"✅ C++ API Server: {server_info['url']} ({server_info['agent_type']})"
+            )
         else:
-            print("❌ API Server: Not running")
+            print("❌ C++ API Server: Not running")
 
         # Check webapp (simple check for port 3000)
         try:
@@ -249,18 +300,18 @@ def main():
 
     # Server-only mode
     if args.server_only:
-        print("\n🐍 Server-only mode")
-        if not check_python_requirements():
+        print("\n🚀 Server-only mode")
+        if not check_cpp_build_requirements():
             sys.exit(1)
 
-        server_info, api_process = start_api_server(
+        server_info, api_process = start_cpp_api_server(
             args.port, args.kill_existing, args.agent_type, background=False
         )
 
         if not server_info:
             sys.exit(1)
 
-        print(f"\n🎯 API Server running on {server_info['url']}")
+        print(f"\n🎯 C++ API Server running on {server_info['url']}")
         print("⏹️  Press Ctrl+C to stop")
 
         try:
@@ -280,9 +331,9 @@ def main():
         # Check if API server is already running
         server_info = is_server_running()
         if server_info:
-            print(f"✅ Using existing API server on {server_info['url']}")
+            print(f"✅ Using existing C++ API server on {server_info['url']}")
         else:
-            print("⚠️  No API server found - webapp will use TypeScript AI only")
+            print("⚠️  No C++ API server found - webapp will use TypeScript AI only")
 
         webapp_process = start_webapp()
         if not webapp_process:
@@ -304,23 +355,22 @@ def main():
         sys.exit(0)
 
     # Full UI mode (default)
-    print("\n🚀 Full UI mode (API server + webapp)")
+    print("\n🚀 Full UI mode (C++ API server + webapp)")
 
     # Check dependencies
     print("\n📋 Checking dependencies...")
-    if not check_python_requirements():
+    if not check_cpp_build_requirements():
         sys.exit(1)
 
     if not check_node_dependencies():
         sys.exit(1)
 
-    print("\n🐍 Starting API server...")
-    server_info, api_process = start_api_server(
+    server_info, api_process = start_cpp_api_server(
         args.port, args.kill_existing, args.agent_type, background=True
     )
 
     if not server_info:
-        print("⚠️  API server failed - continuing with TypeScript AI only")
+        print("⚠️  C++ API server failed - continuing with TypeScript AI only")
         api_process = None
 
     print("\n🌐 Starting webapp...")
@@ -340,14 +390,14 @@ def main():
     print("\n" + "=" * 50)
     print("🎯 Services are running!")
     if server_info:
-        print(f"🐍 Python API: {server_info['url']} ({server_info['agent_type']})")
+        print(f"🚀 C++ API: {server_info['url']} ({server_info['agent_type']})")
     else:
-        print("🐍 Python API: Not available (using TypeScript AI)")
+        print("🚀 C++ API: Not available (using TypeScript AI)")
     print("🌐 Webapp: http://localhost:3000")
 
     print("\n💡 Tips:")
-    print("• The webapp will auto-discover the API server port")
-    print("• Use the 🐍 Python AI button to switch between AI types")
+    print("• The webapp will auto-discover the C++ API server port")
+    print("• Use the 🚀 C++ AI button to switch between AI types")
     print("• Check AI Statistics for connection status")
     print("• Use F12 for browser dev tools")
 
@@ -366,7 +416,7 @@ def main():
 
             # Check API server
             if api_process and api_process.poll() is not None:
-                print("\n⚠️  API server terminated")
+                print("\n⚠️  C++ API server terminated")
                 api_process = None
 
     except KeyboardInterrupt:
@@ -378,7 +428,7 @@ def main():
 
         if api_process:
             api_process.terminate()
-            print("✅ API server stopped")
+            print("✅ C++ API server stopped")
 
         print("👋 Goodbye!")
 

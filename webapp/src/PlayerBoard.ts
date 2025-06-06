@@ -1,19 +1,19 @@
 import { Tile, ScoreDetails, FinalScoreDetails } from './types.js';
 
 function stringToTile(tileString: string): Tile | null {
-    const s = tileString.toLowerCase();
-    // Direct comparison with enum values (which are strings themselves)
-    if (s === Tile.Red) return Tile.Red;
-    if (s === Tile.Blue) return Tile.Blue;
-    if (s === Tile.Yellow) return Tile.Yellow;
-    if (s === Tile.Black) return Tile.Black;
-    if (s === Tile.White) return Tile.White; // Tile.White is 'white'
-    if (s === Tile.FirstPlayer) return Tile.FirstPlayer; // Tile.FirstPlayer is 'firstPlayer'
-    // The BGA data for floor uses "firstplayer" (all lowercase for the token)
-    // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
+  const s = tileString.toLowerCase();
+  // Direct comparison with enum values (which are strings themselves)
+  if (s === Tile.Red) return Tile.Red;
+  if (s === Tile.Blue) return Tile.Blue;
+  if (s === Tile.Yellow) return Tile.Yellow;
+  if (s === Tile.Black) return Tile.Black;
+  if (s === Tile.White) return Tile.White; // Tile.White is 'white'
+  if (s === Tile.FirstPlayer) return Tile.FirstPlayer; // Tile.FirstPlayer is 'firstPlayer'
+  // The BGA data for floor uses "firstplayer" (all lowercase for the token)
+  // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
 
-    console.warn(`[PlayerBoard] Unknown tile string for enum conversion: "${tileString}"`);
-    return null;
+  console.warn(`[PlayerBoard] Unknown tile string for enum conversion: "${tileString}"`);
+  return null;
 }
 
 export class PlayerBoard {
@@ -76,10 +76,10 @@ export class PlayerBoard {
     this.floor = data.floor.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[];
 
     console.log('PlayerBoard loaded state:', {
-        score: this.score,
-        lines: this.lines,
-        wall: this.wall,
-        floor: this.floor
+      score: this.score,
+      lines: this.lines,
+      wall: this.wall,
+      floor: this.floor
     });
   }
 
@@ -137,7 +137,7 @@ export class PlayerBoard {
   }
 
   // Move completed lines to wall and return score gained
-  moveToWall(): { scoreGained: number; details: ScoreDetails } {
+  moveToWall(discardPile: Array<Tile> = []): { scoreGained: number; details: ScoreDetails } {
     let scoreGained = 0;
     const details: ScoreDetails = {
       tilesPlaced: [],
@@ -158,43 +158,51 @@ export class PlayerBoard {
         const wallCol = PlayerBoard.WALL_PATTERN[i].indexOf(tileToPlace);
 
         if (wallCol !== -1 && this.wall[i][wallCol] === null) { // Check if spot is actually empty
-            this.wall[i][wallCol] = tileToPlace; // Place tile on wall
+          this.wall[i][wallCol] = tileToPlace; // Place tile on wall
 
-            // Calculate score for this tile
-            const adjacentInfo = this.getAdjacentTilesInfo(i, wallCol);
-            const tileScore = this.calculateTileScore(i, wallCol, tileToPlace); // Pass tile for logging
-            scoreGained += tileScore;
-            details.totalTileScore += tileScore;
+          // Calculate score for this tile
+          const adjacentInfo = this.getAdjacentTilesInfo(i, wallCol);
+          const tileScore = this.calculateTileScore(i, wallCol, tileToPlace); // Pass tile for logging
+          scoreGained += tileScore;
+          details.totalTileScore += tileScore;
 
-            console.log(`  Tile ${tileToPlace} placed at (${i + 1}, ${wallCol + 1}): ${tileScore} points`);
-            console.log(`    Adjacent tiles: ${adjacentInfo.horizontal} horizontal, ${adjacentInfo.vertical} vertical`);
-            console.log(`    Score calculation: 1 base + ${Math.max(0,adjacentInfo.horizontal -1)} horizontal + ${Math.max(0,adjacentInfo.vertical-1)} vertical = ${tileScore}`);
+          console.log(`  Tile ${tileToPlace} placed at (${i + 1}, ${wallCol + 1}): ${tileScore} points`);
+          console.log(`    Adjacent tiles: ${adjacentInfo.horizontal} horizontal, ${adjacentInfo.vertical} vertical`);
+          console.log(`    Score calculation: 1 base + ${Math.max(0, adjacentInfo.horizontal - 1)} horizontal + ${Math.max(0, adjacentInfo.vertical - 1)} vertical = ${tileScore}`);
 
+          details.tilesPlaced.push({
+            tile: tileToPlace,
+            row: i,
+            col: wallCol,
+            score: tileScore,
+            adjacentTiles: adjacentInfo
+          });
 
-            details.tilesPlaced.push({
-              tile: tileToPlace,
-              row: i,
-              col: wallCol,
-              score: tileScore,
-              adjacentTiles: adjacentInfo
-            });
+          // Discard excess tiles from completed line (all but one go to discard pile)
+          const tilesToDiscard = line.slice(1); // All except the one placed on wall
+          if (tilesToDiscard.length > 0) {
+            console.log(`  Discarding ${tilesToDiscard.length} excess ${tileToPlace} tiles to discard pile`);
+            discardPile.push(...tilesToDiscard);
+          }
 
-            // Clear the line (tiles go back to bag except one)
-            this.lines[i] = [];
+          // Clear the line
+          this.lines[i] = [];
         } else {
-            // This case should ideally not happen if canPlaceTile was checked correctly
-            // or if line somehow filled with a tile already on the wall for that row.
-            // For now, assume the tiles from this line go to floor as penalty if they can't be placed.
-            console.warn(`Cannot place tile ${tileToPlace} on wall row ${i}, col ${wallCol}. Spot occupied or invalid. Tiles go to floor.`);
-            this.floor.push(...line);
-            this.lines[i] = [];
+          // This case should ideally not happen if canPlaceTile was checked correctly
+          // or if line somehow filled with a tile already on the wall for that row.
+          // For now, assume the tiles from this line go to floor as penalty if they can't be placed.
+          console.warn(`Cannot place tile ${tileToPlace} on wall row ${i}, col ${wallCol}. Spot occupied or invalid. Tiles go to floor.`);
+          this.floor.push(...line);
+          this.lines[i] = [];
         }
       }
     }
 
-    // Calculate floor penalties
+    // Calculate floor penalties and discard floor tiles (except first player token)
     const floorPenalties = [-1, -1, -2, -2, -2, -3, -3];
     let floorTileCount = 0;
+    const tilesToDiscardFromFloor = [];
+
     for (const tile of this.floor) {
       if (floorTileCount < floorPenalties.length) {
         const penalty = floorPenalties[floorTileCount];
@@ -207,6 +215,17 @@ export class PlayerBoard {
         });
         floorTileCount++;
       }
+
+      // Collect non-first-player tiles for discarding
+      if (tile !== Tile.FirstPlayer) {
+        tilesToDiscardFromFloor.push(tile);
+      }
+    }
+
+    // Discard floor tiles (except first player token)
+    if (tilesToDiscardFromFloor.length > 0) {
+      console.log(`  Discarding ${tilesToDiscardFromFloor.length} tiles from floor to discard pile`);
+      discardPile.push(...tilesToDiscardFromFloor);
     }
 
     // Clear floor (first player token stays for next round if present)
@@ -266,14 +285,14 @@ export class PlayerBoard {
   private calculateTileScore(row: number, col: number, tileBeingPlaced: Tile): number {
     // Ensure the tile being scored is actually on the wall at [row][col] for accurate adjacent check
     if (this.wall[row][col] !== tileBeingPlaced) {
-        console.warn(`Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`);
-        // Fallback to avoid errors, though this indicates a logic issue.
-        // If the tile isn't there, it gets 1 point for itself if it were placed.
-        // But if it's not there, adjacent checks are for the tile that *is* there, or null.
-        // This implies it couldn't be placed, so score should be 0 for this specific tile,
-        // or handled by moveToWall logic (e.g. tiles go to floor).
-        // For robustness, if we reach here assuming it *was* just placed:
-        if (this.wall[row][col] === null) return 1; // It was just placed in an empty spot
+      console.warn(`Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`);
+      // Fallback to avoid errors, though this indicates a logic issue.
+      // If the tile isn't there, it gets 1 point for itself if it were placed.
+      // But if it's not there, adjacent checks are for the tile that *is* there, or null.
+      // This implies it couldn't be placed, so score should be 0 for this specific tile,
+      // or handled by moveToWall logic (e.g. tiles go to floor).
+      // For robustness, if we reach here assuming it *was* just placed:
+      if (this.wall[row][col] === null) return 1; // It was just placed in an empty spot
     }
 
     let score = 0; // Tile itself gives 0 unless part of a line
@@ -285,7 +304,7 @@ export class PlayerBoard {
     // If it forms both a horizontal AND vertical line, the tile itself is counted twice in the above.
     // But it should only be counted once. So if both are > 1 (meaning lines of 2+), subtract 1.
     if (adjacent.horizontal > 1 && adjacent.vertical > 1) {
-        score -=1;
+      score -= 1;
     }
     // If it's an isolated tile (no adjacent tiles either way), it scores 1 point.
     // adjacent.horizontal and vertical would be 1 each. Score = 1+1 = 2. This is wrong.
@@ -305,13 +324,13 @@ export class PlayerBoard {
     // Example: H line of 1 (isolated), V line of 1 (isolated). H=1, V=1. Score = 1+1 = 2. Incorrect, should be 1.
 
     if (adjacent.horizontal === 1 && adjacent.vertical === 1) {
-        return 1; // Isolated tile
+      return 1; // Isolated tile
     }
     score = 0;
     if (adjacent.horizontal > 1) score += adjacent.horizontal;
     if (adjacent.vertical > 1) score += adjacent.vertical;
-    if (adjacent.horizontal === 1 && adjacent.vertical > 1) score +=1; // Part of vertical only, count itself
-    if (adjacent.vertical === 1 && adjacent.horizontal > 1) score +=1; // Part of horizontal only, count itself
+    if (adjacent.horizontal === 1 && adjacent.vertical > 1) score += 1; // Part of vertical only, count itself
+    if (adjacent.vertical === 1 && adjacent.horizontal > 1) score += 1; // Part of horizontal only, count itself
 
     return Math.max(1, score); // Must score at least 1 if placed.
   }

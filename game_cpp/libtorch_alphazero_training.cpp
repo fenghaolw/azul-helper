@@ -40,8 +40,9 @@ struct LibTorchAZConfig {
   // MCTS generates millions of states to be evaluated. A small cache size will
   // significantly slow down training.
   int inference_cache = 2000000;
-  // We should further increase this to 1000000, but we cannot change this
-  // during the middle of a training run.
+  // replay_buffer_size/replay_buffer_reuse decides when we take a step to
+  // train. Currently it takes about 15m for us to generate 10k states (200-300
+  // game plays).
   int replay_buffer_size = 100000;
   int replay_buffer_reuse = 10;
   int checkpoint_freq = 100;

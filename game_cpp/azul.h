@@ -200,18 +200,7 @@ class AzulState : public State {
   void EndRoundScoring();
   [[nodiscard]] auto CalculateScore(Player player) const -> int;
 
- protected:
-  void DoApplyAction(Action action) override;
-
- private:
-  void SetupNewRound();
-  void FillFactories();
-  [[nodiscard]] auto IsWallComplete(Player player) const -> bool;
-  [[nodiscard]] auto GetNumFactories() const -> int {
-    return (2 * num_players_) + 1;
-  }
-
-  // Decode action
+  // Decode action - made public for JSON bridge
   struct DecodedAction {
     bool from_center;
     int factory_id;
@@ -223,6 +212,17 @@ class AzulState : public State {
   [[nodiscard]] auto EncodeAction(bool from_center, int factory_id,
                                   TileColor color, int destination) const
       -> Action;
+
+ protected:
+  void DoApplyAction(Action action) override;
+
+ private:
+  void SetupNewRound();
+  void FillFactories();
+  [[nodiscard]] auto IsWallComplete(Player player) const -> bool;
+  [[nodiscard]] auto GetNumFactories() const -> int {
+    return (2 * num_players_) + 1;
+  }
 };
 
 // Game object.
