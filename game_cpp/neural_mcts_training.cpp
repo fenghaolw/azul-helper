@@ -295,7 +295,7 @@ void PrintUsage(const char* program_name) {
             << '\n';
   std::cout << "  --checkpoint_freq=N Checkpoint frequency (default: 100)"
             << '\n';
-  std::cout << "  --checkpoint_dir=PATH Checkpoint directory (default: "
+  std::cout << "  --dir=PATH          Checkpoint directory (default: "
                "models/neural_mcts_azul)"
             << '\n';
   std::cout << "  --device=TYPE       Device (cpu|cuda|mps|auto, default: auto)"
@@ -335,8 +335,8 @@ azul::NeuralMCTSConfig ParseArguments(int argc, char** argv) {
       config.replay_buffer_size = std::stoi(arg.substr(9));
     } else if (arg.find("--checkpoint_freq=") == 0) {
       config.checkpoint_freq = std::stoi(arg.substr(18));
-    } else if (arg.find("--checkpoint_dir=") == 0) {
-      config.checkpoint_dir = arg.substr(17);
+    } else if (arg.find("--dir=") == 0) {
+      config.checkpoint_dir = arg.substr(6);
     } else if (arg.find("--device=") == 0) {
       config.device = arg.substr(9);
       config.use_gpu = (config.device != "cpu");

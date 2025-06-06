@@ -27,6 +27,7 @@ DEVICE="auto"
 CHECKPOINT_DIR="models/neural_mcts_azul"
 USE_LIBTORCH=false
 NO_EXPLICIT_LEARNING=false
+RESUME_CHECKPOINT=false
 
 # Function to print colored output
 print_info() {
@@ -65,6 +66,7 @@ show_help() {
     echo "  --dir=PATH              Checkpoint directory (default: $CHECKPOINT_DIR)"
     echo "  --libtorch              Use LibTorch AlphaZero (pure C++) instead of Python"
     echo "  --no-explicit-learning  Disable explicit learning (for single device setups)"
+    echo "  --resume                Resume from existing checkpoint in checkpoint directory"
     echo "  --build-only            Only build, don't run training"
     echo "  --run-only              Only run training (skip build)"
     echo "  --clean                 Clean build before building"
@@ -77,6 +79,8 @@ show_help() {
     echo "  $0 --device=mps                      # Use Apple Silicon GPU"
     echo "  $0 --device=cuda                     # Use NVIDIA GPU"
     echo "  $0 --libtorch                        # Use pure C++ LibTorch implementation"
+    echo "  $0 --libtorch --resume               # Resume LibTorch training from checkpoint"
+    echo "  $0 --libtorch --resume --steps=2000  # Resume and train for more steps"
 }
 
 # Parse command line arguments
@@ -174,6 +178,9 @@ while [[ $# -gt 0 ]]; do
         --no-explicit-learning)
             NO_EXPLICIT_LEARNING=true
             ;;
+        --resume)
+            RESUME_CHECKPOINT=true
+            ;;
         --build-only)
             BUILD_ONLY=true
             ;;
@@ -202,6 +209,7 @@ echo "  Model: $MODEL (${WIDTH}x${DEPTH})"
 echo "  Learning rate: $LEARNING_RATE, Batch size: $BATCH_SIZE"
 echo "  Device: $DEVICE"
 echo "  Checkpoint dir: $CHECKPOINT_DIR"
+echo "  Resume from checkpoint: $([ "$RESUME_CHECKPOINT" = true ] && echo "Yes" || echo "No")"
 echo ""
 
 # Build phase
@@ -288,6 +296,11 @@ if [ "$BUILD_ONLY" = false ]; then
     # Add no-explicit-learning flag if requested
     if [ "$NO_EXPLICIT_LEARNING" = true ]; then
         ARGS="$ARGS --no-explicit-learning"
+    fi
+    
+    # Add resume flag if requested
+    if [ "$RESUME_CHECKPOINT" = true ]; then
+        ARGS="$ARGS --resume"
     fi
     
     print_info "Using: $IMPLEMENTATION"

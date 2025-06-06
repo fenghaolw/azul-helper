@@ -57,6 +57,8 @@ struct LibTorchAZConfig {
   std::string checkpoint_dir = "models/libtorch_alphazero_azul";
   std::string device = "cpu";  // "cpu", "cuda", "mps"
   bool explicit_learning = true;
+  bool resume_from_checkpoint =
+      false;  // Whether to resume from existing checkpoint
 };
 
 /**
@@ -113,9 +115,9 @@ class LibTorchAZTrainer {
       // Create stop token for graceful shutdown
       open_spiel::StopToken stop_token;
 
-      // Start training (not resuming)
+      // Start training (resuming if specified)
       bool success = open_spiel::algorithms::torch_az::AlphaZero(
-          az_config, &stop_token, false);
+          az_config, &stop_token, config_.resume_from_checkpoint);
 
       if (!success) {
         throw std::runtime_error("LibTorch AlphaZero training failed");
@@ -221,6 +223,10 @@ void PrintUsage(const char* program_name) {
   std::cout << "  --no-explicit-learning  Disable explicit learning (default: "
                "enabled)"
             << '\n';
+  std::cout
+      << "  --resume              Resume from existing checkpoint (default: "
+         "not resuming)"
+      << '\n';
   std::cout << "  --help              Show this help" << '\n';
   std::cout << '\n';
   std::cout << "Examples:" << '\n';
@@ -230,6 +236,11 @@ void PrintUsage(const char* program_name) {
             << " --steps=5000 --actors=4  # Longer training" << '\n';
   std::cout << "  " << program_name
             << " --device=mps        # Use Apple Silicon GPU" << '\n';
+  std::cout << "  " << program_name
+            << " --resume            # Resume from existing checkpoint" << '\n';
+  std::cout << "  " << program_name
+            << " --resume --steps=2000 # Resume and train for more steps"
+            << '\n';
 }
 
 auto ParseArguments(int argc, char** argv) -> azul::LibTorchAZConfig {
@@ -265,6 +276,8 @@ auto ParseArguments(int argc, char** argv) -> azul::LibTorchAZConfig {
       config.checkpoint_dir = arg.substr(6);
     } else if (arg == "--no-explicit-learning") {
       config.explicit_learning = false;
+    } else if (arg == "--resume") {
+      config.resume_from_checkpoint = true;
     } else {
       std::cerr << "Unknown option: " << arg << '\n';
       PrintUsage(argv[0]);
