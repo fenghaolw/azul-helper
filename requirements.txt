@@ -14,7 +14,8 @@ keras==2.13.1
 # OpenSpiel integration for MCTS and AlphaZero (primary AI engine)
 # Install from local source directory - this assumes ../open_spiel exists
 # Alternative: use -e ../open_spiel for editable install
--e ../open_spiel
+# Commented out to avoid CI failures in GitHub Actions
+# -e ../open_spiel
 
 # Training monitoring - compatible version with TensorFlow 2.13.0
 tensorboard>=2.13.0,<2.14.0
