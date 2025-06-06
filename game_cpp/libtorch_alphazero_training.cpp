@@ -1,8 +1,15 @@
+#include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
+#include <regex>
+#include <sstream>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include "open_spiel/algorithms/alpha_zero_torch/alpha_zero.h"
@@ -10,6 +17,225 @@
 #include "open_spiel/utils/thread.h"
 
 namespace azul {
+
+/**
+ * Throughput Monitor - parses actor logs and reports training throughput
+ */
+class ThroughputMonitor {
+ public:
+  explicit ThroughputMonitor(std::string log_directory)
+      : log_directory_(std::move(log_directory)),
+        stop_monitoring_(false),
+        first_report_(true) {}
+
+  ~ThroughputMonitor() { Stop(); }
+
+  void Start() {
+    stop_monitoring_ = false;
+    monitor_thread_ = std::thread(&ThroughputMonitor::MonitorLoop, this);
+  }
+
+  void Stop() {
+    stop_monitoring_ = true;
+    if (monitor_thread_.joinable()) {
+      monitor_thread_.join();
+    }
+  }
+
+ private:
+  void MonitorLoop() {
+    std::cout << "\n=== Throughput Monitor Started ===\n";
+    std::cout << "Monitoring directory: " << log_directory_ << "\n";
+    std::cout << "Will report throughput every 60 seconds...\n\n";
+
+    while (!stop_monitoring_) {
+      // Sleep for 60 seconds, but check for stop signal every second
+      for (int i = 0; i < 60 && !stop_monitoring_; ++i) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+
+      if (!stop_monitoring_) {
+        ReportThroughput();
+      }
+    }
+  }
+
+  void ReportThroughput() {
+    auto completion_times = ParseActorLogs();
+
+    // Clear previous report if not the first one
+    if (!first_report_) {
+      // Move cursor up by the number of lines we printed last time
+      for (int i = 0; i < lines_printed_; ++i) {
+        std::cout << "\033[A";  // Move cursor up one line
+      }
+      // Move to beginning of line and clear from cursor to end of screen
+      std::cout << "\r\033[J";
+    }
+
+    lines_printed_ = 0;  // Reset line counter
+
+    if (completion_times.size() < 2) {
+      std::cout << "[Throughput] Not enough data to calculate throughput. "
+                   "Games completed so far: "
+                << completion_times.size();
+      std::cout.flush();
+      lines_printed_ = 1;
+      first_report_ = false;
+      return;
+    }
+
+    // Calculate duration from first to last game
+    auto duration = completion_times.back() - completion_times.front();
+    auto total_seconds =
+        std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+
+    if (total_seconds == 0) {
+      std::cout << "[Throughput] All games finished in the same second. Cannot "
+                   "calculate rate.";
+      std::cout.flush();
+      lines_printed_ = 1;
+      first_report_ = false;
+      return;
+    }
+
+    double total_hours = total_seconds / 3600.0;
+    double games_per_hour = completion_times.size() / total_hours;
+
+    // Format timestamps for display
+    auto first_time = std::chrono::system_clock::from_time_t(
+        std::chrono::system_clock::to_time_t(completion_times.front()));
+    auto last_time = std::chrono::system_clock::from_time_t(
+        std::chrono::system_clock::to_time_t(completion_times.back()));
+
+    std::time_t first_tt = std::chrono::system_clock::to_time_t(first_time);
+    std::time_t last_tt = std::chrono::system_clock::to_time_t(last_time);
+
+    // Print the throughput report (tracking line count)
+    std::cout << "--- Training Throughput Report ---\n";
+    lines_printed_++;
+    std::cout << "  Total Games Completed: " << completion_times.size() << "\n";
+    lines_printed_++;
+    std::cout << "  Time of First Game: "
+              << std::put_time(std::localtime(&first_tt), "%Y-%m-%d %H:%M:%S")
+              << "\n";
+    lines_printed_++;
+    std::cout << "  Time of Last Game:  "
+              << std::put_time(std::localtime(&last_tt), "%Y-%m-%d %H:%M:%S")
+              << "\n";
+    lines_printed_++;
+    std::cout << "  Duration Analyzed: " << FormatDuration(duration) << "\n";
+    lines_printed_++;
+    std::cout << "------------------------------------\n";
+    lines_printed_++;
+    std::cout << "  Current Throughput: " << std::fixed << std::setprecision(2)
+              << games_per_hour << " games per hour\n";
+    lines_printed_++;
+    std::cout << "------------------------------------";
+    lines_printed_++;
+
+    std::cout.flush();  // Ensure output is displayed immediately
+    first_report_ = false;
+  }
+
+  auto ParseActorLogs() -> std::vector<std::chrono::system_clock::time_point> {
+    std::vector<std::chrono::system_clock::time_point> completion_times;
+
+    // Find all actor log files
+    std::vector<std::string> log_files;
+    try {
+      for (const auto& entry :
+           std::filesystem::directory_iterator(log_directory_)) {
+        if (entry.is_regular_file()) {
+          std::string filename = entry.path().filename().string();
+          if (filename.find("log-actor-") == 0 && filename.length() >= 4 &&
+              filename.substr(filename.length() - 4) == ".txt") {
+            log_files.push_back(entry.path().string());
+          }
+        }
+      }
+    } catch (const std::exception& e) {
+      // Directory might not exist yet or be accessible
+      return completion_times;
+    }
+
+    if (log_files.empty()) {
+      return completion_times;
+    }
+
+    // Regex to match game completion lines: [YYYY-MM-DD HH:MM:SS.mmm] Game X:
+    // Returns:
+    std::regex game_line_regex(
+        R"(\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\] Game \d+: Returns:)");
+
+    for (const auto& log_file : log_files) {
+      try {
+        std::ifstream file(log_file);
+        std::string line;
+
+        while (std::getline(file, line)) {
+          std::smatch match;
+          if (std::regex_search(line, match, game_line_regex)) {
+            std::string timestamp_str = match[1].str();
+
+            // Parse timestamp: YYYY-MM-DD HH:MM:SS.mmm
+            std::tm tm = {};
+            std::istringstream ss(timestamp_str);
+            ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+            if (!ss.fail()) {
+              // Extract milliseconds
+              size_t dot_pos = timestamp_str.find_last_of('.');
+              int milliseconds = 0;
+              if (dot_pos != std::string::npos &&
+                  dot_pos + 1 < timestamp_str.length()) {
+                milliseconds = std::stoi(timestamp_str.substr(dot_pos + 1));
+              }
+
+              auto time_point =
+                  std::chrono::system_clock::from_time_t(std::mktime(&tm));
+              time_point += std::chrono::milliseconds(milliseconds);
+              completion_times.push_back(time_point);
+            }
+          }
+        }
+      } catch (const std::exception& e) {
+        // Skip files that can't be read
+        continue;
+      }
+    }
+
+    // Sort chronologically
+    std::sort(completion_times.begin(), completion_times.end());
+    return completion_times;
+  }
+
+  static auto FormatDuration(
+      const std::chrono::system_clock::duration& duration) -> std::string {
+    auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+    auto minutes =
+        std::chrono::duration_cast<std::chrono::minutes>(duration - hours);
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+        duration - hours - minutes);
+
+    std::ostringstream oss;
+    if (hours.count() > 0) {
+      oss << hours.count() << "h ";
+    }
+    if (minutes.count() > 0) {
+      oss << minutes.count() << "m ";
+    }
+    oss << seconds.count() << "s";
+
+    return oss.str();
+  }
+
+  std::string log_directory_;
+  std::atomic<bool> stop_monitoring_;
+  std::thread monitor_thread_;
+  int lines_printed_{};
+  bool first_report_{};
+};
 
 /**
  * LibTorch AlphaZero Training Configuration
@@ -74,7 +300,8 @@ struct LibTorchAZConfig {
 class LibTorchAZTrainer {
  public:
   explicit LibTorchAZTrainer(LibTorchAZConfig config)
-      : config_(std::move(config)) {
+      : config_(std::move(config)),
+        throughput_monitor_(config_.checkpoint_dir) {
     // Load the game - assume Azul is already registered
     game_ = open_spiel::LoadGame(config_.game_name);
     if (!game_) {
@@ -108,12 +335,17 @@ class LibTorchAZTrainer {
     std::cout << "Steps: " << config_.max_steps << '\n';
     std::cout << "Actors: " << config_.actors
               << ", Evaluators: " << config_.evaluators << '\n';
+    std::cout << "Inference batch size: " << config_.inference_batch_size
+              << ", Inference threads: " << config_.inference_threads << '\n';
     std::cout << "Simulations per move: " << config_.max_simulations << '\n';
     std::cout << "Device: " << config_.device << '\n';
     std::cout << "Checkpoint dir: " << config_.checkpoint_dir << '\n';
     std::cout << '\n';
 
     auto start_time = std::chrono::high_resolution_clock::now();
+
+    // Start throughput monitoring
+    throughput_monitor_.Start();
 
     try {
       // Create AlphaZero configuration
@@ -131,9 +363,14 @@ class LibTorchAZTrainer {
       }
 
     } catch (const std::exception& e) {
+      // Stop monitoring before reporting error
+      throughput_monitor_.Stop();
       std::cerr << "Training failed: " << e.what() << '\n';
       throw;
     }
+
+    // Stop throughput monitoring
+    throughput_monitor_.Stop();
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration =
@@ -197,6 +434,7 @@ class LibTorchAZTrainer {
 
   LibTorchAZConfig config_;
   std::shared_ptr<const open_spiel::Game> game_;
+  ThroughputMonitor throughput_monitor_;
 };
 
 }  // namespace azul
@@ -265,6 +503,10 @@ auto ParseArguments(int argc, char** argv) -> azul::LibTorchAZConfig {
       config.actors = std::stoi(arg.substr(9));
     } else if (arg.substr(0, 13) == "--evaluators=") {
       config.evaluators = std::stoi(arg.substr(13));
+    } else if (arg.substr(0, 23) == "--inference-batch-size=") {
+      config.inference_batch_size = std::stoi(arg.substr(23));
+    } else if (arg.substr(0, 20) == "--inference-threads=") {
+      config.inference_threads = std::stoi(arg.substr(20));
     } else if (arg.substr(0, 14) == "--simulations=") {
       config.max_simulations = std::stoi(arg.substr(14));
     } else if (arg.substr(0, 8) == "--model=") {
