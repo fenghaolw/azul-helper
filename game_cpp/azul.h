@@ -181,12 +181,22 @@ class AzulState : public State {
     return first_player_tile_available_;
   }
 
-  // Public for testing
+  // Public for testing and JSON reconstruction
   std::vector<Factory> factories_;
   Factory center_pile_;
   int num_players_;
   std::vector<PlayerBoard> player_boards_;
   bool game_ended_{false};
+
+  // Game state - made public for JSON reconstruction
+  Player current_player_;
+  std::vector<TileColor> bag_;
+  std::vector<TileColor> discard_pile_;
+  bool first_player_tile_available_;
+  Player first_player_next_round_;
+  int round_number_;
+  bool needs_bag_shuffle_;
+
   void EndRoundScoring();
   [[nodiscard]] auto CalculateScore(Player player) const -> int;
 
@@ -213,16 +223,6 @@ class AzulState : public State {
   [[nodiscard]] auto EncodeAction(bool from_center, int factory_id,
                                   TileColor color, int destination) const
       -> Action;
-
-  // Game state
-  Player current_player_;
-  std::vector<TileColor> bag_;
-  std::vector<TileColor> discard_pile_;
-  bool first_player_tile_available_;
-  Player first_player_next_round_;
-  int round_number_;
-  // Chance node state
-  bool needs_bag_shuffle_;
 };
 
 // Game object.

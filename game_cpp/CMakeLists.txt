@@ -43,6 +43,46 @@ if(NOT EXISTS "${LOCAL_OPENSPIEL_LIB}")
     message(FATAL_ERROR "Local OpenSpiel shared library not found: ${LOCAL_OPENSPIEL_LIB}")
 endif()
 
+# Find nlohmann-json
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(NLOHMANN_JSON QUIET nlohmann_json)
+endif()
+
+# Fallback to find nlohmann-json in Homebrew
+if(NOT NLOHMANN_JSON_FOUND)
+    find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp
+        PATHS 
+            /opt/homebrew/include
+            /usr/local/include
+            ${CMAKE_PREFIX_PATH}/include
+        NO_DEFAULT_PATH
+    )
+    if(NLOHMANN_JSON_INCLUDE_DIR)
+        set(NLOHMANN_JSON_FOUND TRUE)
+        message(STATUS "Found nlohmann-json: ${NLOHMANN_JSON_INCLUDE_DIR}")
+    endif()
+endif()
+
+if(NOT NLOHMANN_JSON_FOUND)
+    message(FATAL_ERROR "nlohmann-json not found. Install with: brew install nlohmann-json")
+endif()
+
+# Find cpp-httplib
+find_path(CPP_HTTPLIB_INCLUDE_DIR httplib.h
+    PATHS 
+        /opt/homebrew/include
+        /usr/local/include
+        ${CMAKE_PREFIX_PATH}/include
+    NO_DEFAULT_PATH
+)
+
+if(CPP_HTTPLIB_INCLUDE_DIR)
+    message(STATUS "Found cpp-httplib: ${CPP_HTTPLIB_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "cpp-httplib not found. Install with: brew install cpp-httplib")
+endif()
+
 # Include directories (consolidated)
 set(OPENSPIEL_INCLUDE_DIRS
     ${OPENSPIEL_ROOT}
@@ -52,6 +92,16 @@ set(OPENSPIEL_INCLUDE_DIRS
 
 # Suppress warnings for OpenSpiel includes by treating them as system includes
 include_directories(SYSTEM ${OPENSPIEL_INCLUDE_DIRS})
+
+# Add nlohmann-json include directory
+if(NLOHMANN_JSON_INCLUDE_DIR)
+    include_directories(SYSTEM ${NLOHMANN_JSON_INCLUDE_DIR})
+else()
+    include_directories(SYSTEM ${NLOHMANN_JSON_INCLUDE_DIRS})
+endif()
+
+# Add cpp-httplib include directory
+include_directories(SYSTEM ${CPP_HTTPLIB_INCLUDE_DIR})
 
 # Add compiler flags to suppress OpenSpiel warnings
 if(NOT MSVC)
@@ -205,6 +255,48 @@ if(EXISTS "${ALPHA_ZERO_TORCH_DIR}/alpha_zero.cc")
     )
     
     message(STATUS "🎯 LibTorch AlphaZero build target: libtorch_alphazero_trainer")
+    
+    # AlphaZero Bridge - JSON-enabled bridge for full integration
+    add_executable(alphazero_bridge
+        alphazero_bridge.cpp
+    )
+    
+    target_include_directories(alphazero_bridge PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${ALPHA_ZERO_TORCH_DIR}
+        ${OPENSPIEL_ROOT}/open_spiel/libnop/libnop/include
+    )
+    
+    target_link_libraries(alphazero_bridge
+        azul_evaluation
+        azul_local
+        ${LOCAL_OPENSPIEL_LIB}
+        alpha_zero_torch
+        ${TORCH_LIBRARIES}
+    )
+    
+    message(STATUS "🌉 JSON AlphaZero bridge build target: alphazero_bridge")
+    
+    # C++ API Server - Direct HTTP server without Python wrapper
+    add_executable(azul_api_server
+        azul_api_server.cpp
+    )
+    
+    target_include_directories(azul_api_server PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${ALPHA_ZERO_TORCH_DIR}
+        ${OPENSPIEL_ROOT}/open_spiel/libnop/libnop/include
+    )
+    
+    target_link_libraries(azul_api_server
+        azul_evaluation
+        azul_local
+        ${LOCAL_OPENSPIEL_LIB}
+        alpha_zero_torch
+        ${TORCH_LIBRARIES}
+    )
+    
+    message(STATUS "🌐 C++ API Server build target: azul_api_server")
 else()
     message(STATUS "⚠️  LibTorch AlphaZero sources not found at ${ALPHA_ZERO_TORCH_DIR}")
     message(STATUS "    Make sure OpenSpiel was built with OPEN_SPIEL_BUILD_WITH_LIBTORCH=ON")
