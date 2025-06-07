@@ -118,6 +118,8 @@ AzulState::AzulState(std::shared_ptr<const Game> game)
       bag_.push_back(static_cast<TileColor>(color));
     }
   }
+  // Resize factories vector to correct size
+  factories_.resize(GetNumFactories(), Factory());
   // Reset RNG to original seed to ensure consistent initial state
   const AzulGame* azul_game = static_cast<const AzulGame*>(GetGame().get());
   azul_game->GetRNG().seed(azul_game->GetOriginalSeed());
@@ -142,7 +144,8 @@ AzulState::AzulState(std::shared_ptr<const Game> game, int num_players)
       bag_.push_back(static_cast<TileColor>(color));
     }
   }
-
+  // Resize factories vector to correct size
+  factories_.resize(GetNumFactories(), Factory());
   // Reset RNG to original seed to ensure consistent initial state
   const AzulGame* azul_game = static_cast<const AzulGame*>(GetGame().get());
   azul_game->GetRNG().seed(azul_game->GetOriginalSeed());
@@ -163,6 +166,7 @@ auto AzulState::CurrentPlayer() const -> Player {
 }
 
 void AzulState::SetupNewRound() {
+  SPIEL_CHECK_EQ(factories_.size(), GetNumFactories());
   // Assert that factories and center pile are already empty
   // (they should be empty after a properly completed round)
   for (const auto& factory : factories_) {
@@ -999,8 +1003,8 @@ void AzulState::ObservationTensor(Player player,
       int player_size =
           (kNumPatternLines * (kNumTileColors + 1)) +  // Pattern lines: 30
           (kWallSize * kWallSize) +                    // Wall: 25
-          7 +  // Floor line positions: 7
-          1;   // Score: 1
+          7 +                                          // Floor positions: 7
+          1;                                           // Score: 1
       for (int i = 0; i < player_size; ++i) {
         values[offset] = 0.0F;
         offset++;

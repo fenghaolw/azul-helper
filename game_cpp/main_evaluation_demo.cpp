@@ -11,7 +11,7 @@ void force_azul_registration() {
 }  // namespace
 
 auto main() -> int {
-  std::cout << "=== AZUL AGENT EVALUATION & TOURNAMENT DEMO ===" << '\n';
+  std::cout << "=== AZUL ALPHAZERO MCTS vs MINIMAX EVALUATION DEMO ===" << '\n';
 
   try {
     // Force registration
@@ -25,73 +25,51 @@ auto main() -> int {
     }
     std::cout << "✅ Azul game loaded successfully" << '\n';
 
-    // Configure evaluation
-    azul::EvaluationConfig eval_config;
-    eval_config.num_games = 50;
-    eval_config.verbose = true;
-    eval_config.swap_player_positions = true;
-    eval_config.timeout_per_move = 10.0;
+    // Create a new state
+    auto state = game->NewInitialState();
+    std::cout << "\nInitial game state:\n" << state->ToString() << '\n';
 
-    azul::AgentEvaluator evaluator(eval_config);
+    const auto& azul_state =
+        static_cast<const open_spiel::azul::AzulState&>(*state);
 
-    // // Test 1: Minimax vs MCTS
-    // std::cout << "\n--- Evaluation 1: Minimax vs MCTS ---" << '\n';
-    // auto result1 = evaluator.evaluate_agent(*minimax_agent, *mcts_agent);
-    // std::cout << result1.summary() << '\n';
-
-    // // Test 2: Minimax vs Random (should win easily)
-    // std::cout << "\n--- Evaluation 2: Minimax vs Random ---" << '\n';
-    // auto result2 = evaluator.evaluate_agent(*minimax_agent, *random_agent);
-    // std::cout << result2.summary() << '\n';
-
-    // // Test 3: MCTS vs Random (should win easily)
-    // std::cout << "\n--- Evaluation 3: MCTS vs Random ---" << '\n';
-    // auto result3 = evaluator.evaluate_agent(*mcts_agent, *random_agent);
-    // std::cout << result3.summary() << '\n';
-
-    // Test 4: AlphaZero MCTS vs Random Rollout MCTS
-    // std::cout << "\n--- Evaluation 4: AlphaZero MCTS vs Random Rollout MCTS
-    // ---"
-    //           << '\n';
-    // std::string checkpoint_path =
-    //     "models/libtorch_alphazero_azul/checkpoint-0.pt";
-    // auto alphazero_mcts_agent = azul::create_alphazero_mcts_evaluation_agent(
-    //     checkpoint_path, 400, 1.4, 42, "AlphaZero_MCTS_400");
-    // auto result4 = evaluator.evaluate_agent(*alphazero_mcts_agent,
-    // *mcts_agent); std::cout << result4.summary() << '\n';
-
-    // =================================================================
-    // PART 2: TOURNAMENT EVALUATION
-    // =================================================================
-
-    // Configure tournament
-    azul::EvaluationConfig tournament_config;
-    tournament_config.num_games =
-        30;  // 30 games per matchup for reliable results
-    tournament_config.verbose = true;
-    tournament_config.swap_player_positions = true;
-
-    azul::Tournament tournament(tournament_config);
-
-    // Add the 3 core agents to tournament
-    tournament.add_agent(
-        azul::create_minimax_evaluation_agent(5, "Minimax_D4"));
-    tournament.add_agent(
-        azul::create_mcts_evaluation_agent(2000, 1.4, 42, "MCTS_2000"));
-    // Add AlphaZero MCTS agent to tournament
-    tournament.add_agent(azul::create_alphazero_mcts_evaluation_agent(
+    // Create the agents
+    auto alphazero_agent = azul::create_alphazero_mcts_evaluation_agent(
         "models/libtorch_alphazero_azul/checkpoint--1", 400, 1.4, 42,
-        "AlphaZero_MCTS_400"));
+        "AlphaZero_MCTS_400");
+    auto minimax_agent = azul::create_minimax_evaluation_agent(5, "Minimax_D4");
 
-    std::cout << "Starting tournament with " << tournament.get_num_agents()
-              << " agents..." << '\n';
+    // Play the game
+    while (!state->IsTerminal()) {
+      // Get current player
+      int current_player = state->CurrentPlayer();
 
-    // Run tournament
-    auto tournament_result = tournament.run_tournament();
+      // Select agent based on current player
+      auto& agent = (current_player == 0) ? *alphazero_agent : *minimax_agent;
 
-    // Display results
-    std::cout << "\nTOURNAMENT RESULTS:" << '\n';
-    std::cout << tournament_result.summary() << '\n';
+      // Get action from agent
+      auto action = agent.get_action(*state, current_player);
+
+      // Print the action being taken
+      std::cout << "\nPlayer " << current_player << " ("
+                << (current_player == 0 ? "AlphaZero MCTS" : "Minimax")
+                << ") takes action: "
+                << state->ActionToString(current_player, action) << '\n';
+
+      // Apply the action
+      state->ApplyAction(action);
+
+      // Print the new state
+      std::cout << "\nGame state after move:\n" << state->ToString() << '\n';
+    }
+
+    // Print final results
+    std::cout << "\n=== GAME OVER ===\n";
+    std::cout << "Final scores:\n";
+    for (int player = 0; player < game->NumPlayers(); ++player) {
+      std::cout << "Player " << player << " ("
+                << (player == 0 ? "AlphaZero MCTS" : "Minimax")
+                << "): " << state->PlayerReturn(player) << '\n';
+    }
 
   } catch (const std::exception& e) {
     std::cerr << "❌ Error during evaluation: " << e.what() << '\n';
