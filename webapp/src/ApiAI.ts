@@ -1,5 +1,5 @@
-import {BaseGameState} from './GameState';
-import {Move, SearchResult} from './types';
+import { BaseGameState } from "./GameState";
+import { Move, SearchResult } from "./types";
 
 interface ApiAIResponse {
   move: Move;
@@ -24,7 +24,7 @@ export class ApiAI {
     lastMoveTime?: Date;
     totalMoves?: number;
     averageSearchTime?: number;
-  } = {nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0};
+  } = { nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0 };
   private isConnected: boolean = false;
 
   constructor(playerIndex: number, apiBaseUrl?: string) {
@@ -35,13 +35,13 @@ export class ApiAI {
       this.apiBaseUrl = apiBaseUrl;
       this.checkConnection();
     } else {
-      this.apiBaseUrl = ''; // Will be set by auto-discovery
+      this.apiBaseUrl = ""; // Will be set by auto-discovery
       this.autoDiscoverServer();
     }
   }
 
   private async autoDiscoverServer(): Promise<void> {
-    console.log('🔍 Auto-discovering C++ AI server...');
+    console.log("🔍 Auto-discovering C++ AI server...");
 
     // Try ports 5000-5009
     for (let port = 5000; port < 5010; port++) {
@@ -50,18 +50,18 @@ export class ApiAI {
 
         // Create a timeout promise
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout')), 1000);
+          setTimeout(() => reject(new Error("Timeout")), 1000);
         });
 
         // Race between fetch and timeout
         const response = await Promise.race([
-          fetch(`${testUrl}/health`, {method: 'GET'}),
+          fetch(`${testUrl}/health`, { method: "GET" }),
           timeoutPromise,
         ]);
 
         if (response.ok) {
           const data = await response.json();
-          if (data.status === 'healthy') {
+          if (data.status === "healthy") {
             this.apiBaseUrl = testUrl;
             this.isConnected = true;
             console.log(`✅ Found C++ AI server on port ${port}`);
@@ -77,9 +77,9 @@ export class ApiAI {
 
     // No server found
     this.isConnected = false;
-    this.apiBaseUrl = 'http://localhost:5000'; // Fallback
-    console.warn('❌ No C++ AI server found on ports 5000-5009');
-    console.warn('💡 Try starting the server with: python start.py');
+    this.apiBaseUrl = "http://localhost:5000"; // Fallback
+    console.warn("❌ No C++ AI server found on ports 5000-5009");
+    console.warn("💡 Try starting the server with: python start.py");
   }
 
   private async checkConnection(): Promise<void> {
@@ -92,26 +92,26 @@ export class ApiAI {
       const response = await fetch(`${this.apiBaseUrl}/health`);
       if (response.ok) {
         const data = await response.json();
-        this.isConnected = data.status === 'healthy';
+        this.isConnected = data.status === "healthy";
         console.log(
-          'C++ AI connection status:',
-          this.isConnected ? 'connected' : 'disconnected'
+          "C++ AI connection status:",
+          this.isConnected ? "connected" : "disconnected",
         );
       } else {
         this.isConnected = false;
-        console.warn('C++ AI server not responding');
+        console.warn("C++ AI server not responding");
       }
     } catch (error) {
       this.isConnected = false;
-      console.warn('Failed to connect to C++ AI server:', error);
+      console.warn("Failed to connect to C++ AI server:", error);
     }
   }
 
   async getBestMove(gameState: BaseGameState): Promise<SearchResult> {
     // If auto-discovery hasn't completed yet, wait a bit and retry
     if (!this.apiBaseUrl && !this.isConnected) {
-      console.log('⏳ Waiting for server auto-discovery...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("⏳ Waiting for server auto-discovery...");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     if (!this.isConnected) {
@@ -124,14 +124,14 @@ export class ApiAI {
 
         if (!this.isConnected) {
           throw new Error(
-            'C++ AI server is not available. Please start the API server with: python start.py'
+            "C++ AI server is not available. Please start the API server with: python start.py",
           );
         }
       }
     }
 
     if (gameState.availableMoves.length === 0) {
-      throw new Error('No available moves');
+      throw new Error("No available moves");
     }
 
     if (gameState.availableMoves.length === 1) {
@@ -160,27 +160,27 @@ export class ApiAI {
       };
 
       console.log(
-        `AI Player ${this.playerIndex + 1} requesting move from C++ agent...`
+        `AI Player ${this.playerIndex + 1} requesting move from C++ agent...`,
       );
 
       const response = await fetch(`${this.apiBaseUrl}/agent/move`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         throw new Error(
-          `API request failed: ${response.status} ${response.statusText}`
+          `API request failed: ${response.status} ${response.statusText}`,
         );
       }
 
       const data: ApiAIResponse = await response.json();
 
       if (!data.success || data.error) {
-        throw new Error(data.error || 'C++ AI failed to generate move');
+        throw new Error(data.error || "C++ AI failed to generate move");
       }
 
       // Update stats
@@ -203,10 +203,10 @@ export class ApiAI {
 
       // Log decision
       console.log(
-        `AI Player ${this.playerIndex + 1} decision (${data.stats.agent_type}):`
+        `AI Player ${this.playerIndex + 1} decision (${data.stats.agent_type}):`,
       );
       console.log(
-        `  Selected move: Factory ${data.move.factoryIndex}, Tile ${data.move.tile}, Line ${data.move.lineIndex + 1}`
+        `  Selected move: Factory ${data.move.factoryIndex}, Tile ${data.move.tile}, Line ${data.move.lineIndex + 1}`,
       );
       console.log(`  Search time: ${data.stats.searchTime.toFixed(3)}s`);
       console.log(`  Nodes evaluated: ${data.stats.nodesEvaluated}`);
@@ -218,7 +218,7 @@ export class ApiAI {
         nodesEvaluated: data.stats.nodesEvaluated,
       };
     } catch (error) {
-      console.error('C++ AI error:', error);
+      console.error("C++ AI error:", error);
       // Fallback to simple move selection and update stats
       const result = this.getSimpleMove(gameState);
 
@@ -260,7 +260,7 @@ export class ApiAI {
   getSimpleMove(gameState: BaseGameState): SearchResult {
     // Fallback to simple move selection when C++ AI fails
     if (gameState.availableMoves.length === 0) {
-      throw new Error('No available moves for fallback');
+      throw new Error("No available moves for fallback");
     }
 
     // Simple heuristic: prefer moves that complete pattern lines
@@ -278,7 +278,7 @@ export class ApiAI {
         const line =
           gameState.playerBoards[this.playerIndex].lines[move.lineIndex];
         const lineCapacity = move.lineIndex + 1;
-        const currentCount = line.filter(tile => tile !== null).length;
+        const currentCount = line.filter((tile) => tile !== null).length;
         const tilesNeeded = lineCapacity - currentCount;
 
         // Higher score for lines that will be completed or nearly completed
@@ -319,7 +319,7 @@ export class ApiAI {
   }
 
   resetStats(): void {
-    this.lastStats = {nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0};
+    this.lastStats = { nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0 };
   }
 
   isServerConnected(): boolean {
@@ -330,6 +330,6 @@ export class ApiAI {
     if (this.lastStats.agent_name && this.lastStats.agent_type) {
       return `${this.lastStats.agent_name} (${this.lastStats.agent_type.toUpperCase()})`;
     }
-    return this.lastStats.agent_type?.toUpperCase() || 'C++ AI';
+    return this.lastStats.agent_type?.toUpperCase() || "C++ AI";
   }
 }

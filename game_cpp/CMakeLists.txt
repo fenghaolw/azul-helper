@@ -129,6 +129,9 @@ if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-unused-but-set-variable")
 endif()
 
+# Find nlohmann_json package
+find_package(nlohmann_json 3.11.2 REQUIRED)
+
 # Create local Azul game library
 add_library(azul_local STATIC
     azul.cc
@@ -156,6 +159,7 @@ target_include_directories(azul_evaluation PRIVATE
 # Link with LibTorch if available for AlphaZero support
 target_link_libraries(azul_evaluation
     ${TORCH_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
 # Evaluation demo executable (comprehensive)
@@ -175,6 +179,7 @@ target_link_libraries(azul_evaluation_demo
     ${LOCAL_OPENSPIEL_LIB}
     alpha_zero_torch
     ${TORCH_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
 # Profiling demo executable

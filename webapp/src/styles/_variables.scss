@@ -53,8 +53,8 @@ $spacing: (
 );
 
 // Typography
-$font-family-primary: 'Georgia', serif;
-$font-family-secondary: 'Roboto', sans-serif;
+$font-family-primary: "Georgia", serif;
+$font-family-secondary: "Roboto", sans-serif;
 
 $font-sizes: (
   xs: 10px,
@@ -115,7 +115,7 @@ $z-index: (
   modal: 100,
 );
 
-@use 'sass:map';
+@use "sass:map";
 
 // Helper functions
 @function color($name) {

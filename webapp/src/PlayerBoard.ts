@@ -1,4 +1,4 @@
-import {Tile, ScoreDetails, FinalScoreDetails} from './types';
+import { Tile, ScoreDetails, FinalScoreDetails } from "./types";
 
 function stringToTile(tileString: string): Tile | null {
   const s = tileString.toLowerCase();
@@ -13,7 +13,7 @@ function stringToTile(tileString: string): Tile | null {
   // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
 
   console.warn(
-    `[PlayerBoard] Unknown tile string for enum conversion: "${tileString}"`
+    `[PlayerBoard] Unknown tile string for enum conversion: "${tileString}"`,
   );
   return null;
 }
@@ -70,8 +70,8 @@ export class PlayerBoard {
     for (let i = 0; i < 5; i++) {
       if (data.lines[i]) {
         this.lines[i] = data.lines[i]
-          .map(sTile => stringToTile(sTile))
-          .filter(t => t !== null) as Tile[];
+          .map((sTile) => stringToTile(sTile))
+          .filter((t) => t !== null) as Tile[];
       }
     }
 
@@ -82,7 +82,7 @@ export class PlayerBoard {
     for (let r = 0; r < 5; r++) {
       if (data.wall[r]) {
         for (let c = 0; c < 5; c++) {
-          if (data.wall[r][c] && data.wall[r][c] !== '') {
+          if (data.wall[r][c] && data.wall[r][c] !== "") {
             // Check for empty string representing no tile
             const tile = stringToTile(data.wall[r][c]);
             if (tile) {
@@ -101,10 +101,10 @@ export class PlayerBoard {
 
     // Load floor
     this.floor = data.floor
-      .map(sTile => stringToTile(sTile))
-      .filter(t => t !== null) as Tile[];
+      .map((sTile) => stringToTile(sTile))
+      .filter((t) => t !== null) as Tile[];
 
-    console.log('PlayerBoard loaded state:', {
+    console.log("PlayerBoard loaded state:", {
       score: this.score,
       lines: this.lines,
       wall: this.wall,
@@ -200,13 +200,13 @@ export class PlayerBoard {
           details.totalTileScore += tileScore;
 
           console.log(
-            `  Tile ${tileToPlace} placed at (${i + 1}, ${wallCol + 1}): ${tileScore} points`
+            `  Tile ${tileToPlace} placed at (${i + 1}, ${wallCol + 1}): ${tileScore} points`,
           );
           console.log(
-            `    Adjacent tiles: ${adjacentInfo.horizontal} horizontal, ${adjacentInfo.vertical} vertical`
+            `    Adjacent tiles: ${adjacentInfo.horizontal} horizontal, ${adjacentInfo.vertical} vertical`,
           );
           console.log(
-            `    Score calculation: 1 base + ${Math.max(0, adjacentInfo.horizontal - 1)} horizontal + ${Math.max(0, adjacentInfo.vertical - 1)} vertical = ${tileScore}`
+            `    Score calculation: 1 base + ${Math.max(0, adjacentInfo.horizontal - 1)} horizontal + ${Math.max(0, adjacentInfo.vertical - 1)} vertical = ${tileScore}`,
           );
 
           details.tilesPlaced.push({
@@ -221,7 +221,7 @@ export class PlayerBoard {
           const tilesToDiscard = line.slice(1); // All except the one placed on wall
           if (tilesToDiscard.length > 0) {
             console.log(
-              `  Discarding ${tilesToDiscard.length} excess ${tileToPlace} tiles to discard pile`
+              `  Discarding ${tilesToDiscard.length} excess ${tileToPlace} tiles to discard pile`,
             );
             discardPile.push(...tilesToDiscard);
           }
@@ -233,7 +233,7 @@ export class PlayerBoard {
           // or if line somehow filled with a tile already on the wall for that row.
           // For now, assume the tiles from this line go to floor as penalty if they can't be placed.
           console.warn(
-            `Cannot place tile ${tileToPlace} on wall row ${i}, col ${wallCol}. Spot occupied or invalid. Tiles go to floor.`
+            `Cannot place tile ${tileToPlace} on wall row ${i}, col ${wallCol}. Spot occupied or invalid. Tiles go to floor.`,
           );
           this.floor.push(...line);
           this.lines[i] = [];
@@ -268,7 +268,7 @@ export class PlayerBoard {
     // Discard floor tiles (except first player token)
     if (tilesToDiscardFromFloor.length > 0) {
       console.log(
-        `  Discarding ${tilesToDiscardFromFloor.length} tiles from floor to discard pile`
+        `  Discarding ${tilesToDiscardFromFloor.length} tiles from floor to discard pile`,
       );
       discardPile.push(...tilesToDiscardFromFloor);
     }
@@ -280,14 +280,14 @@ export class PlayerBoard {
     this.score = Math.max(0, this.score + scoreGained);
     details.newScore = this.score;
 
-    return {scoreGained, details};
+    return { scoreGained, details };
   }
 
   // Get adjacent tiles info for debugging
   private getAdjacentTilesInfo(
     row: number,
-    col: number
-  ): {horizontal: number; vertical: number} {
+    col: number,
+  ): { horizontal: number; vertical: number } {
     // Count horizontal connected tiles
     let horizontalCount = 1;
     // Count left
@@ -316,7 +316,7 @@ export class PlayerBoard {
       if (
         this.wall[r][
           PlayerBoard.WALL_PATTERN[r].indexOf(
-            PlayerBoard.WALL_PATTERN[row][col]
+            PlayerBoard.WALL_PATTERN[row][col],
           )
         ] !== null
       ) {
@@ -330,7 +330,7 @@ export class PlayerBoard {
       if (
         this.wall[r][
           PlayerBoard.WALL_PATTERN[r].indexOf(
-            PlayerBoard.WALL_PATTERN[row][col]
+            PlayerBoard.WALL_PATTERN[row][col],
           )
         ] !== null
       ) {
@@ -340,19 +340,19 @@ export class PlayerBoard {
       }
     }
 
-    return {horizontal: horizontalCount, vertical: verticalCount};
+    return { horizontal: horizontalCount, vertical: verticalCount };
   }
 
   // Calculate score for placing a tile at specific position
   private calculateTileScore(
     row: number,
     col: number,
-    tileBeingPlaced: Tile
+    tileBeingPlaced: Tile,
   ): number {
     // Ensure the tile being scored is actually on the wall at [row][col] for accurate adjacent check
     if (this.wall[row][col] !== tileBeingPlaced) {
       console.warn(
-        `Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`
+        `Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`,
       );
       // Fallback to avoid errors, though this indicates a logic issue.
       // If the tile isn't there, it gets 1 point for itself if it were placed.
@@ -406,12 +406,12 @@ export class PlayerBoard {
   // Check if game should end (player has completed a row)
   hasCompletedRow(): boolean {
     return this.wall.some(
-      row => row.filter(tile => tile !== null).length === 5
+      (row) => row.filter((tile) => tile !== null).length === 5,
     );
   }
 
   // Calculate final bonus scores
-  calculateFinalScore(): {bonus: number; details: FinalScoreDetails} {
+  calculateFinalScore(): { bonus: number; details: FinalScoreDetails } {
     const result = this.getFinalScoreCalculation();
 
     // Only apply the bonus once
@@ -424,7 +424,7 @@ export class PlayerBoard {
   }
 
   // Calculate final bonus scores without modifying the board (for UI display)
-  getFinalScoreCalculation(): {bonus: number; details: FinalScoreDetails} {
+  getFinalScoreCalculation(): { bonus: number; details: FinalScoreDetails } {
     let bonus = 0;
     const details: FinalScoreDetails = {
       completedRows: 0,
@@ -438,7 +438,7 @@ export class PlayerBoard {
 
     // Row completion bonus (2 points per complete row)
     for (const row of this.wall) {
-      if (row.filter(tile => tile !== null).length === 5) {
+      if (row.filter((tile) => tile !== null).length === 5) {
         details.completedRows++;
         details.rowBonus += 2;
         bonus += 2;
@@ -453,7 +453,7 @@ export class PlayerBoard {
         if (
           this.wall[row][
             PlayerBoard.WALL_PATTERN[row].indexOf(
-              PlayerBoard.WALL_PATTERN[row][col]
+              PlayerBoard.WALL_PATTERN[row][col],
             )
           ] !== PlayerBoard.WALL_PATTERN[row][col]
         ) {
@@ -487,7 +487,7 @@ export class PlayerBoard {
       }
     }
 
-    return {bonus, details};
+    return { bonus, details };
   }
 
   // Create a deep copy of the player board

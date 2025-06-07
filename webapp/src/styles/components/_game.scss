@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use "../variables" as *;
 
 .game-container {
   background: color(background);
@@ -126,7 +126,7 @@
   transform: perspective(200px) rotateX(5deg);
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;

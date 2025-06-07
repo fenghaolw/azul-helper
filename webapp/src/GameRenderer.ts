@@ -1,8 +1,8 @@
-import { render, h } from 'preact';
-import { BaseGameState } from './GameState';
-import { Tile, Move } from './types';
-import { Game } from './components/Game';
-import { ApiAI } from './ApiAI';
+import { render, h } from "preact";
+import { BaseGameState } from "./GameState";
+import { Tile, Move } from "./types";
+import { Game } from "./components/Game";
+import { ApiAI } from "./ApiAI";
 import {
   GameState,
   TileColor,
@@ -11,7 +11,7 @@ import {
   Player,
   PatternLine,
   WallSlot,
-} from './types';
+} from "./types";
 
 export class GameRenderer {
   private container: HTMLElement;
@@ -36,34 +36,34 @@ export class GameRenderer {
   }
 
   private setupContainer(): void {
-    this.container.className = 'azul-game-container';
-    this.container.innerHTML = ''; // Clear any existing content
+    this.container.className = "azul-game-container";
+    this.container.innerHTML = ""; // Clear any existing content
   }
 
   private setupEventListeners(): void {
     // Listen for factory selections
-    this.container.addEventListener('factorySelected', (event: Event) => {
+    this.container.addEventListener("factorySelected", (event: Event) => {
       const customEvent = event as CustomEvent;
       const { factoryIndex, color } = customEvent.detail;
       this.handleFactoryClick(factoryIndex, color);
     });
 
     // Listen for center selections
-    this.container.addEventListener('centerSelected', (event: Event) => {
+    this.container.addEventListener("centerSelected", (event: Event) => {
       const customEvent = event as CustomEvent;
       const { groupIndex, color } = customEvent.detail;
       this.handleCenterClick(groupIndex, color);
     });
 
     // Listen for pattern line selections
-    this.container.addEventListener('patternLineSelected', (event: Event) => {
+    this.container.addEventListener("patternLineSelected", (event: Event) => {
       const customEvent = event as CustomEvent;
       const { playerIndex, lineIndex, color } = customEvent.detail;
       this.handlePatternLineClick(playerIndex, lineIndex, color);
     });
 
     // Listen for floor selections
-    this.container.addEventListener('floorSelected', (event: Event) => {
+    this.container.addEventListener("floorSelected", (event: Event) => {
       const customEvent = event as CustomEvent;
       const { playerIndex, color } = customEvent.detail;
       this.handleFloorClick(playerIndex, color);
@@ -73,7 +73,7 @@ export class GameRenderer {
   private handleFactoryClick(factoryIndex: number, color: TileColor): void {
     // Find the tile in the factory
     const factory = this.gameState.factories[factoryIndex];
-    const tile = factory.find(t => this.mapTileColor(t) === color);
+    const tile = factory.find((t) => this.mapTileColor(t) === color);
 
     if (tile) {
       this.selectedFactory = factoryIndex;
@@ -95,7 +95,7 @@ export class GameRenderer {
   private handlePatternLineClick(
     playerIndex: number,
     lineIndex: number,
-    _color: TileColor
+    _color: TileColor,
   ): void {
     if (
       this.selectedTile &&
@@ -124,26 +124,26 @@ export class GameRenderer {
   private mapTileColor(tile: Tile): TileColor {
     switch (tile) {
       case Tile.Red:
-        return 'red';
+        return "red";
       case Tile.Blue:
-        return 'blue';
+        return "blue";
       case Tile.Yellow:
-        return 'yellow';
+        return "yellow";
       case Tile.Black:
-        return 'black';
+        return "black";
       case Tile.White:
-        return 'white';
+        return "white";
       case Tile.FirstPlayer:
-        return 'first-player';
+        return "first-player";
       default:
-        return 'white';
+        return "white";
     }
   }
 
   private convertGameState(): GameState {
     // Convert factories
-    const factories: Factory[] = this.gameState.factories.map(factory => ({
-      tiles: factory.map(tile => ({
+    const factories: Factory[] = this.gameState.factories.map((factory) => ({
+      tiles: factory.map((tile) => ({
         color: this.mapTileColor(tile),
         id: `${tile}-${Math.random()}`,
       })),
@@ -158,7 +158,7 @@ export class GameRenderer {
     });
 
     const centerTiles: CenterTile[] = Array.from(
-      centerTileGroups.entries()
+      centerTileGroups.entries(),
     ).map(([color, count]) => ({
       color,
       count,
@@ -177,16 +177,16 @@ export class GameRenderer {
             })),
             capacity: lineIndex + 1,
             isComplete: line.length === lineIndex + 1,
-          })
+          }),
         );
 
         // Convert wall
-        const wall: WallSlot[][] = board.wall.map(row =>
-          row.map(slot => ({
-            color: slot ? this.mapTileColor(slot) : 'white',
+        const wall: WallSlot[][] = board.wall.map((row) =>
+          row.map((slot) => ({
+            color: slot ? this.mapTileColor(slot) : "white",
             isFilled: slot !== null,
             isScoring: false,
-          }))
+          })),
         );
 
         // Convert floor tiles
@@ -203,7 +203,7 @@ export class GameRenderer {
           floorTiles,
           isReadyToScore: false, // Simplified for now
         };
-      }
+      },
     );
 
     return {
@@ -212,7 +212,7 @@ export class GameRenderer {
       players,
       currentPlayerIndex: this.gameState.currentPlayer,
       round: this.gameState.round,
-      gamePhase: this.gameState.gameOver ? 'finished' : 'playing',
+      gamePhase: this.gameState.gameOver ? "finished" : "playing",
     };
   }
 
@@ -223,23 +223,23 @@ export class GameRenderer {
       // Render the Preact component with gameState as prop
       render(
         h(Game, { gameContainer: this.container, gameState }),
-        this.container
+        this.container,
       );
 
       // Also dispatch the event for backwards compatibility
       this.container.dispatchEvent(
-        new CustomEvent('gameStateUpdate', {
+        new CustomEvent("gameStateUpdate", {
           detail: gameState,
-        })
+        }),
       );
     } catch (error) {
-      console.error('Error in GameRenderer.render():', error);
+      console.error("Error in GameRenderer.render():", error);
     }
   }
 
   private isValidPatternLineDrop(
     playerIndex: number,
-    lineIndex: number
+    lineIndex: number,
   ): boolean {
     if (!this.selectedTile) return false;
 
@@ -277,7 +277,7 @@ export class GameRenderer {
         const result = await this.ai.getBestMove(this.gameState);
         this.playMove(result.move);
       } catch (error) {
-        console.error('AI move error:', error);
+        console.error("AI move error:", error);
       }
     }
   }

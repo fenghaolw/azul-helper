@@ -1,13 +1,13 @@
-import {Player, TileColor} from '../types';
-import {Tile} from './Tile';
+import { Player, TileColor } from "../types";
+import { Tile } from "./Tile";
 
 // Wall pattern for Azul (each row is shifted by one position)
 const WALL_PATTERN: TileColor[][] = [
-  ['blue', 'yellow', 'red', 'black', 'white'],
-  ['white', 'blue', 'yellow', 'red', 'black'],
-  ['black', 'white', 'blue', 'yellow', 'red'],
-  ['red', 'black', 'white', 'blue', 'yellow'],
-  ['yellow', 'red', 'black', 'white', 'blue'],
+  ["blue", "yellow", "red", "black", "white"],
+  ["white", "blue", "yellow", "red", "black"],
+  ["black", "white", "blue", "yellow", "red"],
+  ["red", "black", "white", "blue", "yellow"],
+  ["yellow", "red", "black", "white", "blue"],
 ];
 
 interface PlayerBoardsProps {
@@ -29,7 +29,7 @@ export function PlayerBoards({
     player: Player,
     lineIndex: number,
     color: TileColor,
-    playerIndex: number
+    playerIndex: number,
   ) => {
     const line = player.patternLines[lineIndex];
     return (
@@ -61,9 +61,9 @@ export function PlayerBoards({
           key={playerIndex}
           className={`player-board ${
             playerIndex === currentPlayerIndex
-              ? 'player-board--current'
-              : 'player-board--inactive'
-          } ${player.isReadyToScore ? 'player-board--ready-to-score' : ''}`}
+              ? "player-board--current"
+              : "player-board--inactive"
+          } ${player.isReadyToScore ? "player-board--ready-to-score" : ""}`}
         >
           <div className="player-board__header">{player.name}</div>
 
@@ -74,46 +74,46 @@ export function PlayerBoards({
                   <div
                     key={lineIndex}
                     className={`pattern-line ${
-                      line.isComplete ? 'pattern-line--complete' : ''
+                      line.isComplete ? "pattern-line--complete" : ""
                     } ${
                       canPlaceOnLine(
                         player,
                         lineIndex,
                         selectedColor!,
-                        playerIndex
+                        playerIndex,
                       )
-                        ? 'pattern-line--valid-drop'
-                        : ''
+                        ? "pattern-line--valid-drop"
+                        : ""
                     }`}
                     onClick={() =>
                       handlePatternLineClick(playerIndex, lineIndex)
                     }
                   >
                     <div className="pattern-line__slots">
-                      {Array.from({length: lineIndex + 1}).map(
+                      {Array.from({ length: lineIndex + 1 }).map(
                         (_, slotIndex) => (
                           <div
                             key={slotIndex}
                             className={`pattern-line__slot ${
                               slotIndex < line.tiles.length
-                                ? 'pattern-line__slot--filled'
-                                : ''
+                                ? "pattern-line__slot--filled"
+                                : ""
                             } ${
                               canPlaceOnLine(
                                 player,
                                 lineIndex,
                                 selectedColor!,
-                                playerIndex
+                                playerIndex,
                               )
-                                ? 'pattern-line__slot--valid-drop'
-                                : ''
+                                ? "pattern-line__slot--valid-drop"
+                                : ""
                             }`}
                           >
                             {slotIndex < line.tiles.length && (
                               <Tile color={line.tiles[slotIndex].color} />
                             )}
                           </div>
-                        )
+                        ),
                       )}
                     </div>
                     <span className="pattern-line__arrow">→</span>
@@ -132,17 +132,17 @@ export function PlayerBoards({
                         key={`${rowIndex}-${colIndex}`}
                         className={`wall-slot ${
                           slot.isFilled
-                            ? 'wall-slot--filled'
-                            : 'wall-slot--empty'
-                        } ${slot.isScoring ? 'wall-slot--scoring' : ''}`}
+                            ? "wall-slot--filled"
+                            : "wall-slot--empty"
+                        } ${slot.isScoring ? "wall-slot--scoring" : ""}`}
                       >
                         <Tile
                           color={expectedColor}
-                          className={slot.isFilled ? '' : 'tile--faded'}
+                          className={slot.isFilled ? "" : "tile--faded"}
                         />
                       </div>
                     );
-                  })
+                  }),
                 )}
               </div>
             </div>

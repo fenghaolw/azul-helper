@@ -1,5 +1,5 @@
-import {CenterTile, TileColor} from '../types';
-import {Tile} from './Tile';
+import { CenterTile, TileColor } from "../types";
+import { Tile } from "./Tile";
 
 interface CenterAreaProps {
   centerTiles: CenterTile[];
@@ -12,7 +12,7 @@ interface CenterAreaProps {
 const getCenterTilePosition = (
   groupIndex: number,
   tileIndex: number,
-  totalTiles: number
+  totalTiles: number,
 ) => {
   const seed = groupIndex * 100 + tileIndex;
 
@@ -27,7 +27,7 @@ const getCenterTilePosition = (
   return {
     transform: `translate(${x}px, ${y}px) rotate(${rotation}deg)`,
     zIndex: tileIndex,
-    '--hover-transform': `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.15)`,
+    "--hover-transform": `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.15)`,
   };
 };
 
@@ -43,12 +43,12 @@ export function CenterArea({
 
   // Convert center tiles to individual tiles for scattered display
   const allCenterTiles = centerTiles.flatMap((group, groupIndex) =>
-    Array.from({length: group.count}, (_, tileIndex) => ({
+    Array.from({ length: group.count }, (_, tileIndex) => ({
       color: group.color,
       groupIndex,
       tileIndex,
       id: `${group.color}-${groupIndex}-${tileIndex}`,
-    }))
+    })),
   );
 
   return (
@@ -58,7 +58,7 @@ export function CenterArea({
           <div className="center-area__empty"></div>
         ) : (
           <div className="center-area__tiles">
-            {allCenterTiles.map(tile => (
+            {allCenterTiles.map((tile) => (
               <Tile
                 key={tile.id}
                 color={tile.color}
@@ -67,7 +67,7 @@ export function CenterArea({
                   selectedColor === tile.color
                 }
                 onClick={
-                  tile.color !== 'first-player'
+                  tile.color !== "first-player"
                     ? () => handleGroupClick(tile.groupIndex, tile.color)
                     : undefined
                 }
@@ -75,7 +75,7 @@ export function CenterArea({
                 style={getCenterTilePosition(
                   tile.groupIndex,
                   tile.tileIndex,
-                  allCenterTiles.length
+                  allCenterTiles.length,
                 )}
               />
             ))}

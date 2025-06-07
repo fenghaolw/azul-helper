@@ -1,21 +1,24 @@
-import {useState, useEffect} from 'preact/hooks';
-import {GameState, TileColor} from '../types';
+import { useState, useEffect } from "preact/hooks";
+import { GameState, TileColor } from "../types";
 
-import {CenterArea} from './CenterArea';
-import {PlayerBoards} from './PlayerBoards';
+import { CenterArea } from "./CenterArea";
+import { PlayerBoards } from "./PlayerBoards";
 
 interface GameProps {
   gameContainer: HTMLElement;
   gameState?: GameState | null;
 }
 
-export function Game({gameContainer, gameState: initialGameState}: GameProps) {
+export function Game({
+  gameContainer,
+  gameState: initialGameState,
+}: GameProps) {
   const [gameState, setGameState] = useState<GameState | null>(
-    initialGameState || null
+    initialGameState || null,
   );
   const [selectedFactory, setSelectedFactory] = useState<number | null>(null);
   const [selectedCenterGroup, setSelectedCenterGroup] = useState<number | null>(
-    null
+    null,
   );
   const [selectedColor, setSelectedColor] = useState<TileColor | null>(null);
 
@@ -31,25 +34,25 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
     return {
       transform: `translate(${x}px, ${y}px) rotate(${rotation}deg)`,
       zIndex: tileIndex,
-      '--hover-transform': `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.1)`,
+      "--hover-transform": `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.1)`,
     };
   };
 
   // Get correct tile image path (same logic as Tile component)
   const getTileImagePath = (color: TileColor): string => {
-    const basePath = '/imgs/';
+    const basePath = "/imgs/";
     switch (color) {
-      case 'red':
+      case "red":
         return `${basePath}tile-red.svg`;
-      case 'blue':
+      case "blue":
         return `${basePath}tile-blue.svg`;
-      case 'yellow':
+      case "yellow":
         return `${basePath}tile-yellow.svg`;
-      case 'black':
+      case "black":
         return `${basePath}tile-black.svg`;
-      case 'white':
+      case "white":
         return `${basePath}tile-turquoise.svg`; // Using turquoise for white
-      case 'first-player':
+      case "first-player":
         return `${basePath}tile-overlay-dark.svg`;
       default:
         return `${basePath}tile-turquoise.svg`;
@@ -70,14 +73,14 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
     };
 
     gameContainer.addEventListener(
-      'gameStateUpdate',
-      handleGameStateUpdate as EventListener
+      "gameStateUpdate",
+      handleGameStateUpdate as EventListener,
     );
 
     return () => {
       gameContainer.removeEventListener(
-        'gameStateUpdate',
-        handleGameStateUpdate as EventListener
+        "gameStateUpdate",
+        handleGameStateUpdate as EventListener,
       );
     };
   }, [gameContainer]);
@@ -90,9 +93,9 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
 
     // Dispatch event for game logic
     gameContainer.dispatchEvent(
-      new CustomEvent('factorySelected', {
-        detail: {factoryIndex, color},
-      })
+      new CustomEvent("factorySelected", {
+        detail: { factoryIndex, color },
+      }),
     );
   };
 
@@ -104,9 +107,9 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
 
     // Dispatch event for game logic
     gameContainer.dispatchEvent(
-      new CustomEvent('centerSelected', {
-        detail: {groupIndex, color},
-      })
+      new CustomEvent("centerSelected", {
+        detail: { groupIndex, color },
+      }),
     );
   };
 
@@ -115,9 +118,9 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
     if (selectedColor) {
       // Dispatch event for game logic
       gameContainer.dispatchEvent(
-        new CustomEvent('patternLineSelected', {
-          detail: {playerIndex, lineIndex, color: selectedColor},
-        })
+        new CustomEvent("patternLineSelected", {
+          detail: { playerIndex, lineIndex, color: selectedColor },
+        }),
       );
 
       // Clear selection after successful move
@@ -132,9 +135,9 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
     if (selectedColor) {
       // Dispatch event for game logic
       gameContainer.dispatchEvent(
-        new CustomEvent('floorSelected', {
-          detail: {playerIndex, color: selectedColor},
-        })
+        new CustomEvent("floorSelected", {
+          detail: { playerIndex, color: selectedColor },
+        }),
       );
 
       // Clear selection after successful move
@@ -150,9 +153,7 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
 
   return (
     <div className="game-container">
-      <div className="simple-round-info">
-        Round {gameState.round}
-      </div>
+      <div className="simple-round-info">Round {gameState.round}</div>
 
       <div className="game-board">
         <div className="game-board__factory-area">
@@ -173,7 +174,7 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
                   className={`factory-position factory-position--${index}`}
                 >
                   <div
-                    className={`factory ${factory.isEmpty ? 'factory--empty' : ''} ${selectedFactory === index ? 'factory--selected' : ''}`}
+                    className={`factory ${factory.isEmpty ? "factory--empty" : ""} ${selectedFactory === index ? "factory--selected" : ""}`}
                     onClick={() =>
                       factory.tiles.length > 0 &&
                       handleFactoryClick(index, factory.tiles[0].color)
@@ -186,18 +187,18 @@ export function Game({gameContainer, gameState: initialGameState}: GameProps) {
                           className={`tile tile--${tile.color} factory__tile ${
                             selectedFactory === index &&
                             selectedColor === tile.color
-                              ? 'tile--selected'
-                              : ''
+                              ? "tile--selected"
+                              : ""
                           }`}
                           style={{
                             backgroundImage: `url("${getTileImagePath(tile.color)}")`,
-                            backgroundSize: 'contain',
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'center',
-                            position: 'absolute',
+                            backgroundSize: "contain",
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "center",
+                            position: "absolute",
                             ...getTilePosition(index, tileIndex),
                           }}
-                          onClick={e => {
+                          onClick={(e) => {
                             e?.stopPropagation();
                             handleFactoryClick(index, tile.color);
                           }}

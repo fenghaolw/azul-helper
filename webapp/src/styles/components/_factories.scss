@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use "../variables" as *;
 
 .factories {
   display: grid;
@@ -17,7 +17,7 @@
     margin-bottom: spacing(md);
 
     &::after {
-      content: '';
+      content: "";
       display: block;
       width: 60px;
       height: 2px;
@@ -56,7 +56,7 @@
   flex-shrink: 0;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: -4px;
     border-radius: 50%;

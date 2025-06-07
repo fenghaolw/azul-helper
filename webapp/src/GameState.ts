@@ -1,5 +1,5 @@
-import {Tile, Move, GameResult, GamePhase} from './types';
-import {PlayerBoard} from './PlayerBoard';
+import { Tile, Move, GameResult, GamePhase } from "./types";
+import { PlayerBoard } from "./PlayerBoard";
 
 // Helper function to safely convert string to Tile enum
 function stringToTile(tileString: string): Tile | null {
@@ -15,7 +15,7 @@ function stringToTile(tileString: string): Tile | null {
   // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
 
   console.warn(
-    `[GameState] Unknown tile string for enum conversion: "${tileString}"`
+    `[GameState] Unknown tile string for enum conversion: "${tileString}"`,
   );
   return null;
 }
@@ -63,16 +63,16 @@ export abstract class BaseGameState {
 
     // Initialize factories
     this.factories = bgaData.factories.map(
-      factory =>
+      (factory) =>
         factory
-          .map(sTile => stringToTile(sTile))
-          .filter(t => t !== null) as Tile[]
+          .map((sTile) => stringToTile(sTile))
+          .filter((t) => t !== null) as Tile[],
     );
 
     // Initialize center, carefully handling FirstPlayer token
     this.center = bgaData.center
-      .map(sTile => stringToTile(sTile))
-      .filter(t => t !== null) as Tile[];
+      .map((sTile) => stringToTile(sTile))
+      .filter((t) => t !== null) as Tile[];
 
     // Initialize player boards
     if (this.playerBoards.length !== this.numPlayers) {
@@ -90,7 +90,7 @@ export abstract class BaseGameState {
         this.firstPlayerIndex = i;
         firstPlayerTokenFoundOnBoard = true;
         // Remove from center if it was also there (BGA might be inconsistent)
-        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+        this.center = this.center.filter((t) => t !== Tile.FirstPlayer);
       }
     }
 
@@ -111,7 +111,7 @@ export abstract class BaseGameState {
       firstPlayerTokenFoundOnBoard
     ) {
       // If on a board AND in center, prioritize board, remove from center.
-      this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+      this.center = this.center.filter((t) => t !== Tile.FirstPlayer);
     }
 
     // If no player has the token yet and it's not in the center, this implies it hasn't been picked up.
@@ -122,11 +122,11 @@ export abstract class BaseGameState {
     // Ensure a valid currentPlayer (e.g. if BGA sends an out-of-bounds index)
     this.currentPlayer = Math.max(
       0,
-      Math.min(this.numPlayers - 1, this.currentPlayer)
+      Math.min(this.numPlayers - 1, this.currentPlayer),
     );
 
     this.getMoves(); // Crucially, generate moves for the loaded state.
-    console.log('GameState loaded from BGA data:', this);
+    console.log("GameState loaded from BGA data:", this);
   }
 
   // Initialize a new game
@@ -157,7 +157,7 @@ export abstract class BaseGameState {
 
     // Remove first player token from previous holder's floor
     for (const board of this.playerBoards) {
-      board.floor = board.floor.filter(tile => tile !== Tile.FirstPlayer);
+      board.floor = board.floor.filter((tile) => tile !== Tile.FirstPlayer);
     }
 
     // Create tile bag (20 tiles of each color)
@@ -201,7 +201,7 @@ export abstract class BaseGameState {
         // If bag is empty, reshuffle discard pile back into bag
         if (this.tilebag.length === 0 && this.discardPile.length > 0) {
           console.log(
-            `Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`
+            `Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`,
           );
           this.tilebag = [...this.discardPile];
           this.discardPile = [];
@@ -259,7 +259,7 @@ export abstract class BaseGameState {
     // Check center moves
     if (this.center.length > 0) {
       const uniqueTiles = [
-        ...new Set(this.center.filter(t => t !== Tile.FirstPlayer)),
+        ...new Set(this.center.filter((t) => t !== Tile.FirstPlayer)),
       ];
 
       for (const tile of uniqueTiles) {
@@ -298,31 +298,31 @@ export abstract class BaseGameState {
 
     if (move.factoryIndex === -1) {
       // Take from center
-      tilesToPlace = this.center.filter(t => t === move.tile);
-      this.center = this.center.filter(t => t !== move.tile);
+      tilesToPlace = this.center.filter((t) => t === move.tile);
+      this.center = this.center.filter((t) => t !== move.tile);
       console.log(
-        `  Taking ${tilesToPlace.length} ${move.tile} tiles from center`
+        `  Taking ${tilesToPlace.length} ${move.tile} tiles from center`,
       );
 
       // Check for first player token
       if (this.center.includes(Tile.FirstPlayer)) {
         currentBoard.floor.push(Tile.FirstPlayer);
-        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+        this.center = this.center.filter((t) => t !== Tile.FirstPlayer);
         this.firstPlayerIndex = this.currentPlayer;
         console.log(
-          `  Also took first player token (will go first next round)`
+          `  Also took first player token (will go first next round)`,
         );
       }
     } else {
       // Take from factory
       const factory = this.factories[move.factoryIndex];
-      tilesToPlace = factory.filter(t => t === move.tile);
-      const remainingTiles = factory.filter(t => t !== move.tile);
+      tilesToPlace = factory.filter((t) => t === move.tile);
+      const remainingTiles = factory.filter((t) => t !== move.tile);
       console.log(
-        `  Taking ${tilesToPlace.length} ${move.tile} tiles from factory ${move.factoryIndex}`
+        `  Taking ${tilesToPlace.length} ${move.tile} tiles from factory ${move.factoryIndex}`,
       );
       console.log(
-        `  Moving ${remainingTiles.length} remaining tiles to center: ${remainingTiles.join(', ')}`
+        `  Moving ${remainingTiles.length} remaining tiles to center: ${remainingTiles.join(", ")}`,
       );
 
       // Move remaining tiles to center
@@ -336,14 +336,14 @@ export abstract class BaseGameState {
     const excess = currentBoard.placeTiles(
       move.tile,
       tilesToPlace.length,
-      move.lineIndex
+      move.lineIndex,
     );
     if (move.lineIndex === -1) {
       console.log(`  Placing all ${tilesToPlace.length} tiles on floor`);
     } else {
       const placed = tilesToPlace.length - excess.length;
       console.log(
-        `  Placing ${placed} tiles on pattern line ${move.lineIndex + 1}`
+        `  Placing ${placed} tiles on pattern line ${move.lineIndex + 1}`,
       );
       if (excess.length > 0) {
         console.log(`  ${excess.length} excess tiles go to floor`);
@@ -357,7 +357,7 @@ export abstract class BaseGameState {
   // Move to next turn
   nextTurn(): boolean {
     // Check if round is over (all factories empty and center only has first player token or is empty)
-    const factoriesEmpty = this.factories.every(f => f.length === 0);
+    const factoriesEmpty = this.factories.every((f) => f.length === 0);
     const centerEmpty =
       this.center.length === 0 ||
       (this.center.length === 1 && this.center[0] === Tile.FirstPlayer);
@@ -396,38 +396,40 @@ export abstract class BaseGameState {
 
       for (const tile of playerResult.details.tilesPlaced) {
         console.log(
-          `    ${tile.tile} at (${tile.row + 1}, ${tile.col + 1}): ${tile.score} points`
+          `    ${tile.tile} at (${tile.row + 1}, ${tile.col + 1}): ${tile.score} points`,
         );
         console.log(
-          `      Adjacent: ${tile.adjacentTiles.horizontal} horizontal, ${tile.adjacentTiles.vertical} vertical`
+          `      Adjacent: ${tile.adjacentTiles.horizontal} horizontal, ${tile.adjacentTiles.vertical} vertical`,
         );
       }
 
       if (playerResult.details.floorPenalties.length > 0) {
         console.log(
-          `  Floor penalties: ${playerResult.details.totalFloorPenalty} points`
+          `  Floor penalties: ${playerResult.details.totalFloorPenalty} points`,
         );
         for (const penalty of playerResult.details.floorPenalties) {
           console.log(
-            `    ${penalty.tile} at position ${penalty.position + 1}: ${penalty.penalty} points`
+            `    ${penalty.tile} at position ${penalty.position + 1}: ${penalty.penalty} points`,
           );
         }
       }
 
       console.log(`  Total tile score: ${playerResult.details.totalTileScore}`);
       console.log(
-        `  Total floor penalty: ${playerResult.details.totalFloorPenalty}`
+        `  Total floor penalty: ${playerResult.details.totalFloorPenalty}`,
       );
       console.log(`  Round score change: ${playerResult.scoreGained}`);
       console.log(`  New total score: ${playerResult.details.newScore}`);
-      console.log('');
+      console.log("");
     }
 
     // Store scoring details for UI display
     (this as any).lastRoundScoringDetails = roundScoringDetails;
 
     // Check if game should end
-    const gameEnded = this.playerBoards.some(board => board.hasCompletedRow());
+    const gameEnded = this.playerBoards.some((board) =>
+      board.hasCompletedRow(),
+    );
 
     if (gameEnded) {
       return this.endGame();
@@ -454,17 +456,17 @@ export abstract class BaseGameState {
       console.log(`Player ${i + 1} Final Bonuses:`);
       console.log(`  Previous score: ${result.details.previousScore}`);
       console.log(
-        `  Completed rows: ${result.details.completedRows} (${result.details.rowBonus} points)`
+        `  Completed rows: ${result.details.completedRows} (${result.details.rowBonus} points)`,
       );
       console.log(
-        `  Completed columns: ${result.details.completedColumns} (${result.details.columnBonus} points)`
+        `  Completed columns: ${result.details.completedColumns} (${result.details.columnBonus} points)`,
       );
       console.log(
-        `  Completed colors: ${result.details.completedColors} (${result.details.colorBonus} points)`
+        `  Completed colors: ${result.details.completedColors} (${result.details.colorBonus} points)`,
       );
       console.log(`  Total bonus: ${result.bonus}`);
       console.log(`  Final score: ${this.playerBoards[i].score}`);
-      console.log('');
+      console.log("");
     }
 
     return true;
@@ -473,20 +475,20 @@ export abstract class BaseGameState {
   // Check if a move is valid
   isValidMove(move: Move): boolean {
     return this.availableMoves.some(
-      m =>
+      (m) =>
         m.factoryIndex === move.factoryIndex &&
         m.tile === move.tile &&
-        m.lineIndex === move.lineIndex
+        m.lineIndex === move.lineIndex,
     );
   }
 
   // Get game result
   getResult(): GameResult {
-    const scores = this.playerBoards.map(board => board.score);
+    const scores = this.playerBoards.map((board) => board.score);
     const maxScore = Math.max(...scores);
     const winners = scores
-      .map((score, index) => ({score, index}))
-      .filter(p => p.score === maxScore);
+      .map((score, index) => ({ score, index }))
+      .filter((p) => p.score === maxScore);
 
     return {
       winner: winners.length === 1 ? winners[0].index : -1,
@@ -498,7 +500,7 @@ export abstract class BaseGameState {
   // Create a deep copy of the game state for AI simulation
   clone(): BaseGameState {
     // This will be overridden by concrete subclasses
-    throw new Error('clone() must be implemented by concrete subclasses');
+    throw new Error("clone() must be implemented by concrete subclasses");
   }
 
   // Optimized clone that only copies what's needed for a specific move
@@ -525,7 +527,7 @@ export abstract class BaseGameState {
 
     const playerBoard = this.playerBoards[playerIndex];
     const opponentBoards = this.playerBoards.filter(
-      (_, i) => i !== playerIndex
+      (_, i) => i !== playerIndex,
     );
 
     const playerEval = this.evaluatePlayerBoard(playerBoard);
@@ -557,7 +559,7 @@ export abstract class BaseGameState {
     if (Math.random() < 0.05) {
       // Log 5% of evaluations
       console.log(
-        `AI eval: Player ${playerIndex + 1}: ${playerEval.toFixed(1)} vs Opponent: ${bestOpponentEval.toFixed(1)} + Defense: ${defensiveValue.toFixed(1)} + Tactical: ${tacticalValue.toFixed(1)} + Tempo: ${tempoValue.toFixed(1)} = ${evaluation.toFixed(1)}`
+        `AI eval: Player ${playerIndex + 1}: ${playerEval.toFixed(1)} vs Opponent: ${bestOpponentEval.toFixed(1)} + Defense: ${defensiveValue.toFixed(1)} + Tactical: ${tacticalValue.toFixed(1)} + Tempo: ${tempoValue.toFixed(1)} = ${evaluation.toFixed(1)}`,
       );
     }
 
@@ -632,9 +634,9 @@ export abstract class BaseGameState {
       let rowPriorityMultiplier = 1.0;
       if (row <= 2) {
         rowPriorityMultiplier = 1.5; // Higher priority for top 3 rows
-      } else if (row === 4 && gamePhase === 'late') {
+      } else if (row === 4 && gamePhase === "late") {
         rowPriorityMultiplier = 0.3; // Avoid 5th row in late game
-      } else if (row === 4 && gamePhase === 'endgame') {
+      } else if (row === 4 && gamePhase === "endgame") {
         rowPriorityMultiplier = 0.1; // Strongly avoid 5th row in endgame
       }
 
@@ -758,13 +760,13 @@ export abstract class BaseGameState {
 
     // Adaptive multiplier based on realistic game progression
     switch (gamePhase) {
-      case 'early':
+      case "early":
         return 0.3; // Focus on immediate scoring and positioning (0-2 tiles per player)
-      case 'mid':
+      case "mid":
         return 0.8; // Start considering strategic bonuses (3-7 tiles per player)
-      case 'late':
+      case "late":
         return 1.8; // Heavily weight strategic bonuses (8+ tiles per player)
-      case 'endgame':
+      case "endgame":
         return 3.0; // Maximum strategic focus when end game is triggered
       default:
         return 1.0;
@@ -775,14 +777,14 @@ export abstract class BaseGameState {
   private evaluateDefensiveOpportunities(playerIndex: number): number {
     let defensiveValue = 0;
     const opponentBoards = this.playerBoards.filter(
-      (_, i) => i !== playerIndex
+      (_, i) => i !== playerIndex,
     );
     const tileSupply = this.analyzeTileSupply();
     const gamePhase = this.getGamePhase();
 
     // Expert Strategy: Increase defensive focus based on game phase
     let defensiveMultiplier = 1.0;
-    if (gamePhase === 'late' || gamePhase === 'endgame') {
+    if (gamePhase === "late" || gamePhase === "endgame") {
       defensiveMultiplier = 1.5; // More aggressive blocking late game
     }
 
@@ -907,7 +909,7 @@ export abstract class BaseGameState {
 
     // 2. Evaluate "hate drafting" opportunities
     const opponentBoards = this.playerBoards.filter(
-      (_, i) => i !== playerIndex
+      (_, i) => i !== playerIndex,
     );
     for (const opponentBoard of opponentBoards) {
       for (const move of this.availableMoves) {
@@ -937,9 +939,9 @@ export abstract class BaseGameState {
       let tokenValue = 1; // Base value
 
       // Higher value in early rounds (expert advice)
-      if (gamePhase === 'early') {
+      if (gamePhase === "early") {
         tokenValue = 3; // Very valuable early game
-      } else if (gamePhase === 'mid') {
+      } else if (gamePhase === "mid") {
         tokenValue = 2; // Good value mid game
       } else {
         tokenValue = 1; // Standard value late game
@@ -962,10 +964,10 @@ export abstract class BaseGameState {
 
     // 3. Factory control (taking from factories vs center)
     const factoryMoves = this.availableMoves.filter(
-      m => m.factoryIndex >= 0
+      (m) => m.factoryIndex >= 0,
     ).length;
     const centerMoves = this.availableMoves.filter(
-      m => m.factoryIndex === -1
+      (m) => m.factoryIndex === -1,
     ).length;
 
     if (factoryMoves > centerMoves) {
@@ -982,7 +984,7 @@ export abstract class BaseGameState {
   private calculateTileScore(
     board: PlayerBoard,
     row: number,
-    col: number
+    col: number,
   ): number {
     let score = 1;
 
@@ -1046,7 +1048,7 @@ export abstract class BaseGameState {
 
   private findMissingTileInColumn(
     board: PlayerBoard,
-    col: number
+    col: number,
   ): Tile | null {
     for (let row = 0; row < 5; row++) {
       const expectedTile = PlayerBoard.getWallTile(row, col);
@@ -1169,16 +1171,16 @@ export abstract class BaseGameState {
   private countTilesInSource(factoryIndex: number, tile: Tile): number {
     if (factoryIndex === -1) {
       // Count in center
-      return this.center.filter(t => t === tile).length;
+      return this.center.filter((t) => t === tile).length;
     } else {
       // Count in specific factory
-      return this.factories[factoryIndex].filter(t => t === tile).length;
+      return this.factories[factoryIndex].filter((t) => t === tile).length;
     }
   }
 
   private isHighValueTileForOpponent(
     opponentBoard: PlayerBoard,
-    tile: Tile
+    tile: Tile,
   ): boolean {
     // Check if this tile would help opponent complete lines or strategic goals
     for (let i = 0; i < 5; i++) {
@@ -1210,7 +1212,7 @@ export abstract class BaseGameState {
     board: PlayerBoard,
     row: number,
     col: number,
-    tile: Tile
+    tile: Tile,
   ): boolean {
     // Check if placing this tile would significantly advance row/column/color completion
 
@@ -1251,7 +1253,7 @@ export abstract class BaseGameState {
     const maxOpponentScore = Math.max(
       ...this.playerBoards
         .filter((_, i) => i !== playerIndex)
-        .map(board => board.score)
+        .map((board) => board.score),
     );
 
     return playerScore < maxOpponentScore - 5; // Behind by more than 5 points
@@ -1262,7 +1264,7 @@ export abstract class BaseGameState {
     for (const factory of this.factories) {
       total += factory.length;
     }
-    total += this.center.filter(t => t !== Tile.FirstPlayer).length;
+    total += this.center.filter((t) => t !== Tile.FirstPlayer).length;
     return total;
   }
 
@@ -1405,7 +1407,7 @@ export abstract class BaseGameState {
   // Check if an objective (row/column/color completion) is feasible given tile supply
   private isObjectiveFeasible(
     neededTiles: Tile[],
-    tileSupply: Map<Tile, any>
+    tileSupply: Map<Tile, any>,
   ): boolean {
     // Count how many of each tile type we need
     const tileCounts = new Map<Tile, number>();
@@ -1426,16 +1428,16 @@ export abstract class BaseGameState {
   }
 
   // Get current game phase for expert strategy decisions
-  private getGamePhase(): 'early' | 'mid' | 'late' | 'endgame' {
+  private getGamePhase(): "early" | "mid" | "late" | "endgame" {
     // Check if end game is triggered (any completed row)
     const endGameTriggered = this.isNearEndGame();
-    if (endGameTriggered) return 'endgame';
+    if (endGameTriggered) return "endgame";
 
     // Count total tiles placed across all players
     let totalTilesPlaced = 0;
     for (const board of this.playerBoards) {
       for (const row of board.wall) {
-        totalTilesPlaced += row.filter(tile => tile !== null).length;
+        totalTilesPlaced += row.filter((tile) => tile !== null).length;
       }
     }
 
@@ -1444,16 +1446,16 @@ export abstract class BaseGameState {
     const avgTilesPerPlayer = totalTilesPlaced / this.numPlayers;
 
     // More realistic thresholds based on actual Azul gameplay
-    if (avgTilesPerPlayer < 3) return 'early'; // 0-2 tiles per player
-    if (avgTilesPerPlayer < 8) return 'mid'; // 3-7 tiles per player
-    return 'late'; // 8+ tiles per player (approaching endgame)
+    if (avgTilesPerPlayer < 3) return "early"; // 0-2 tiles per player
+    if (avgTilesPerPlayer < 8) return "mid"; // 3-7 tiles per player
+    return "late"; // 8+ tiles per player (approaching endgame)
   }
 
   // EXPERT STRATEGY 8: Evaluate strategic discarding opportunities
   private evaluateStrategicDiscarding(playerIndex: number): number {
     let discardingValue = 0;
     const opponentBoards = this.playerBoards.filter(
-      (_, i) => i !== playerIndex
+      (_, i) => i !== playerIndex,
     );
 
     // Evaluate moves that force opponents to take more negative points
@@ -1461,7 +1463,7 @@ export abstract class BaseGameState {
       if (move.factoryIndex >= 0) {
         // Taking from factory puts remaining tiles in center
         const factory = this.factories[move.factoryIndex];
-        const remainingTiles = factory.filter(t => t !== move.tile);
+        const remainingTiles = factory.filter((t) => t !== move.tile);
 
         // Check if remaining tiles would be problematic for opponents
         for (const opponentBoard of opponentBoards) {
@@ -1510,7 +1512,7 @@ export class WebAppGameState extends BaseGameState {
 
     // Remove first player token from previous holder's floor
     for (const board of this.playerBoards) {
-      board.floor = board.floor.filter(tile => tile !== Tile.FirstPlayer);
+      board.floor = board.floor.filter((tile) => tile !== Tile.FirstPlayer);
     }
 
     // Create tile bag (20 tiles of each color)
@@ -1554,7 +1556,7 @@ export class WebAppGameState extends BaseGameState {
         // If bag is empty, reshuffle discard pile back into bag
         if (this.tilebag.length === 0 && this.discardPile.length > 0) {
           console.log(
-            `Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`
+            `Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`,
           );
           this.tilebag = [...this.discardPile];
           this.discardPile = [];
@@ -1588,10 +1590,10 @@ export class WebAppGameState extends BaseGameState {
     cloned.firstPlayerIndex = this.firstPlayerIndex;
 
     // Deep copy factories
-    cloned.factories = this.factories.map(factory => [...factory]);
+    cloned.factories = this.factories.map((factory) => [...factory]);
 
     // Deep copy player boards
-    cloned.playerBoards = this.playerBoards.map(board => board.clone());
+    cloned.playerBoards = this.playerBoards.map((board) => board.clone());
 
     // Regenerate moves for current state
     cloned.getMoves();
@@ -1626,16 +1628,16 @@ export class BGAGameState extends BaseGameState {
 
     // Initialize factories
     this.factories = bgaData.factories.map(
-      factory =>
+      (factory) =>
         factory
-          .map(sTile => stringToTile(sTile))
-          .filter(t => t !== null) as Tile[]
+          .map((sTile) => stringToTile(sTile))
+          .filter((t) => t !== null) as Tile[],
     );
 
     // Initialize center, carefully handling FirstPlayer token
     this.center = bgaData.center
-      .map(sTile => stringToTile(sTile))
-      .filter(t => t !== null) as Tile[];
+      .map((sTile) => stringToTile(sTile))
+      .filter((t) => t !== null) as Tile[];
 
     // Initialize player boards
     if (this.playerBoards.length !== this.numPlayers) {
@@ -1653,7 +1655,7 @@ export class BGAGameState extends BaseGameState {
         this.firstPlayerIndex = i;
         firstPlayerTokenFoundOnBoard = true;
         // Remove from center if it was also there (BGA might be inconsistent)
-        this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+        this.center = this.center.filter((t) => t !== Tile.FirstPlayer);
       }
     }
 
@@ -1674,7 +1676,7 @@ export class BGAGameState extends BaseGameState {
       firstPlayerTokenFoundOnBoard
     ) {
       // If on a board AND in center, prioritize board, remove from center.
-      this.center = this.center.filter(t => t !== Tile.FirstPlayer);
+      this.center = this.center.filter((t) => t !== Tile.FirstPlayer);
     }
 
     // If no player has the token yet and it's not in the center, this implies it hasn't been picked up.
@@ -1685,11 +1687,11 @@ export class BGAGameState extends BaseGameState {
     // Ensure a valid currentPlayer (e.g. if BGA sends an out-of-bounds index)
     this.currentPlayer = Math.max(
       0,
-      Math.min(this.numPlayers - 1, this.currentPlayer)
+      Math.min(this.numPlayers - 1, this.currentPlayer),
     );
 
     this.getMoves(); // Crucially, generate moves for the loaded state.
-    console.log('GameState loaded from BGA data:', this);
+    console.log("GameState loaded from BGA data:", this);
   }
 
   // Implementation of abstract method - BGA extension doesn't need to handle new rounds
@@ -1697,7 +1699,7 @@ export class BGAGameState extends BaseGameState {
     // BGA extension only analyzes current position, doesn't simulate full rounds
     // This should not be called in normal BGA extension usage
     console.warn(
-      'BGAGameState.onNewRound() called - this should not happen in normal extension usage'
+      "BGAGameState.onNewRound() called - this should not happen in normal extension usage",
     );
   }
 
@@ -1715,10 +1717,10 @@ export class BGAGameState extends BaseGameState {
     cloned.firstPlayerIndex = this.firstPlayerIndex;
 
     // Deep copy factories
-    cloned.factories = this.factories.map(factory => [...factory]);
+    cloned.factories = this.factories.map((factory) => [...factory]);
 
     // Deep copy player boards
-    cloned.playerBoards = this.playerBoards.map(board => board.clone());
+    cloned.playerBoards = this.playerBoards.map((board) => board.clone());
 
     // Regenerate moves for current state
     cloned.getMoves();

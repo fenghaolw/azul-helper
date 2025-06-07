@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use "../variables" as *;
 
 .tile {
   width: layout(tile-size);
@@ -25,7 +25,7 @@
   transform: perspective(100px) rotateX(2deg);
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -69,7 +69,7 @@
     pointer-events: none;
 
     &::after {
-      content: '1';
+      content: "1";
       position: absolute;
       top: 50%;
       left: 50%;
@@ -113,7 +113,7 @@
     box-shadow: 0 0 0 2px state-color(success);
 
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       inset: 0;
       background: state-color(success-light);

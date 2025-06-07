@@ -1,12 +1,13 @@
 // Import variables and components at the top
-@use 'variables' as *;
-@use 'components/factories';
-@use 'components/center-area';
-@use 'components/player-board';
-@use 'components/game-info';
-@use 'components/tile';
-@use 'components/game';
-@use 'components/ai-settings';
+@use "variables" as *;
+@use "components/factories";
+@use "components/center-area";
+@use "components/player-board";
+@use "components/game-info";
+@use "components/tile";
+@use "components/game";
+@use "components/ai-settings";
+@use "components/game-replay";
 
 // Base styles
 * {

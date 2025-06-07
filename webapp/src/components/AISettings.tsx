@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState } from "preact/hooks";
 
 interface AISettingsProps {
   aiEnabled: boolean;
   onToggleAI: () => void;
   onNewGame: () => void;
   round?: number;
+  onSwitchToReplay?: () => void;
 }
 
 interface AIStats {
@@ -26,6 +27,7 @@ export function AISettings({
   onToggleAI,
   onNewGame,
   round = 1,
+  onSwitchToReplay,
 }: AISettingsProps) {
   const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -50,11 +52,11 @@ export function AISettings({
 
             const response = await Promise.race([
               fetch(`${testUrl}/health`, {
-                method: 'GET',
+                method: "GET",
                 signal: controller.signal,
               }),
               new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Timeout')), 1000);
+                setTimeout(() => reject(new Error("Timeout")), 1000);
               }),
             ]);
 
@@ -62,7 +64,7 @@ export function AISettings({
 
             if (response.ok) {
               const healthData = await response.json();
-              if (healthData.status === 'healthy') {
+              if (healthData.status === "healthy") {
                 setIsConnected(true);
                 setServerInfo(healthData);
                 return;
@@ -98,10 +100,10 @@ export function AISettings({
 
   const getPerformanceIndicator = (avgTime: number) => {
     if (avgTime < 0.1)
-      return { icon: '⚡', text: 'Lightning Fast', color: '#4caf50' };
-    if (avgTime < 0.5) return { icon: '🚀', text: 'Fast', color: '#2196f3' };
-    if (avgTime < 2.0) return { icon: '🏃', text: 'Normal', color: '#ff9800' };
-    return { icon: '🐌', text: 'Slow', color: '#ff9800' };
+      return { icon: "⚡", text: "Lightning Fast", color: "#4caf50" };
+    if (avgTime < 0.5) return { icon: "🚀", text: "Fast", color: "#2196f3" };
+    if (avgTime < 2.0) return { icon: "🏃", text: "Normal", color: "#ff9800" };
+    return { icon: "🐌", text: "Slow", color: "#ff9800" };
   };
 
   return (
@@ -120,14 +122,24 @@ export function AISettings({
         </button>
 
         <button
-          className={`ai-settings__button ${aiEnabled
-              ? 'ai-settings__button--danger'
-              : 'ai-settings__button--success'
-            }`}
+          className={`ai-settings__button ${
+            aiEnabled
+              ? "ai-settings__button--danger"
+              : "ai-settings__button--success"
+          }`}
           onClick={onToggleAI}
         >
-          {aiEnabled ? 'Disable AI' : 'Enable AI'}
+          {aiEnabled ? "Disable AI" : "Enable AI"}
         </button>
+
+        {onSwitchToReplay && (
+          <button
+            className="ai-settings__button ai-settings__button--secondary"
+            onClick={onSwitchToReplay}
+          >
+            Load Replay
+          </button>
+        )}
       </div>
 
       <div className="ai-settings__status">
@@ -140,15 +152,18 @@ export function AISettings({
         ) : (
           <div className="ai-settings__enabled">
             <div
-              className={`ai-settings__connection ${isConnected ? 'connected' : 'disconnected'}`}
+              className={`ai-settings__connection ${isConnected ? "connected" : "disconnected"}`}
             >
-              <strong>Status:</strong>{' '}
-              {isConnected ? '🚀 Connected' : '❌ Disconnected'}
+              <strong>Status:</strong>{" "}
+              {isConnected ? "🚀 Connected" : "❌ Disconnected"}
             </div>
 
             {isConnected && (
               <div className="ai-settings__agent">
-                <strong>AI Agent:</strong> 🤖 {serverInfo?.agentName || serverInfo?.agentType || 'Unknown Agent'}
+                <strong>AI Agent:</strong> 🤖{" "}
+                {serverInfo?.agentName ||
+                  serverInfo?.agentType ||
+                  "Unknown Agent"}
               </div>
             )}
 
@@ -172,7 +187,7 @@ export function AISettings({
           <h3>📊 Performance Statistics</h3>
 
           <div className="ai-settings__stat">
-            <strong>Last Search:</strong>{' '}
+            <strong>Last Search:</strong>{" "}
             {aiStats.nodesEvaluated.toLocaleString()} nodes
           </div>
 
@@ -190,7 +205,7 @@ export function AISettings({
 
           {aiStats.lastMoveTime && (
             <div className="ai-settings__stat">
-              <strong>Last Move:</strong>{' '}
+              <strong>Last Move:</strong>{" "}
               {Math.floor((Date.now() - aiStats.lastMoveTime.getTime()) / 1000)}
               s ago
             </div>

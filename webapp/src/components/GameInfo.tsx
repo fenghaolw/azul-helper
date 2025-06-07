@@ -1,10 +1,10 @@
-import {Player} from '../types';
+import { Player } from "../types";
 
 interface GameInfoProps {
   round: number;
   currentPlayerIndex: number;
   players: Player[];
-  gamePhase: 'playing' | 'scoring' | 'finished';
+  gamePhase: "playing" | "scoring" | "finished";
 }
 
 export function GameInfo({
@@ -15,27 +15,27 @@ export function GameInfo({
 }: GameInfoProps) {
   const getGamePhaseText = () => {
     switch (gamePhase) {
-      case 'playing':
-        return 'Playing';
-      case 'scoring':
-        return 'Scoring';
-      case 'finished':
-        return 'Game Finished';
+      case "playing":
+        return "Playing";
+      case "scoring":
+        return "Scoring";
+      case "finished":
+        return "Game Finished";
       default:
-        return 'Waiting';
+        return "Waiting";
     }
   };
 
   const getGamePhaseClass = () => {
     switch (gamePhase) {
-      case 'playing':
-        return 'game-info__status--playing';
-      case 'scoring':
-        return 'game-info__status--playing';
-      case 'finished':
-        return 'game-info__status--finished';
+      case "playing":
+        return "game-info__status--playing";
+      case "scoring":
+        return "game-info__status--playing";
+      case "finished":
+        return "game-info__status--finished";
       default:
-        return 'game-info__status--waiting';
+        return "game-info__status--waiting";
     }
   };
 
@@ -55,7 +55,7 @@ export function GameInfo({
           <div className="game-info__section-title">Current Player</div>
           <div className="game-info__section-content">
             <span className="player-name">
-              {players[currentPlayerIndex]?.name || 'Unknown'}
+              {players[currentPlayerIndex]?.name || "Unknown"}
             </span>
             <span className="turn-indicator">Your turn</span>
           </div>
@@ -69,7 +69,7 @@ export function GameInfo({
                 <div
                   key={index}
                   className={`score-item ${
-                    index === currentPlayerIndex ? 'score-item--current' : ''
+                    index === currentPlayerIndex ? "score-item--current" : ""
                   }`}
                 >
                   <span className="player-name">{player.name}</span>

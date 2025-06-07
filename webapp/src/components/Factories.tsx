@@ -1,5 +1,5 @@
-import {Factory, TileColor} from '../types';
-import {Tile} from './Tile';
+import { Factory, TileColor } from "../types";
+import { Tile } from "./Tile";
 
 interface FactoriesProps {
   factories: Factory[];
@@ -20,7 +20,7 @@ const getTilePosition = (factoryIndex: number, tileIndex: number) => {
   return {
     transform: `translate(${x}px, ${y}px) rotate(${rotation}deg)`,
     zIndex: tileIndex,
-    '--hover-transform': `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.1)`,
+    "--hover-transform": `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.1)`,
   };
 };
 
@@ -40,8 +40,8 @@ export function Factories({
       {factories.map((factory, index) => (
         <div key={index} className="factories__factory">
           <div
-            className={`factory ${factory.isEmpty ? 'factory--empty' : ''} ${
-              selectedFactory === index ? 'factory--selected' : ''
+            className={`factory ${factory.isEmpty ? "factory--empty" : ""} ${
+              selectedFactory === index ? "factory--selected" : ""
             }`}
             onClick={() =>
               factory.tiles.length > 0 &&
@@ -56,7 +56,7 @@ export function Factories({
                   isSelected={
                     selectedFactory === index && selectedColor === tile.color
                   }
-                  onClick={e => {
+                  onClick={(e) => {
                     e?.stopPropagation();
                     handleFactoryClick(index, tile.color);
                   }}

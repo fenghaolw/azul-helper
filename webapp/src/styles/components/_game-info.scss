@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use "../variables" as *;
 
 .game-info {
   background: color(surface);
@@ -14,7 +14,7 @@
     margin-bottom: spacing(md);
 
     &::after {
-      content: '';
+      content: "";
       display: block;
       width: 60px;
       height: 2px;
