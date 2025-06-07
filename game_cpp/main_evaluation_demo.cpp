@@ -75,9 +75,9 @@ auto main() -> int {
 
     // Add the 3 core agents to tournament
     tournament.add_agent(
-        azul::create_minimax_evaluation_agent(4, "Minimax_D4"));
+        azul::create_minimax_evaluation_agent(5, "Minimax_D4"));
     tournament.add_agent(
-        azul::create_mcts_evaluation_agent(1000, 1.4, 42, "MCTS_1000"));
+        azul::create_mcts_evaluation_agent(2000, 1.4, 42, "MCTS_2000"));
     // Add AlphaZero MCTS agent to tournament
     tournament.add_agent(azul::create_alphazero_mcts_evaluation_agent(
         "models/libtorch_alphazero_azul/checkpoint--1", 400, 1.4, 42,

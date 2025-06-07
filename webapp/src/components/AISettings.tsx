@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 
 interface AISettingsProps {
   aiEnabled: boolean;
@@ -41,50 +41,45 @@ export function AISettings({
       }
 
       try {
-        // Try to ping the server with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-        
-        const response = await fetch('http://localhost:5000/health', {
-          method: 'GET',
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          setIsConnected(true);
-          
-          // Get server info (agent type, etc.)
+        // Try ports 5000-5009
+        for (let port = 5000; port < 5010; port++) {
           try {
-            const healthData = await response.json();
-            setServerInfo(healthData);
-          } catch {
-            // Health endpoint doesn't return JSON, use defaults
-            setServerInfo({});
-          }
-          
-          // If connected, try to get real stats
-          try {
-            const statsResponse = await fetch('http://localhost:5000/stats');
-            if (statsResponse.ok) {
-              const statsData = await statsResponse.json();
-              setAiStats(statsData);
-            } else {
-              // Server connected but no stats endpoint, use minimal data
-              setAiStats(null);
+            const testUrl = `http://localhost:${port}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout per port
+
+            const response = await Promise.race([
+              fetch(`${testUrl}/health`, {
+                method: 'GET',
+                signal: controller.signal,
+              }),
+              new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout')), 1000);
+              }),
+            ]);
+
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const healthData = await response.json();
+              if (healthData.status === 'healthy') {
+                setIsConnected(true);
+                setServerInfo(healthData);
+                return;
+              }
             }
-          } catch {
-            // Stats endpoint failed, but server is connected
-            setAiStats(null);
+          } catch (error) {
+            // Port not responding, continue to next port
+            continue;
           }
-        } else {
-          setIsConnected(false);
-          setAiStats(null);
-          setServerInfo(null);
         }
-              } catch (error) {
-        // Server is not running or not accessible
+
+        // No server found
+        setIsConnected(false);
+        setAiStats(null);
+        setServerInfo(null);
+      } catch (error) {
+        // All ports failed
         setIsConnected(false);
         setAiStats(null);
         setServerInfo(null);
@@ -103,10 +98,10 @@ export function AISettings({
 
   const getPerformanceIndicator = (avgTime: number) => {
     if (avgTime < 0.1)
-      return {icon: '⚡', text: 'Lightning Fast', color: '#4caf50'};
-    if (avgTime < 0.5) return {icon: '🚀', text: 'Fast', color: '#2196f3'};
-    if (avgTime < 2.0) return {icon: '🏃', text: 'Normal', color: '#ff9800'};
-    return {icon: '🐌', text: 'Slow', color: '#ff9800'};
+      return { icon: '⚡', text: 'Lightning Fast', color: '#4caf50' };
+    if (avgTime < 0.5) return { icon: '🚀', text: 'Fast', color: '#2196f3' };
+    if (avgTime < 2.0) return { icon: '🏃', text: 'Normal', color: '#ff9800' };
+    return { icon: '🐌', text: 'Slow', color: '#ff9800' };
   };
 
   return (
@@ -125,11 +120,10 @@ export function AISettings({
         </button>
 
         <button
-          className={`ai-settings__button ${
-            aiEnabled
+          className={`ai-settings__button ${aiEnabled
               ? 'ai-settings__button--danger'
               : 'ai-settings__button--success'
-          }`}
+            }`}
           onClick={onToggleAI}
         >
           {aiEnabled ? 'Disable AI' : 'Enable AI'}
@@ -207,7 +201,7 @@ export function AISettings({
             return (
               <div
                 className="ai-settings__performance"
-                style={{color: perf.color}}
+                style={{ color: perf.color }}
               >
                 {perf.icon} <strong>Speed:</strong> {perf.text}
               </div>

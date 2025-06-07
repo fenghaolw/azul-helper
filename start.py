@@ -100,7 +100,7 @@ def build_cpp_server():
 
 
 def start_cpp_api_server(
-    port=5001, kill_existing=False, agent_type="mcts", background=False
+    port=5001, kill_existing=False, agent_type="alphazero", background=False
 ):
     """Start the C++ API server with smart port management."""
     print("🚀 Starting C++ API server...")
@@ -124,8 +124,10 @@ def start_cpp_api_server(
         str(server_executable),
         "--port",
         str(port),
-        "--agent-type",
+        "--agent",
         agent_type,
+        "--checkpoint",
+        "models/libtorch_alphazero_azul/checkpoint--1",
     ]
 
     try:
@@ -245,11 +247,11 @@ def main():
         help="Kill existing server process",
     )
     parser.add_argument(
-        "--agent-type",
+        "--agent",
         "-a",
         choices=["mcts", "alphazero", "random", "minimax"],
-        default="mcts",
-        help="Agent type (default: mcts)",
+        default="alphazero",
+        help="Agent type (default: alphazero)",
     )
 
     # UI options
@@ -305,7 +307,7 @@ def main():
             sys.exit(1)
 
         server_info, api_process = start_cpp_api_server(
-            args.port, args.kill_existing, args.agent_type, background=False
+            args.port, args.kill_existing, args.agent, background=False
         )
 
         if not server_info:
@@ -366,7 +368,7 @@ def main():
         sys.exit(1)
 
     server_info, api_process = start_cpp_api_server(
-        args.port, args.kill_existing, args.agent_type, background=True
+        args.port, args.kill_existing, args.agent, background=True
     )
 
     if not server_info:

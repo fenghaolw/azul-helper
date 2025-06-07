@@ -1,7 +1,8 @@
-import {render, h} from 'preact';
-import {BaseGameState} from './GameState';
-import {Tile, Move} from './types';
-import {Game} from './components/Game';
+import { render, h } from 'preact';
+import { BaseGameState } from './GameState';
+import { Tile, Move } from './types';
+import { Game } from './components/Game';
+import { ApiAI } from './ApiAI';
 import {
   GameState,
   TileColor,
@@ -17,6 +18,8 @@ export class GameRenderer {
   private gameState: BaseGameState;
   private selectedFactory: number = -2; // -2 = none, -1 = center, 0+ = factory
   private selectedTile: Tile | null = null;
+  private ai: ApiAI | null = null;
+  private aiEnabled: boolean = false;
 
   constructor(container: HTMLElement, gameState: BaseGameState) {
     this.container = container;
@@ -41,28 +44,28 @@ export class GameRenderer {
     // Listen for factory selections
     this.container.addEventListener('factorySelected', (event: Event) => {
       const customEvent = event as CustomEvent;
-      const {factoryIndex, color} = customEvent.detail;
+      const { factoryIndex, color } = customEvent.detail;
       this.handleFactoryClick(factoryIndex, color);
     });
 
     // Listen for center selections
     this.container.addEventListener('centerSelected', (event: Event) => {
       const customEvent = event as CustomEvent;
-      const {groupIndex, color} = customEvent.detail;
+      const { groupIndex, color } = customEvent.detail;
       this.handleCenterClick(groupIndex, color);
     });
 
     // Listen for pattern line selections
     this.container.addEventListener('patternLineSelected', (event: Event) => {
       const customEvent = event as CustomEvent;
-      const {playerIndex, lineIndex, color} = customEvent.detail;
+      const { playerIndex, lineIndex, color } = customEvent.detail;
       this.handlePatternLineClick(playerIndex, lineIndex, color);
     });
 
     // Listen for floor selections
     this.container.addEventListener('floorSelected', (event: Event) => {
       const customEvent = event as CustomEvent;
-      const {playerIndex, color} = customEvent.detail;
+      const { playerIndex, color } = customEvent.detail;
       this.handleFloorClick(playerIndex, color);
     });
   }
@@ -219,7 +222,7 @@ export class GameRenderer {
 
       // Render the Preact component with gameState as prop
       render(
-        h(Game, {gameContainer: this.container, gameState}),
+        h(Game, { gameContainer: this.container, gameState }),
         this.container
       );
 
@@ -255,6 +258,30 @@ export class GameRenderer {
     return this.selectedTile !== null;
   }
 
+  public setAIEnabled(enabled: boolean) {
+    this.aiEnabled = enabled;
+    if (enabled && !this.ai) {
+      this.ai = new ApiAI(1); // AI plays as player 1
+    }
+    this.checkForAIMove();
+  }
+
+  private async checkForAIMove() {
+    if (!this.aiEnabled || !this.ai || this.gameState.gameOver) {
+      return;
+    }
+
+    // If it's AI's turn
+    if (this.gameState.currentPlayer === 1) {
+      try {
+        const result = await this.ai.getBestMove(this.gameState);
+        this.playMove(result.move);
+      } catch (error) {
+        console.error('AI move error:', error);
+      }
+    }
+  }
+
   public playMove(move: Move): void {
     // Clear selection
     this.selectedFactory = -2;
@@ -265,10 +292,14 @@ export class GameRenderer {
 
     // Re-render
     this.render();
+
+    // Check for AI move after a short delay
+    setTimeout(() => this.checkForAIMove(), 500);
   }
 
   public updateGameState(gameState: BaseGameState): void {
     this.gameState = gameState;
     this.render();
+    this.checkForAIMove();
   }
 }

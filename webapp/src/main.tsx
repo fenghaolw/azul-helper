@@ -1,8 +1,8 @@
 import './styles/main.scss';
-import {render} from 'preact';
-import {useState, useEffect} from 'preact/hooks';
-import {AISettings} from './components/AISettings';
-import {WebAppGameState} from './GameState';
+import { render } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
+import { AISettings } from './components/AISettings';
+import { WebAppGameState } from './GameState';
 
 // Import GameRenderer dynamically to avoid conflicts
 let GameRenderer: any = null;
@@ -47,6 +47,7 @@ function App() {
           // Clear the container first
           gameContainer.innerHTML = '';
           const renderer = new GameRenderer(gameContainer, gameState);
+          renderer.setAIEnabled(aiEnabled);
           setGameRenderer(renderer);
           console.log('✅ GameRenderer created successfully');
         } catch (error) {
@@ -55,6 +56,13 @@ function App() {
       }
     }
   }, [rendererLoaded, gameState, gameRenderer]);
+
+  // Update AI enabled state in GameRenderer
+  useEffect(() => {
+    if (gameRenderer) {
+      gameRenderer.setAIEnabled(aiEnabled);
+    }
+  }, [aiEnabled, gameRenderer]);
 
   const handleNewGame = () => {
     console.log('Creating new game...');
@@ -89,17 +97,17 @@ function App() {
 
       <div className="azul-app__game" id="gameContainer">
         {/* Separate container for GameRenderer - NOT managed by Preact */}
-        <div 
-          id="game-area" 
+        <div
+          id="game-area"
           style={{
             width: '100%',
             height: '100%',
             minHeight: '600px'
           }}
         >
-          {!rendererLoaded && <div style={{padding: '20px'}}>Loading game renderer...</div>}
-          {rendererLoaded && !gameState && <div style={{padding: '20px'}}>Loading game state...</div>}
-          {rendererLoaded && gameState && !gameRenderer && <div style={{padding: '20px'}}>Creating game...</div>}
+          {!rendererLoaded && <div style={{ padding: '20px' }}>Loading game renderer...</div>}
+          {rendererLoaded && !gameState && <div style={{ padding: '20px' }}>Loading game state...</div>}
+          {rendererLoaded && gameState && !gameRenderer && <div style={{ padding: '20px' }}>Creating game...</div>}
         </div>
       </div>
     </div>

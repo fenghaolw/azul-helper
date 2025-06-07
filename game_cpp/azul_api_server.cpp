@@ -51,7 +51,7 @@ class AzulApiServer {
   int seed_;
 
  public:
-  AzulApiServer(const std::string& agent_type = "mcts",
+  AzulApiServer(const std::string& agent_type = "alphazero",
                 const std::string& checkpoint_path = "",
                 int num_simulations = 2000, double uct_c = 1.4, int port = 5001,
                 int seed = -1)
@@ -504,7 +504,7 @@ void print_usage(const char* program_name) {
   std::cout << "Usage: " << program_name << " [options]\n";
   std::cout << "Options:\n";
   std::cout << "  --agent <type>       Agent type: alphazero, mcts, random, "
-               "minimax (default: mcts)\n";
+               "minimax (default: alphazero)\n";
   std::cout << "  --checkpoint <path>  AlphaZero checkpoint path (required for "
                "alphazero)\n";
   std::cout << "  --port <n>           Server port (default: 5001)\n";
@@ -517,7 +517,7 @@ void print_usage(const char* program_name) {
 }
 
 int main(int argc, char* argv[]) {
-  std::string agent_type = "mcts";  // Default to MCTS with random rollouts
+  std::string agent_type = "alphazero";  // Default to AlphaZero
   std::string checkpoint_path;
   int port = 5001;
   int num_simulations = 800;
