@@ -1,0 +1,163 @@
+// Portuguese Azulejo Color Palette
+$colors: (
+  primary: #2c3e50,
+  gold: #d4af37,
+  surface: #ffffff,
+  background: #f8f9fa,
+  background-secondary: #e9ecef,
+  background-tertiary: #dee2e6,
+  text-primary: #1c1b1f,
+  text-secondary: #5d6d7e,
+  text-muted: #7f8c8d,
+  border-light: #bdc3c7,
+  border-medium: #85929e,
+  border-dark: #2c3e50,
+  shadow: rgba(0, 0, 0, 0.15),
+  shadow-hover: rgba(0, 0, 0, 0.2),
+);
+
+// Tile Colors - Traditional Azul/Portuguese azulejo inspired
+$tile-colors: (
+  red: linear-gradient(145deg, #e74c3c, #c0392b),
+  blue: linear-gradient(145deg, #3498db, #2c3e50),
+  yellow: linear-gradient(145deg, #f1c40f, #f39c12),
+  black: linear-gradient(145deg, #2c3e50, #1a1a1a),
+  white: linear-gradient(145deg, #ecf0f1, #bdc3c7),
+  first-player: linear-gradient(145deg, #ffffff, #ecf0f1),
+);
+
+// State Colors
+$state-colors: (
+  success: #388e3c,
+  success-light: rgba(56, 142, 60, 0.1),
+  success-medium: rgba(56, 142, 60, 0.2),
+  warning: #f57c00,
+  error: #d32f2f,
+  error-light: #f8d7da,
+  error-medium: #fadbd8,
+  hover-red: #f8cecc,
+  hover-red-medium: #f1948a,
+  info: #1976d2,
+  info-light: rgba(25, 118, 210, 0.04),
+);
+
+// Spacing System
+$spacing: (
+  xs: 4px,
+  sm: 8px,
+  md: 16px,
+  lg: 20px,
+  xl: 24px,
+  xxl: 30px,
+  xxxl: 40px,
+);
+
+// Typography
+$font-family-primary: 'Georgia', serif;
+$font-family-secondary: 'Roboto', sans-serif;
+
+$font-sizes: (
+  xs: 10px,
+  sm: 12px,
+  md: 14px,
+  lg: 16px,
+  xl: 18px,
+  xxl: 20px,
+  title: 36px,
+);
+
+$font-weights: (
+  normal: 400,
+  medium: 500,
+  bold: 700,
+);
+
+// Layout
+$layout: (
+  tile-size: 25px,
+  factory-size: 120px,
+  pattern-line-height: 30px,
+  floor-height: 30px,
+  board-width: 380px,
+  board-height: 320px,
+  sidebar-width: 380px,
+);
+
+// Border Radius
+$border-radius: (
+  sm: 3px,
+  md: 4px,
+  lg: 8px,
+  circle: 50%,
+);
+
+// Shadows
+$shadows: (
+  sm: 0 2px 4px rgba(0, 0, 0, 0.1),
+  md: 0 4px 8px rgba(0, 0, 0, 0.15),
+  lg: 0 6px 12px rgba(0, 0, 0, 0.2),
+  tile: 0 2px 4px rgba(0, 0, 0, 0.1),
+  tile-hover: 0 4px 8px rgba(0, 0, 0, 0.2),
+);
+
+// Transitions
+$transitions: (
+  fast: 0.2s ease,
+  medium: 0.3s ease,
+  slow: 0.5s ease,
+);
+
+// Z-index layers
+$z-index: (
+  background: 0,
+  content: 1,
+  overlay: 10,
+  modal: 100,
+);
+
+@use 'sass:map';
+
+// Helper functions
+@function color($name) {
+  @return map.get($colors, $name);
+}
+
+@function tile-color($name) {
+  @return map.get($tile-colors, $name);
+}
+
+@function state-color($name) {
+  @return map.get($state-colors, $name);
+}
+
+@function spacing($name) {
+  @return map.get($spacing, $name);
+}
+
+@function font-size($name) {
+  @return map.get($font-sizes, $name);
+}
+
+@function font-weight($name) {
+  @return map.get($font-weights, $name);
+}
+
+@function layout($name) {
+  @return map.get($layout, $name);
+}
+
+@function border-radius($name) {
+  @return map.get($border-radius, $name);
+}
+
+@function shadow($name) {
+  @return map.get($shadows, $name);
+}
+
+@function transition($name) {
+  @return map.get($transitions, $name);
+}
+
+@function z-index($name) {
+  @return map.get($z-index, $name);
+}

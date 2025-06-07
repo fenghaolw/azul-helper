@@ -1,0 +1,206 @@
+@use '../variables' as *;
+
+.game-container {
+  background: color(background);
+  min-height: 100vh;
+  padding: spacing(md);
+}
+
+.simple-round-info {
+  text-align: center;
+  font-size: font-size(lg);
+  font-weight: font-weight(medium);
+  color: color(text-primary);
+  margin-bottom: spacing(lg);
+  padding: spacing(sm);
+}
+
+.game-board {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: spacing(sm);
+
+  &__factory-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: spacing(sm);
+  }
+
+  &__players {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.factory-circle {
+  position: relative;
+  width: 550px;
+  height: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &__center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+  }
+
+  &__factories {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.factory-position {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  // Position factories uniformly in a pentagon around the center
+  &--0 {
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  &--1 {
+    top: 80px;
+    right: 20px;
+    transform: none;
+  }
+
+  &--2 {
+    bottom: 60px;
+    right: 100px;
+    transform: none;
+  }
+
+  &--3 {
+    bottom: 60px;
+    left: 100px;
+    transform: none;
+  }
+
+  &--4 {
+    top: 80px;
+    left: 20px;
+    transform: none;
+  }
+}
+
+.factory {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 3px solid #6c757d;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  // 3D factory plate styling
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    // Main shadow
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    // Deeper shadow
+    inset 0 2px 4px rgba(255, 255, 255, 0.3),
+    // Top highlight
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1); // Bottom edge
+
+  // Slight perspective
+  transform: perspective(200px) rotateX(5deg);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse at 30% 30%,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+  }
+
+  &:hover {
+    transform: perspective(200px) rotateX(5deg) scale(1.05) translateY(-2px);
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.2),
+      0 12px 32px rgba(0, 0, 0, 0.15),
+      inset 0 2px 4px rgba(255, 255, 255, 0.4),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  &--selected {
+    border-color: color(primary);
+    box-shadow:
+      0 0 0 3px rgba(color(primary), 0.3),
+      0 6px 16px rgba(0, 0, 0, 0.2),
+      0 12px 32px rgba(0, 0, 0, 0.15),
+      inset 0 2px 4px rgba(255, 255, 255, 0.4),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.12);
+    transform: perspective(200px) rotateX(5deg) scale(1.03) translateY(-1px);
+  }
+
+  &--empty {
+    background: linear-gradient(135deg, #d6d8db 0%, #ced4da 100%);
+    cursor: not-allowed;
+    opacity: 0.7;
+
+    &:hover {
+      transform: perspective(200px) rotateX(5deg);
+      box-shadow:
+        0 4px 8px rgba(0, 0, 0, 0.15),
+        0 8px 24px rgba(0, 0, 0, 0.1),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  &__tiles {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__tile {
+    transition: all 0.2s ease;
+    --hover-transform: none;
+
+    // Ensure factory tiles inherit 3D styling but are smaller
+    width: 25px !important;
+    height: 25px !important;
+
+    &:hover {
+      transform: var(--hover-transform);
+      z-index: 10;
+    }
+  }
+
+  &__empty-message {
+    color: color(text-muted);
+    font-size: font-size(sm);
+    font-weight: 500;
+    text-align: center;
+  }
+}

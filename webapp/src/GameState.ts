@@ -1,5 +1,5 @@
-import { Tile, Move, GameResult, GamePhase } from './types.js';
-import { PlayerBoard } from './PlayerBoard.js';
+import {Tile, Move, GameResult, GamePhase} from './types';
+import {PlayerBoard} from './PlayerBoard';
 
 // Helper function to safely convert string to Tile enum
 function stringToTile(tileString: string): Tile | null {
@@ -14,7 +14,9 @@ function stringToTile(tileString: string): Tile | null {
   // The BGA data for floor uses "firstplayer" (all lowercase for the token)
   // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
 
-  console.warn(`[GameState] Unknown tile string for enum conversion: "${tileString}"`);
+  console.warn(
+    `[GameState] Unknown tile string for enum conversion: "${tileString}"`
+  );
   return null;
 }
 
@@ -43,7 +45,12 @@ export abstract class BaseGameState {
   loadFromBga(bgaData: {
     factories: string[][];
     center: string[];
-    playerBoards: { lines: string[][]; wall: string[][]; floor: string[]; score: number }[];
+    playerBoards: {
+      lines: string[][];
+      wall: string[][];
+      floor: string[];
+      score: number;
+    }[];
     currentPlayer: number;
     round: number; // BGA might not provide round, default or calculate if necessary
   }): void {
@@ -55,8 +62,11 @@ export abstract class BaseGameState {
     this.firstPlayerIndex = 0; // Reset, will be determined by first player token
 
     // Initialize factories
-    this.factories = bgaData.factories.map(factory =>
-      factory.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[]
+    this.factories = bgaData.factories.map(
+      factory =>
+        factory
+          .map(sTile => stringToTile(sTile))
+          .filter(t => t !== null) as Tile[]
     );
 
     // Initialize center, carefully handling FirstPlayer token
@@ -85,7 +95,10 @@ export abstract class BaseGameState {
     }
 
     // If first player token wasn't on a board, check if it's in the center
-    if (!firstPlayerTokenFoundOnBoard && !this.center.includes(Tile.FirstPlayer)) {
+    if (
+      !firstPlayerTokenFoundOnBoard &&
+      !this.center.includes(Tile.FirstPlayer)
+    ) {
       // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
       // This logic might need adjustment based on exact BGA state representation when center is emptied.
       // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
@@ -93,7 +106,10 @@ export abstract class BaseGameState {
       // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
       // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
       // The firstPlayerIndex would then be determined by who *takes* it from the center.
-    } else if (this.center.includes(Tile.FirstPlayer) && firstPlayerTokenFoundOnBoard) {
+    } else if (
+      this.center.includes(Tile.FirstPlayer) &&
+      firstPlayerTokenFoundOnBoard
+    ) {
       // If on a board AND in center, prioritize board, remove from center.
       this.center = this.center.filter(t => t !== Tile.FirstPlayer);
     }
@@ -104,7 +120,10 @@ export abstract class BaseGameState {
     // If it IS on a player's board, that player is `firstPlayerIndex` for *next* round.
 
     // Ensure a valid currentPlayer (e.g. if BGA sends an out-of-bounds index)
-    this.currentPlayer = Math.max(0, Math.min(this.numPlayers - 1, this.currentPlayer));
+    this.currentPlayer = Math.max(
+      0,
+      Math.min(this.numPlayers - 1, this.currentPlayer)
+    );
 
     this.getMoves(); // Crucially, generate moves for the loaded state.
     console.log('GameState loaded from BGA data:', this);
@@ -143,7 +162,13 @@ export abstract class BaseGameState {
 
     // Create tile bag (20 tiles of each color)
     this.tilebag = [];
-    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    const regularTiles = [
+      Tile.Red,
+      Tile.Blue,
+      Tile.Yellow,
+      Tile.Black,
+      Tile.White,
+    ];
     for (const tile of regularTiles) {
       for (let i = 0; i < 20; i++) {
         this.tilebag.push(tile);
@@ -175,7 +200,9 @@ export abstract class BaseGameState {
       for (let t = 0; t < 4; t++) {
         // If bag is empty, reshuffle discard pile back into bag
         if (this.tilebag.length === 0 && this.discardPile.length > 0) {
-          console.log(`Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`);
+          console.log(
+            `Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`
+          );
           this.tilebag = [...this.discardPile];
           this.discardPile = [];
           this.shuffleArray(this.tilebag);
@@ -200,7 +227,11 @@ export abstract class BaseGameState {
     const currentBoard = this.playerBoards[this.currentPlayer];
 
     // Check factory moves
-    for (let factoryIndex = 0; factoryIndex < this.factories.length; factoryIndex++) {
+    for (
+      let factoryIndex = 0;
+      factoryIndex < this.factories.length;
+      factoryIndex++
+    ) {
       const factory = this.factories[factoryIndex];
       const uniqueTiles = [...new Set(factory)];
 
@@ -211,7 +242,7 @@ export abstract class BaseGameState {
             this.availableMoves.push({
               factoryIndex,
               tile,
-              lineIndex
+              lineIndex,
             });
           }
         }
@@ -220,14 +251,16 @@ export abstract class BaseGameState {
         this.availableMoves.push({
           factoryIndex,
           tile,
-          lineIndex: -1
+          lineIndex: -1,
         });
       }
     }
 
     // Check center moves
     if (this.center.length > 0) {
-      const uniqueTiles = [...new Set(this.center.filter(t => t !== Tile.FirstPlayer))];
+      const uniqueTiles = [
+        ...new Set(this.center.filter(t => t !== Tile.FirstPlayer)),
+      ];
 
       for (const tile of uniqueTiles) {
         // Try each pattern line
@@ -236,7 +269,7 @@ export abstract class BaseGameState {
             this.availableMoves.push({
               factoryIndex: -1,
               tile,
-              lineIndex
+              lineIndex,
             });
           }
         }
@@ -245,7 +278,7 @@ export abstract class BaseGameState {
         this.availableMoves.push({
           factoryIndex: -1,
           tile,
-          lineIndex: -1
+          lineIndex: -1,
         });
       }
     }
@@ -267,22 +300,30 @@ export abstract class BaseGameState {
       // Take from center
       tilesToPlace = this.center.filter(t => t === move.tile);
       this.center = this.center.filter(t => t !== move.tile);
-      console.log(`  Taking ${tilesToPlace.length} ${move.tile} tiles from center`);
+      console.log(
+        `  Taking ${tilesToPlace.length} ${move.tile} tiles from center`
+      );
 
       // Check for first player token
       if (this.center.includes(Tile.FirstPlayer)) {
         currentBoard.floor.push(Tile.FirstPlayer);
         this.center = this.center.filter(t => t !== Tile.FirstPlayer);
         this.firstPlayerIndex = this.currentPlayer;
-        console.log(`  Also took first player token (will go first next round)`);
+        console.log(
+          `  Also took first player token (will go first next round)`
+        );
       }
     } else {
       // Take from factory
       const factory = this.factories[move.factoryIndex];
       tilesToPlace = factory.filter(t => t === move.tile);
       const remainingTiles = factory.filter(t => t !== move.tile);
-      console.log(`  Taking ${tilesToPlace.length} ${move.tile} tiles from factory ${move.factoryIndex}`);
-      console.log(`  Moving ${remainingTiles.length} remaining tiles to center: ${remainingTiles.join(', ')}`);
+      console.log(
+        `  Taking ${tilesToPlace.length} ${move.tile} tiles from factory ${move.factoryIndex}`
+      );
+      console.log(
+        `  Moving ${remainingTiles.length} remaining tiles to center: ${remainingTiles.join(', ')}`
+      );
 
       // Move remaining tiles to center
       this.center.push(...remainingTiles);
@@ -292,12 +333,18 @@ export abstract class BaseGameState {
     }
 
     // Place tiles on player board
-    const excess = currentBoard.placeTiles(move.tile, tilesToPlace.length, move.lineIndex);
+    const excess = currentBoard.placeTiles(
+      move.tile,
+      tilesToPlace.length,
+      move.lineIndex
+    );
     if (move.lineIndex === -1) {
       console.log(`  Placing all ${tilesToPlace.length} tiles on floor`);
     } else {
       const placed = tilesToPlace.length - excess.length;
-      console.log(`  Placing ${placed} tiles on pattern line ${move.lineIndex + 1}`);
+      console.log(
+        `  Placing ${placed} tiles on pattern line ${move.lineIndex + 1}`
+      );
       if (excess.length > 0) {
         console.log(`  ${excess.length} excess tiles go to floor`);
       }
@@ -311,7 +358,8 @@ export abstract class BaseGameState {
   nextTurn(): boolean {
     // Check if round is over (all factories empty and center only has first player token or is empty)
     const factoriesEmpty = this.factories.every(f => f.length === 0);
-    const centerEmpty = this.center.length === 0 ||
+    const centerEmpty =
+      this.center.length === 0 ||
       (this.center.length === 1 && this.center[0] === Tile.FirstPlayer);
 
     if (factoriesEmpty && centerEmpty) {
@@ -335,7 +383,7 @@ export abstract class BaseGameState {
       roundScoringDetails.push({
         player: i,
         scoreGained: result.scoreGained,
-        details: result.details
+        details: result.details,
       });
     }
 
@@ -347,19 +395,29 @@ export abstract class BaseGameState {
       console.log(`  Tiles placed: ${playerResult.details.tilesPlaced.length}`);
 
       for (const tile of playerResult.details.tilesPlaced) {
-        console.log(`    ${tile.tile} at (${tile.row + 1}, ${tile.col + 1}): ${tile.score} points`);
-        console.log(`      Adjacent: ${tile.adjacentTiles.horizontal} horizontal, ${tile.adjacentTiles.vertical} vertical`);
+        console.log(
+          `    ${tile.tile} at (${tile.row + 1}, ${tile.col + 1}): ${tile.score} points`
+        );
+        console.log(
+          `      Adjacent: ${tile.adjacentTiles.horizontal} horizontal, ${tile.adjacentTiles.vertical} vertical`
+        );
       }
 
       if (playerResult.details.floorPenalties.length > 0) {
-        console.log(`  Floor penalties: ${playerResult.details.totalFloorPenalty} points`);
+        console.log(
+          `  Floor penalties: ${playerResult.details.totalFloorPenalty} points`
+        );
         for (const penalty of playerResult.details.floorPenalties) {
-          console.log(`    ${penalty.tile} at position ${penalty.position + 1}: ${penalty.penalty} points`);
+          console.log(
+            `    ${penalty.tile} at position ${penalty.position + 1}: ${penalty.penalty} points`
+          );
         }
       }
 
       console.log(`  Total tile score: ${playerResult.details.totalTileScore}`);
-      console.log(`  Total floor penalty: ${playerResult.details.totalFloorPenalty}`);
+      console.log(
+        `  Total floor penalty: ${playerResult.details.totalFloorPenalty}`
+      );
       console.log(`  Round score change: ${playerResult.scoreGained}`);
       console.log(`  New total score: ${playerResult.details.newScore}`);
       console.log('');
@@ -395,9 +453,15 @@ export abstract class BaseGameState {
       const result = this.playerBoards[i].calculateFinalScore();
       console.log(`Player ${i + 1} Final Bonuses:`);
       console.log(`  Previous score: ${result.details.previousScore}`);
-      console.log(`  Completed rows: ${result.details.completedRows} (${result.details.rowBonus} points)`);
-      console.log(`  Completed columns: ${result.details.completedColumns} (${result.details.columnBonus} points)`);
-      console.log(`  Completed colors: ${result.details.completedColors} (${result.details.colorBonus} points)`);
+      console.log(
+        `  Completed rows: ${result.details.completedRows} (${result.details.rowBonus} points)`
+      );
+      console.log(
+        `  Completed columns: ${result.details.completedColumns} (${result.details.columnBonus} points)`
+      );
+      console.log(
+        `  Completed colors: ${result.details.completedColors} (${result.details.colorBonus} points)`
+      );
       console.log(`  Total bonus: ${result.bonus}`);
       console.log(`  Final score: ${this.playerBoards[i].score}`);
       console.log('');
@@ -408,10 +472,11 @@ export abstract class BaseGameState {
 
   // Check if a move is valid
   isValidMove(move: Move): boolean {
-    return this.availableMoves.some(m =>
-      m.factoryIndex === move.factoryIndex &&
-      m.tile === move.tile &&
-      m.lineIndex === move.lineIndex
+    return this.availableMoves.some(
+      m =>
+        m.factoryIndex === move.factoryIndex &&
+        m.tile === move.tile &&
+        m.lineIndex === move.lineIndex
     );
   }
 
@@ -419,13 +484,14 @@ export abstract class BaseGameState {
   getResult(): GameResult {
     const scores = this.playerBoards.map(board => board.score);
     const maxScore = Math.max(...scores);
-    const winners = scores.map((score, index) => ({ score, index }))
+    const winners = scores
+      .map((score, index) => ({score, index}))
       .filter(p => p.score === maxScore);
 
     return {
       winner: winners.length === 1 ? winners[0].index : -1,
       scores,
-      gameOver: this.gameOver
+      gameOver: this.gameOver,
     };
   }
 
@@ -458,7 +524,9 @@ export abstract class BaseGameState {
     }
 
     const playerBoard = this.playerBoards[playerIndex];
-    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    const opponentBoards = this.playerBoards.filter(
+      (_, i) => i !== playerIndex
+    );
 
     const playerEval = this.evaluatePlayerBoard(playerBoard);
 
@@ -478,11 +546,19 @@ export abstract class BaseGameState {
     // Tempo evaluation (first player advantage, timing)
     const tempoValue = this.evaluateTempoAdvantage(playerIndex);
 
-    const evaluation = playerEval - bestOpponentEval + defensiveValue + tacticalValue + tempoValue;
+    const evaluation =
+      playerEval -
+      bestOpponentEval +
+      defensiveValue +
+      tacticalValue +
+      tempoValue;
 
     // Debug logging for AI evaluation
-    if (Math.random() < 0.05) { // Log 5% of evaluations
-      console.log(`AI eval: Player ${playerIndex + 1}: ${playerEval.toFixed(1)} vs Opponent: ${bestOpponentEval.toFixed(1)} + Defense: ${defensiveValue.toFixed(1)} + Tactical: ${tacticalValue.toFixed(1)} + Tempo: ${tempoValue.toFixed(1)} = ${evaluation.toFixed(1)}`);
+    if (Math.random() < 0.05) {
+      // Log 5% of evaluations
+      console.log(
+        `AI eval: Player ${playerIndex + 1}: ${playerEval.toFixed(1)} vs Opponent: ${bestOpponentEval.toFixed(1)} + Defense: ${defensiveValue.toFixed(1)} + Tactical: ${tacticalValue.toFixed(1)} + Tempo: ${tempoValue.toFixed(1)} = ${evaluation.toFixed(1)}`
+      );
     }
 
     return evaluation;
@@ -500,11 +576,18 @@ export abstract class BaseGameState {
       const line = boardClone.lines[i];
       if (line.length === i + 1 && line.length > 0) {
         const tile = line[0];
-        const wallCol = PlayerBoard.getWallTile(i, 0) === tile ? 0 :
-          PlayerBoard.getWallTile(i, 1) === tile ? 1 :
-            PlayerBoard.getWallTile(i, 2) === tile ? 2 :
-              PlayerBoard.getWallTile(i, 3) === tile ? 3 :
-                PlayerBoard.getWallTile(i, 4) === tile ? 4 : -1;
+        const wallCol =
+          PlayerBoard.getWallTile(i, 0) === tile
+            ? 0
+            : PlayerBoard.getWallTile(i, 1) === tile
+              ? 1
+              : PlayerBoard.getWallTile(i, 2) === tile
+                ? 2
+                : PlayerBoard.getWallTile(i, 3) === tile
+                  ? 3
+                  : PlayerBoard.getWallTile(i, 4) === tile
+                    ? 4
+                    : -1;
 
         if (wallCol !== -1 && !boardClone.wall[i].includes(tile)) {
           boardClone.wall[i].push(tile);
@@ -515,7 +598,11 @@ export abstract class BaseGameState {
 
     // 2. Floor penalties
     const floorPenalties = [-1, -1, -2, -2, -2, -3, -3];
-    for (let i = 0; i < Math.min(boardClone.floor.length, floorPenalties.length); i++) {
+    for (
+      let i = 0;
+      i < Math.min(boardClone.floor.length, floorPenalties.length);
+      i++
+    ) {
       evaluation += floorPenalties[i];
     }
 
@@ -605,7 +692,13 @@ export abstract class BaseGameState {
 
     // EXPERT STRATEGY 6: Be cautious with color bonuses - reduce priority significantly
     const colorCounts = this.getColorCounts(board);
-    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    const regularTiles = [
+      Tile.Red,
+      Tile.Blue,
+      Tile.Yellow,
+      Tile.Black,
+      Tile.White,
+    ];
 
     for (const tile of regularTiles) {
       const count = colorCounts.get(tile) || 0;
@@ -651,7 +744,7 @@ export abstract class BaseGameState {
           strategicValue += completionRatio * lineValue;
         } else {
           // Penalty for impossible lines
-          strategicValue -= (filled * 0.5); // Penalty proportional to wasted effort
+          strategicValue -= filled * 0.5; // Penalty proportional to wasted effort
         }
       }
     }
@@ -681,7 +774,9 @@ export abstract class BaseGameState {
   // EXPERT STRATEGY 5: Enhanced defensive opportunities (monitor and block opponents)
   private evaluateDefensiveOpportunities(playerIndex: number): number {
     let defensiveValue = 0;
-    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    const opponentBoards = this.playerBoards.filter(
+      (_, i) => i !== playerIndex
+    );
     const tileSupply = this.analyzeTileSupply();
     const gamePhase = this.getGamePhase();
 
@@ -719,7 +814,9 @@ export abstract class BaseGameState {
       for (let col = 0; col < 5; col++) {
         let tilesInColumn = 0;
         for (let row = 0; row < 5; row++) {
-          if (opponentBoard.wall[row].includes(PlayerBoard.getWallTile(row, col))) {
+          if (
+            opponentBoard.wall[row].includes(PlayerBoard.getWallTile(row, col))
+          ) {
             tilesInColumn++;
           }
         }
@@ -794,7 +891,7 @@ export abstract class BaseGameState {
     for (const move of this.availableMoves) {
       if (move.lineIndex >= 0) {
         const line = playerBoard.lines[move.lineIndex];
-        const needed = (move.lineIndex + 1) - line.length;
+        const needed = move.lineIndex + 1 - line.length;
         const available = this.countTilesInSource(move.factoryIndex, move.tile);
 
         // Bonus for taking exactly what you need (no waste)
@@ -809,7 +906,9 @@ export abstract class BaseGameState {
     }
 
     // 2. Evaluate "hate drafting" opportunities
-    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    const opponentBoards = this.playerBoards.filter(
+      (_, i) => i !== playerIndex
+    );
     for (const opponentBoard of opponentBoards) {
       for (const move of this.availableMoves) {
         if (this.isHighValueTileForOpponent(opponentBoard, move.tile)) {
@@ -862,8 +961,12 @@ export abstract class BaseGameState {
     }
 
     // 3. Factory control (taking from factories vs center)
-    const factoryMoves = this.availableMoves.filter(m => m.factoryIndex >= 0).length;
-    const centerMoves = this.availableMoves.filter(m => m.factoryIndex === -1).length;
+    const factoryMoves = this.availableMoves.filter(
+      m => m.factoryIndex >= 0
+    ).length;
+    const centerMoves = this.availableMoves.filter(
+      m => m.factoryIndex === -1
+    ).length;
 
     if (factoryMoves > centerMoves) {
       tempoValue += 0.5; // Slight bonus for having factory options
@@ -876,7 +979,11 @@ export abstract class BaseGameState {
   }
 
   // EXPERT STRATEGY 2: Enhanced adjacency bonus calculation with central column preference
-  private calculateTileScore(board: PlayerBoard, row: number, col: number): number {
+  private calculateTileScore(
+    board: PlayerBoard,
+    row: number,
+    col: number
+  ): number {
     let score = 1;
 
     // Count horizontal connected tiles
@@ -886,7 +993,7 @@ export abstract class BaseGameState {
       [Tile.White, Tile.Blue, Tile.Yellow, Tile.Red, Tile.Black],
       [Tile.Black, Tile.White, Tile.Blue, Tile.Yellow, Tile.Red],
       [Tile.Red, Tile.Black, Tile.White, Tile.Blue, Tile.Yellow],
-      [Tile.Yellow, Tile.Red, Tile.Black, Tile.White, Tile.Blue]
+      [Tile.Yellow, Tile.Red, Tile.Black, Tile.White, Tile.Blue],
     ];
 
     for (let c = col - 1; c >= 0; c--) {
@@ -913,8 +1020,8 @@ export abstract class BaseGameState {
       } else break;
     }
 
-    if (horizontalCount > 1) score += (horizontalCount - 1);
-    if (verticalCount > 1) score += (verticalCount - 1);
+    if (horizontalCount > 1) score += horizontalCount - 1;
+    if (verticalCount > 1) score += verticalCount - 1;
 
     // Expert Strategy: Bonus for central column placement (better adjacency potential)
     if (col >= 1 && col <= 3) {
@@ -937,7 +1044,10 @@ export abstract class BaseGameState {
     return null;
   }
 
-  private findMissingTileInColumn(board: PlayerBoard, col: number): Tile | null {
+  private findMissingTileInColumn(
+    board: PlayerBoard,
+    col: number
+  ): Tile | null {
     for (let row = 0; row < 5; row++) {
       const expectedTile = PlayerBoard.getWallTile(row, col);
       if (!board.wall[row].includes(expectedTile)) {
@@ -958,7 +1068,13 @@ export abstract class BaseGameState {
 
   private getColorCounts(board: PlayerBoard): Map<Tile, number> {
     const colorCounts = new Map<Tile, number>();
-    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    const regularTiles = [
+      Tile.Red,
+      Tile.Blue,
+      Tile.Yellow,
+      Tile.Black,
+      Tile.White,
+    ];
 
     for (const row of board.wall) {
       for (const tile of row) {
@@ -1021,7 +1137,7 @@ export abstract class BaseGameState {
       const line = playerBoard.lines[i];
       if (line.length > 0 && line.length < i + 1) {
         const neededTile = line[0];
-        const needed = (i + 1) - line.length;
+        const needed = i + 1 - line.length;
         const supply = tileSupply.get(neededTile);
 
         if (!supply) continue;
@@ -1029,7 +1145,10 @@ export abstract class BaseGameState {
         // Critical: Check if there are enough tiles remaining to complete this line
         if (supply.totalRemaining < needed) {
           scarcityValue -= 5; // Heavy penalty for impossible lines
-        } else if (supply.availableThisRound < needed && supply.totalRemaining < needed + 2) {
+        } else if (
+          supply.availableThisRound < needed &&
+          supply.totalRemaining < needed + 2
+        ) {
           scarcityValue += 3; // High value for critically scarce tiles
         } else if (supply.availableThisRound <= 2) {
           scarcityValue += 2; // High value for immediately scarce tiles
@@ -1057,7 +1176,10 @@ export abstract class BaseGameState {
     }
   }
 
-  private isHighValueTileForOpponent(opponentBoard: PlayerBoard, tile: Tile): boolean {
+  private isHighValueTileForOpponent(
+    opponentBoard: PlayerBoard,
+    tile: Tile
+  ): boolean {
     // Check if this tile would help opponent complete lines or strategic goals
     for (let i = 0; i < 5; i++) {
       const line = opponentBoard.lines[i];
@@ -1072,7 +1194,9 @@ export abstract class BaseGameState {
         const wallCol = PlayerBoard.WALL_PATTERN[i].indexOf(tile);
         if (wallCol !== -1 && !opponentBoard.wall[i].includes(tile)) {
           // Check if this would help complete row/column/color
-          if (this.wouldHelpCompleteObjective(opponentBoard, i, wallCol, tile)) {
+          if (
+            this.wouldHelpCompleteObjective(opponentBoard, i, wallCol, tile)
+          ) {
             return true;
           }
         }
@@ -1082,7 +1206,12 @@ export abstract class BaseGameState {
     return false;
   }
 
-  private wouldHelpCompleteObjective(board: PlayerBoard, row: number, col: number, tile: Tile): boolean {
+  private wouldHelpCompleteObjective(
+    board: PlayerBoard,
+    row: number,
+    col: number,
+    tile: Tile
+  ): boolean {
     // Check if placing this tile would significantly advance row/column/color completion
 
     // Row completion check
@@ -1119,9 +1248,11 @@ export abstract class BaseGameState {
 
   private isPlayerBehind(playerIndex: number): boolean {
     const playerScore = this.playerBoards[playerIndex].score;
-    const maxOpponentScore = Math.max(...this.playerBoards
-      .filter((_, i) => i !== playerIndex)
-      .map(board => board.score));
+    const maxOpponentScore = Math.max(
+      ...this.playerBoards
+        .filter((_, i) => i !== playerIndex)
+        .map(board => board.score)
+    );
 
     return playerScore < maxOpponentScore - 5; // Behind by more than 5 points
   }
@@ -1141,11 +1272,11 @@ export abstract class BaseGameState {
 
     for (let i = 0; i < 5; i++) {
       const line = playerBoard.lines[i];
-      const needed = (i + 1) - line.length;
+      const needed = i + 1 - line.length;
 
       if (line.length > 0 && needed <= 2) {
         // Urgent to complete lines that are close to completion
-        urgencyValue += (3 - needed); // More urgent as fewer tiles needed
+        urgencyValue += 3 - needed; // More urgent as fewer tiles needed
       }
     }
 
@@ -1153,8 +1284,22 @@ export abstract class BaseGameState {
   }
 
   // Comprehensive tile supply analysis - tracks total game supply vs usage
-  private analyzeTileSupply(): Map<Tile, { totalRemaining: number; availableThisRound: number; usedByOpponents: number; usedByPlayer: number }> {
-    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+  private analyzeTileSupply(): Map<
+    Tile,
+    {
+      totalRemaining: number;
+      availableThisRound: number;
+      usedByOpponents: number;
+      usedByPlayer: number;
+    }
+  > {
+    const regularTiles = [
+      Tile.Red,
+      Tile.Blue,
+      Tile.Yellow,
+      Tile.Black,
+      Tile.White,
+    ];
     const supply = new Map();
 
     for (const tile of regularTiles) {
@@ -1164,7 +1309,11 @@ export abstract class BaseGameState {
       let usedByOpponents = 0;
 
       // Count tiles used by all players (on walls and in pattern lines)
-      for (let playerIndex = 0; playerIndex < this.playerBoards.length; playerIndex++) {
+      for (
+        let playerIndex = 0;
+        playerIndex < this.playerBoards.length;
+        playerIndex++
+      ) {
         const board = this.playerBoards[playerIndex];
         let playerUsage = 0;
 
@@ -1231,7 +1380,7 @@ export abstract class BaseGameState {
         totalRemaining,
         availableThisRound,
         usedByOpponents,
-        usedByPlayer
+        usedByPlayer,
       });
     }
 
@@ -1254,7 +1403,10 @@ export abstract class BaseGameState {
   }
 
   // Check if an objective (row/column/color completion) is feasible given tile supply
-  private isObjectiveFeasible(neededTiles: Tile[], tileSupply: Map<Tile, any>): boolean {
+  private isObjectiveFeasible(
+    neededTiles: Tile[],
+    tileSupply: Map<Tile, any>
+  ): boolean {
     // Count how many of each tile type we need
     const tileCounts = new Map<Tile, number>();
 
@@ -1292,15 +1444,17 @@ export abstract class BaseGameState {
     const avgTilesPerPlayer = totalTilesPlaced / this.numPlayers;
 
     // More realistic thresholds based on actual Azul gameplay
-    if (avgTilesPerPlayer < 3) return 'early';      // 0-2 tiles per player
-    if (avgTilesPerPlayer < 8) return 'mid';        // 3-7 tiles per player
-    return 'late';                                  // 8+ tiles per player (approaching endgame)
+    if (avgTilesPerPlayer < 3) return 'early'; // 0-2 tiles per player
+    if (avgTilesPerPlayer < 8) return 'mid'; // 3-7 tiles per player
+    return 'late'; // 8+ tiles per player (approaching endgame)
   }
 
   // EXPERT STRATEGY 8: Evaluate strategic discarding opportunities
   private evaluateStrategicDiscarding(playerIndex: number): number {
     let discardingValue = 0;
-    const opponentBoards = this.playerBoards.filter((_, i) => i !== playerIndex);
+    const opponentBoards = this.playerBoards.filter(
+      (_, i) => i !== playerIndex
+    );
 
     // Evaluate moves that force opponents to take more negative points
     for (const move of this.availableMoves) {
@@ -1328,7 +1482,6 @@ export abstract class BaseGameState {
  * GameState for web app - includes full game simulation capabilities
  */
 export class WebAppGameState extends BaseGameState {
-
   // Initialize a new game
   newGame(): void {
     this.tilebag = [];
@@ -1362,7 +1515,13 @@ export class WebAppGameState extends BaseGameState {
 
     // Create tile bag (20 tiles of each color)
     this.tilebag = [];
-    const regularTiles = [Tile.Red, Tile.Blue, Tile.Yellow, Tile.Black, Tile.White];
+    const regularTiles = [
+      Tile.Red,
+      Tile.Blue,
+      Tile.Yellow,
+      Tile.Black,
+      Tile.White,
+    ];
     for (const tile of regularTiles) {
       for (let i = 0; i < 20; i++) {
         this.tilebag.push(tile);
@@ -1394,7 +1553,9 @@ export class WebAppGameState extends BaseGameState {
       for (let t = 0; t < 4; t++) {
         // If bag is empty, reshuffle discard pile back into bag
         if (this.tilebag.length === 0 && this.discardPile.length > 0) {
-          console.log(`Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`);
+          console.log(
+            `Bag empty! Reshuffling ${this.discardPile.length} tiles from discard pile back into bag`
+          );
           this.tilebag = [...this.discardPile];
           this.discardPile = [];
           this.shuffleArray(this.tilebag);
@@ -1443,12 +1604,16 @@ export class WebAppGameState extends BaseGameState {
  * GameState for BGA extension - loads state from BGA data for AI analysis
  */
 export class BGAGameState extends BaseGameState {
-
   // Load game state from BGA-like data structure
   loadFromBga(bgaData: {
     factories: string[][];
     center: string[];
-    playerBoards: { lines: string[][]; wall: string[][]; floor: string[]; score: number }[];
+    playerBoards: {
+      lines: string[][];
+      wall: string[][];
+      floor: string[];
+      score: number;
+    }[];
     currentPlayer: number;
     round: number; // BGA might not provide round, default or calculate if necessary
   }): void {
@@ -1460,8 +1625,11 @@ export class BGAGameState extends BaseGameState {
     this.firstPlayerIndex = 0; // Reset, will be determined by first player token
 
     // Initialize factories
-    this.factories = bgaData.factories.map(factory =>
-      factory.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[]
+    this.factories = bgaData.factories.map(
+      factory =>
+        factory
+          .map(sTile => stringToTile(sTile))
+          .filter(t => t !== null) as Tile[]
     );
 
     // Initialize center, carefully handling FirstPlayer token
@@ -1490,7 +1658,10 @@ export class BGAGameState extends BaseGameState {
     }
 
     // If first player token wasn't on a board, check if it's in the center
-    if (!firstPlayerTokenFoundOnBoard && !this.center.includes(Tile.FirstPlayer)) {
+    if (
+      !firstPlayerTokenFoundOnBoard &&
+      !this.center.includes(Tile.FirstPlayer)
+    ) {
       // If it's NOWHERE, but it should be SOMEWHERE in TileSelection phase (unless all tiles taken from center already)
       // This logic might need adjustment based on exact BGA state representation when center is emptied.
       // For now, if no token and center is empty of regular tiles, assume previous round's first player keeps it.
@@ -1498,7 +1669,10 @@ export class BGAGameState extends BaseGameState {
       // This is tricky without knowing BGA's exact first player token rules post-center-clearing.
       // A simple assumption: if not on a board and not in center, it's not in play for *this specific turn's start*.
       // The firstPlayerIndex would then be determined by who *takes* it from the center.
-    } else if (this.center.includes(Tile.FirstPlayer) && firstPlayerTokenFoundOnBoard) {
+    } else if (
+      this.center.includes(Tile.FirstPlayer) &&
+      firstPlayerTokenFoundOnBoard
+    ) {
       // If on a board AND in center, prioritize board, remove from center.
       this.center = this.center.filter(t => t !== Tile.FirstPlayer);
     }
@@ -1509,7 +1683,10 @@ export class BGAGameState extends BaseGameState {
     // If it IS on a player's board, that player is `firstPlayerIndex` for *next* round.
 
     // Ensure a valid currentPlayer (e.g. if BGA sends an out-of-bounds index)
-    this.currentPlayer = Math.max(0, Math.min(this.numPlayers - 1, this.currentPlayer));
+    this.currentPlayer = Math.max(
+      0,
+      Math.min(this.numPlayers - 1, this.currentPlayer)
+    );
 
     this.getMoves(); // Crucially, generate moves for the loaded state.
     console.log('GameState loaded from BGA data:', this);
@@ -1519,7 +1696,9 @@ export class BGAGameState extends BaseGameState {
   protected onNewRound(): void {
     // BGA extension only analyzes current position, doesn't simulate full rounds
     // This should not be called in normal BGA extension usage
-    console.warn('BGAGameState.onNewRound() called - this should not happen in normal extension usage');
+    console.warn(
+      'BGAGameState.onNewRound() called - this should not happen in normal extension usage'
+    );
   }
 
   // Create a deep copy of the game state for AI simulation

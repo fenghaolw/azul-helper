@@ -1,0 +1,185 @@
+@use '../variables' as *;
+@use 'sass:color';
+
+.ai-settings {
+  background: color(surface);
+  border-radius: border-radius(lg);
+  box-shadow: shadow(md);
+  padding: spacing(lg);
+  max-width: 380px;
+  font-family: $font-family-secondary;
+
+  &__header {
+    margin-bottom: spacing(lg);
+
+    h2 {
+      margin: 0;
+      font-size: font-size(xl);
+      color: color(text-primary);
+      font-weight: font-weight(medium);
+    }
+  }
+
+  &__round {
+    margin-top: spacing(sm);
+    font-size: font-size(sm);
+    color: color(text-muted);
+    font-weight: font-weight(normal);
+  }
+
+  &__controls {
+    display: flex;
+    flex-direction: column;
+    gap: spacing(md);
+    margin-bottom: spacing(xl);
+  }
+
+  &__button {
+    padding: spacing(md) spacing(lg);
+    border: none;
+    border-radius: border-radius(md);
+    font-size: font-size(md);
+    font-weight: font-weight(medium);
+    cursor: pointer;
+    transition: transition(medium);
+
+    &--primary {
+      background: color(primary);
+      color: white;
+
+      &:hover {
+        background: color.adjust(color(primary), $lightness: -10%);
+        transform: translateY(-1px);
+        box-shadow: shadow(lg);
+      }
+    }
+
+    &--success {
+      background: state-color(success);
+      color: white;
+
+      &:hover {
+        background: color.adjust(state-color(success), $lightness: -10%);
+        transform: translateY(-1px);
+        box-shadow: shadow(lg);
+      }
+    }
+
+    &--danger {
+      background: state-color(error);
+      color: white;
+
+      &:hover {
+        background: color.adjust(state-color(error), $lightness: -10%);
+        transform: translateY(-1px);
+        box-shadow: shadow(lg);
+      }
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &__status,
+  &__stats,
+  &__config {
+    margin-bottom: spacing(xl);
+
+    h3 {
+      margin: 0 0 spacing(md) 0;
+      font-size: font-size(lg);
+      color: color(text-primary);
+      font-weight: font-weight(medium);
+      border-bottom: 1px solid color(border-light);
+      padding-bottom: spacing(sm);
+    }
+  }
+
+  &__disabled {
+    color: color(text-muted);
+    font-style: italic;
+    padding: spacing(md);
+    background: color(background-tertiary);
+    border-radius: border-radius(md);
+  }
+
+  &__enabled {
+    > div {
+      margin-bottom: spacing(sm);
+      font-size: font-size(md);
+      line-height: 1.5;
+    }
+  }
+
+  &__agent {
+    color: color(text-primary);
+  }
+
+  &__connection {
+    &.connected {
+      color: state-color(success);
+    }
+
+    &.disconnected {
+      color: state-color(error);
+    }
+  }
+
+  &__help {
+    font-size: font-size(sm) !important;
+    color: color(text-muted);
+    background: state-color(error-light);
+    padding: spacing(sm);
+    border-radius: border-radius(sm);
+    border-left: 3px solid state-color(error);
+  }
+
+  &__server {
+    font-size: font-size(sm) !important;
+    color: color(text-muted);
+  }
+
+  &__stat {
+    margin-bottom: spacing(sm);
+    font-size: font-size(md);
+    line-height: 1.4;
+    color: color(text-secondary);
+
+    strong {
+      color: color(text-primary);
+    }
+  }
+
+  &__performance {
+    margin-top: spacing(md);
+    padding: spacing(sm);
+    background: color(background-secondary);
+    border-radius: border-radius(sm);
+    font-size: font-size(sm);
+  }
+
+  &__config {
+    background: color(background-secondary);
+    padding: spacing(md);
+    border-radius: border-radius(md);
+    border-left: 4px solid color(primary);
+
+    h3 {
+      margin-bottom: spacing(sm);
+      border: none;
+      padding: 0;
+    }
+  }
+
+  &__config-note {
+    font-size: font-size(sm);
+    color: color(text-muted);
+    margin-bottom: spacing(xs);
+    line-height: 1.4;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}

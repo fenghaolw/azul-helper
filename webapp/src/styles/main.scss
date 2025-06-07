@@ -1,0 +1,108 @@
+// Import variables and components at the top
+@use 'variables' as *;
+@use 'components/factories';
+@use 'components/center-area';
+@use 'components/player-board';
+@use 'components/game-info';
+@use 'components/tile';
+@use 'components/game';
+@use 'components/ai-settings';
+
+// Base styles
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: $font-family-secondary;
+  font-size: font-size(md);
+  color: color(text-primary);
+  background: color(background);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: $font-family-primary;
+  font-weight: font-weight(bold);
+  color: color(text-primary);
+}
+
+.azul-app {
+  display: flex;
+  min-height: 100vh;
+  background: color(background);
+
+  &__sidebar {
+    width: 400px;
+    padding: spacing(lg);
+    background: color(surface);
+    box-shadow: shadow(md);
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  &__game {
+    flex: 1;
+    overflow: auto;
+  }
+}
+
+.game-renderer-container {
+  width: 100%;
+  height: 100%;
+}
+
+.game-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: spacing(lg);
+  display: flex;
+  gap: spacing(xl);
+  min-height: 100vh;
+
+  &__left-panel {
+    flex: 0 0 500px;
+    display: flex;
+    flex-direction: column;
+    gap: spacing(xl);
+  }
+
+  &__right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: spacing(xl);
+  }
+}
+
+// Utility classes
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.transition {
+  transition: transition(medium);
+}
+
+.shadow {
+  box-shadow: shadow(md);
+}
+
+.rounded {
+  border-radius: border-radius(md);
+}

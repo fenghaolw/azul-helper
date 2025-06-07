@@ -1,0 +1,140 @@
+@use '../variables' as *;
+
+.factories {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: spacing(lg);
+  padding: spacing(lg);
+  background: color(surface);
+  border-radius: border-radius(lg);
+  box-shadow: shadow(md);
+
+  &__title {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: font-size(xl);
+    color: color(text-primary);
+    margin-bottom: spacing(md);
+
+    &::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 2px;
+      background: color(gold);
+      margin: spacing(sm) auto 0;
+    }
+  }
+
+  &__factory {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: spacing(sm);
+  }
+}
+
+.factory {
+  width: layout(factory-size) !important;
+  height: layout(factory-size) !important;
+  min-width: layout(factory-size);
+  min-height: layout(factory-size);
+  max-width: layout(factory-size);
+  max-height: layout(factory-size);
+  border-radius: 50% !important;
+  background: color(background-secondary);
+  border: 2px solid color(border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: spacing(sm);
+  cursor: pointer;
+  transition: transition(medium);
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1 !important;
+  flex-shrink: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      color(primary) 0deg,
+      color(gold) 90deg,
+      color(primary) 180deg,
+      color(gold) 270deg,
+      color(primary) 360deg
+    );
+    opacity: 0;
+    transition: transition(medium);
+    z-index: z-index(background);
+    aspect-ratio: 1;
+  }
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: color(gold);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &--empty {
+    opacity: 0.6;
+    cursor: not-allowed;
+
+    &:hover {
+      transform: none;
+      border-color: color(border-light);
+
+      &::before {
+        opacity: 0;
+      }
+    }
+  }
+
+  &--selected {
+    border-color: color(gold);
+    box-shadow: 0 0 0 2px color(gold);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  &__tiles {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__tile {
+    position: absolute;
+    z-index: z-index(content);
+    transition:
+      transform transition(fast),
+      z-index 0s;
+
+    &:hover {
+      z-index: z-index(overlay);
+      transform: var(--hover-transform, transform);
+    }
+  }
+
+  &__empty-message {
+    color: color(text-muted);
+    font-size: font-size(sm);
+    font-style: italic;
+    z-index: z-index(content);
+  }
+}
