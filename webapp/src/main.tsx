@@ -1,71 +1,117 @@
 import './styles/main.scss';
-import { render } from 'preact';
-import { h } from 'preact';
-import { Game } from './components/Game';
-import { WebAppGameState } from './GameState.js';
-import { GameRenderer } from './GameRenderer.js';
+import {render} from 'preact';
+import {useState, useEffect} from 'preact/hooks';
+import {AISettings} from './components/AISettings';
+import {WebAppGameState} from './GameState';
 
-class AzulApp {
-    private gameState: WebAppGameState;
-    private renderer: GameRenderer;
-    private gameContainer: HTMLElement;
+// Import GameRenderer dynamically to avoid conflicts
+let GameRenderer: any = null;
 
-    constructor() {
-        console.log('AzulApp constructor starting');
-        this.gameContainer = this.setupUI();
-        console.log('Game container created:', this.gameContainer);
-        this.gameState = new WebAppGameState(2);
-        console.log('Game state created');
-        this.gameState.newGame();
-        console.log('New game started');
-        this.renderer = new GameRenderer(this.gameContainer, this.gameState);
-        console.log('GameRenderer created');
-        this.startGameLoop();
-        console.log('Game loop started');
+function App() {
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [gameState, setGameState] = useState<WebAppGameState | null>(null);
+  const [gameRenderer, setGameRenderer] = useState<any>(null);
+  const [rendererLoaded, setRendererLoaded] = useState(false);
+
+  // Load GameRenderer dynamically
+  useEffect(() => {
+    import('./GameRenderer').then((module) => {
+      GameRenderer = module.GameRenderer;
+      setRendererLoaded(true);
+      console.log('✅ GameRenderer loaded');
+    }).catch((error) => {
+      console.error('❌ Failed to load GameRenderer:', error);
+    });
+  }, []);
+
+  // Initialize game state
+  useEffect(() => {
+    console.log('Initializing game state...');
+    try {
+      const initialGameState = new WebAppGameState(2);
+      initialGameState.newGame();
+      setGameState(initialGameState);
+      console.log('✅ Game state initialized successfully');
+    } catch (error) {
+      console.error('❌ Error initializing game state:', error);
     }
+  }, []);
 
-    private setupUI(): HTMLElement {
-        // Create main container
-        const container = document.createElement('div');
-        container.className = 'azul-app-container';
-        container.style.cssText = `
-      min-height: 100vh;
-      font-family: 'Roboto', sans-serif;
-      background: #f8f9fa;
-    `;
-
-        // Create game container for Preact components
-        const gameContainer = document.createElement('div');
-        gameContainer.id = 'gameContainer';
-        gameContainer.style.cssText = `
-      width: 100%;
-      height: 100%;
-    `;
-
-        container.appendChild(gameContainer);
-        document.body.appendChild(container);
-
-        // Render Preact components
-        render(h(Game, { gameContainer }), gameContainer);
-
-        return gameContainer;
+  // Create renderer when both GameRenderer class and game state are ready
+  useEffect(() => {
+    if (rendererLoaded && gameState && GameRenderer && !gameRenderer) {
+      const gameContainer = document.getElementById('game-area');
+      if (gameContainer) {
+        console.log('Creating GameRenderer...');
+        try {
+          // Clear the container first
+          gameContainer.innerHTML = '';
+          const renderer = new GameRenderer(gameContainer, gameState);
+          setGameRenderer(renderer);
+          console.log('✅ GameRenderer created successfully');
+        } catch (error) {
+          console.error('❌ Error creating GameRenderer:', error);
+        }
+      }
     }
+  }, [rendererLoaded, gameState, gameRenderer]);
 
-    private startGameLoop(): void {
-        const loop = () => {
-            this.update();
-            requestAnimationFrame(loop);
-        };
-        requestAnimationFrame(loop);
-    }
+  const handleNewGame = () => {
+    console.log('Creating new game...');
+    try {
+      const newGameState = new WebAppGameState(2);
+      newGameState.newGame();
+      setGameState(newGameState);
 
-    private update(): void {
-        // Trigger re-render with current game state
-        this.renderer.render();
+      if (gameRenderer) {
+        gameRenderer.updateGameState(newGameState);
+      }
+      console.log('✅ New game created successfully');
+    } catch (error) {
+      console.error('❌ Error creating new game:', error);
     }
+  };
+
+  const handleToggleAI = () => {
+    setAiEnabled(!aiEnabled);
+  };
+
+  return (
+    <div className="azul-app">
+      <div className="azul-app__sidebar">
+        <AISettings
+          aiEnabled={aiEnabled}
+          onToggleAI={handleToggleAI}
+          onNewGame={handleNewGame}
+          round={gameState?.round || 1}
+        />
+      </div>
+
+      <div className="azul-app__game" id="gameContainer">
+        {/* Separate container for GameRenderer - NOT managed by Preact */}
+        <div 
+          id="game-area" 
+          style={{
+            width: '100%',
+            height: '100%',
+            minHeight: '600px'
+          }}
+        >
+          {!rendererLoaded && <div style={{padding: '20px'}}>Loading game renderer...</div>}
+          {rendererLoaded && !gameState && <div style={{padding: '20px'}}>Loading game state...</div>}
+          {rendererLoaded && gameState && !gameRenderer && <div style={{padding: '20px'}}>Creating game...</div>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Initialize the app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    new AzulApp();
+  console.log('Starting Azul app...');
+  const container = document.getElementById('app');
+  if (container) {
+    render(<App />, container);
+    console.log('Azul app rendered successfully');
+  }
 });

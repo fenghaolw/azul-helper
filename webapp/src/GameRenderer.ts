@@ -1,248 +1,274 @@
-import { render, h } from 'preact';
-import { BaseGameState } from './GameState.js';
-import { Tile, Move } from './types.js';
-import { Game } from './components/Game';
-import { GameState, TileColor, Factory, CenterTile, Player, PatternLine, WallSlot } from './types';
+import {render, h} from 'preact';
+import {BaseGameState} from './GameState';
+import {Tile, Move} from './types';
+import {Game} from './components/Game';
+import {
+  GameState,
+  TileColor,
+  Factory,
+  CenterTile,
+  Player,
+  PatternLine,
+  WallSlot,
+} from './types';
 
 export class GameRenderer {
-    private container: HTMLElement;
-    private gameState: BaseGameState;
-    private selectedFactory: number = -2; // -2 = none, -1 = center, 0+ = factory
-    private selectedTile: Tile | null = null;
+  private container: HTMLElement;
+  private gameState: BaseGameState;
+  private selectedFactory: number = -2; // -2 = none, -1 = center, 0+ = factory
+  private selectedTile: Tile | null = null;
 
-    constructor(container: HTMLElement, gameState: BaseGameState) {
-        this.container = container;
-        this.gameState = gameState;
+  constructor(container: HTMLElement, gameState: BaseGameState) {
+    this.container = container;
+    this.gameState = gameState;
 
-        // Set up the container
-        this.setupContainer();
+    // Set up the container
+    this.setupContainer();
 
-        // Set up event listeners for game interactions
-        this.setupEventListeners();
+    // Set up event listeners for game interactions
+    this.setupEventListeners();
 
-        // Initial render
-        this.render();
+    // Initial render
+    this.render();
+  }
+
+  private setupContainer(): void {
+    this.container.className = 'azul-game-container';
+    this.container.innerHTML = ''; // Clear any existing content
+  }
+
+  private setupEventListeners(): void {
+    // Listen for factory selections
+    this.container.addEventListener('factorySelected', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const {factoryIndex, color} = customEvent.detail;
+      this.handleFactoryClick(factoryIndex, color);
+    });
+
+    // Listen for center selections
+    this.container.addEventListener('centerSelected', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const {groupIndex, color} = customEvent.detail;
+      this.handleCenterClick(groupIndex, color);
+    });
+
+    // Listen for pattern line selections
+    this.container.addEventListener('patternLineSelected', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const {playerIndex, lineIndex, color} = customEvent.detail;
+      this.handlePatternLineClick(playerIndex, lineIndex, color);
+    });
+
+    // Listen for floor selections
+    this.container.addEventListener('floorSelected', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const {playerIndex, color} = customEvent.detail;
+      this.handleFloorClick(playerIndex, color);
+    });
+  }
+
+  private handleFactoryClick(factoryIndex: number, color: TileColor): void {
+    // Find the tile in the factory
+    const factory = this.gameState.factories[factoryIndex];
+    const tile = factory.find(t => this.mapTileColor(t) === color);
+
+    if (tile) {
+      this.selectedFactory = factoryIndex;
+      this.selectedTile = tile;
     }
+  }
 
-    private setupContainer(): void {
-        this.container.className = 'azul-game-container';
-        this.container.innerHTML = ''; // Clear any existing content
+  private handleCenterClick(_groupIndex: number, color: TileColor): void {
+    // Find the tile in center
+    const centerTiles = this.gameState.center;
+    const tile = centerTiles.find((t: any) => this.mapTileColor(t) === color);
+
+    if (tile) {
+      this.selectedFactory = -1; // Center
+      this.selectedTile = tile;
     }
+  }
 
-    private setupEventListeners(): void {
-        // Listen for factory selections
-        this.container.addEventListener('factorySelected', (event: Event) => {
-            const customEvent = event as CustomEvent;
-            const { factoryIndex, color } = customEvent.detail;
-            this.handleFactoryClick(factoryIndex, color);
-        });
-
-        // Listen for center selections
-        this.container.addEventListener('centerSelected', (event: Event) => {
-            const customEvent = event as CustomEvent;
-            const { groupIndex, color } = customEvent.detail;
-            this.handleCenterClick(groupIndex, color);
-        });
-
-        // Listen for pattern line selections
-        this.container.addEventListener('patternLineSelected', (event: Event) => {
-            const customEvent = event as CustomEvent;
-            const { playerIndex, lineIndex, color } = customEvent.detail;
-            this.handlePatternLineClick(playerIndex, lineIndex, color);
-        });
-
-        // Listen for floor selections
-        this.container.addEventListener('floorSelected', (event: Event) => {
-            const customEvent = event as CustomEvent;
-            const { playerIndex, color } = customEvent.detail;
-            this.handleFloorClick(playerIndex, color);
-        });
+  private handlePatternLineClick(
+    playerIndex: number,
+    lineIndex: number,
+    _color: TileColor
+  ): void {
+    if (
+      this.selectedTile &&
+      this.isValidPatternLineDrop(playerIndex, lineIndex)
+    ) {
+      const move: Move = {
+        factoryIndex: this.selectedFactory,
+        tile: this.selectedTile,
+        lineIndex: lineIndex,
+      };
+      this.playMove(move);
     }
+  }
 
-    private handleFactoryClick(factoryIndex: number, color: TileColor): void {
-        // Find the tile in the factory
-        const factory = this.gameState.factories[factoryIndex];
-        const tile = factory.find(t => this.mapTileColor(t) === color);
-
-        if (tile) {
-            this.selectedFactory = factoryIndex;
-            this.selectedTile = tile;
-        }
+  private handleFloorClick(playerIndex: number, _color: TileColor): void {
+    if (this.selectedTile && this.isValidFloorDrop(playerIndex)) {
+      const move: Move = {
+        factoryIndex: this.selectedFactory,
+        tile: this.selectedTile,
+        lineIndex: -1,
+      };
+      this.playMove(move);
     }
+  }
 
-    private handleCenterClick(_groupIndex: number, color: TileColor): void {
-        // Find the tile in center
-        const centerTiles = this.gameState.center;
-        const tile = centerTiles.find((t: any) => this.mapTileColor(t) === color);
-
-        if (tile) {
-            this.selectedFactory = -1; // Center
-            this.selectedTile = tile;
-        }
+  private mapTileColor(tile: Tile): TileColor {
+    switch (tile) {
+      case Tile.Red:
+        return 'red';
+      case Tile.Blue:
+        return 'blue';
+      case Tile.Yellow:
+        return 'yellow';
+      case Tile.Black:
+        return 'black';
+      case Tile.White:
+        return 'white';
+      case Tile.FirstPlayer:
+        return 'first-player';
+      default:
+        return 'white';
     }
+  }
 
-    private handlePatternLineClick(playerIndex: number, lineIndex: number, _color: TileColor): void {
-        if (this.selectedTile && this.isValidPatternLineDrop(playerIndex, lineIndex)) {
-            const move: Move = {
-                factoryIndex: this.selectedFactory,
-                tile: this.selectedTile,
-                lineIndex: lineIndex
-            };
-            this.playMove(move);
-        }
-    }
+  private convertGameState(): GameState {
+    // Convert factories
+    const factories: Factory[] = this.gameState.factories.map(factory => ({
+      tiles: factory.map(tile => ({
+        color: this.mapTileColor(tile),
+        id: `${tile}-${Math.random()}`,
+      })),
+      isEmpty: factory.length === 0,
+    }));
 
-    private handleFloorClick(playerIndex: number, _color: TileColor): void {
-        if (this.selectedTile && this.isValidFloorDrop(playerIndex)) {
-            const move: Move = {
-                factoryIndex: this.selectedFactory,
-                tile: this.selectedTile,
-                lineIndex: -1
-            };
-            this.playMove(move);
-        }
-    }
+    // Convert center tiles
+    const centerTileGroups = new Map<TileColor, number>();
+    this.gameState.center.forEach((tile: any) => {
+      const color = this.mapTileColor(tile);
+      centerTileGroups.set(color, (centerTileGroups.get(color) || 0) + 1);
+    });
 
-    private mapTileColor(tile: Tile): TileColor {
-        switch (tile) {
-            case Tile.Red: return 'red';
-            case Tile.Blue: return 'blue';
-            case Tile.Yellow: return 'yellow';
-            case Tile.Black: return 'black';
-            case Tile.White: return 'white';
-            case Tile.FirstPlayer: return 'first-player';
-            default: return 'white';
-        }
-    }
+    const centerTiles: CenterTile[] = Array.from(
+      centerTileGroups.entries()
+    ).map(([color, count]) => ({
+      color,
+      count,
+    }));
 
-    private convertGameState(): GameState {
-        console.log('convertGameState: Starting conversion');
-        console.log('Raw game state:', this.gameState);
-
-        // Convert factories
-        console.log('convertGameState: Converting factories');
-        const factories: Factory[] = this.gameState.factories.map(factory => ({
-            tiles: factory.map(tile => ({
-                color: this.mapTileColor(tile),
-                id: `${tile}-${Math.random()}`
+    // Convert players
+    const players: Player[] = this.gameState.playerBoards.map(
+      (board, index) => {
+        // Convert pattern lines
+        const patternLines: PatternLine[] = board.lines.map(
+          (line: any, lineIndex: any) => ({
+            color: line.length > 0 ? this.mapTileColor(line[0]) : null,
+            tiles: line.map((tile: any) => ({
+              color: this.mapTileColor(tile),
+              id: `${tile}-${Math.random()}`,
             })),
-            isEmpty: factory.length === 0
+            capacity: lineIndex + 1,
+            isComplete: line.length === lineIndex + 1,
+          })
+        );
+
+        // Convert wall
+        const wall: WallSlot[][] = board.wall.map(row =>
+          row.map(slot => ({
+            color: slot ? this.mapTileColor(slot) : 'white',
+            isFilled: slot !== null,
+            isScoring: false,
+          }))
+        );
+
+        // Convert floor tiles
+        const floorTiles = board.floor.map((tile: any) => ({
+          color: this.mapTileColor(tile),
+          id: `${tile}-${Math.random()}`,
         }));
-        console.log('convertGameState: Factories converted:', factories);
-
-        // Convert center tiles
-        const centerTileGroups = new Map<TileColor, number>();
-        this.gameState.center.forEach((tile: any) => {
-            const color = this.mapTileColor(tile);
-            centerTileGroups.set(color, (centerTileGroups.get(color) || 0) + 1);
-        });
-
-        const centerTiles: CenterTile[] = Array.from(centerTileGroups.entries()).map(([color, count]) => ({
-            color,
-            count
-        }));
-
-        // Convert players
-        const players: Player[] = this.gameState.playerBoards.map((board, index) => {
-            // Convert pattern lines
-            const patternLines: PatternLine[] = board.lines.map((line: any, lineIndex: any) => ({
-                color: line.length > 0 ? this.mapTileColor(line[0]) : null,
-                tiles: line.map((tile: any) => ({
-                    color: this.mapTileColor(tile),
-                    id: `${tile}-${Math.random()}`
-                })),
-                capacity: lineIndex + 1,
-                isComplete: line.length === lineIndex + 1
-            }));
-
-            // Convert wall
-            const wall: WallSlot[][] = board.wall.map(row =>
-                row.map(slot => ({
-                    color: slot ? this.mapTileColor(slot) : 'white',
-                    isFilled: slot !== null,
-                    isScoring: false
-                }))
-            );
-
-            // Convert floor tiles
-            const floorTiles = board.floor.map((tile: any) => ({
-                color: this.mapTileColor(tile),
-                id: `${tile}-${Math.random()}`
-            }));
-
-            return {
-                name: `Player ${index + 1}`,
-                score: board.score,
-                patternLines,
-                wall,
-                floorTiles,
-                isReadyToScore: false // Simplified for now
-            };
-        });
 
         return {
-            factories,
-            centerTiles,
-            players,
-            currentPlayerIndex: this.gameState.currentPlayer,
-            round: this.gameState.round,
-            gamePhase: this.gameState.gameOver ? 'finished' : 'playing'
+          name: `Player ${index + 1}`,
+          score: board.score,
+          patternLines,
+          wall,
+          floorTiles,
+          isReadyToScore: false, // Simplified for now
         };
+      }
+    );
+
+    return {
+      factories,
+      centerTiles,
+      players,
+      currentPlayerIndex: this.gameState.currentPlayer,
+      round: this.gameState.round,
+      gamePhase: this.gameState.gameOver ? 'finished' : 'playing',
+    };
+  }
+
+  render(): void {
+    try {
+      const gameState = this.convertGameState();
+
+      // Render the Preact component with gameState as prop
+      render(
+        h(Game, {gameContainer: this.container, gameState}),
+        this.container
+      );
+
+      // Also dispatch the event for backwards compatibility
+      this.container.dispatchEvent(
+        new CustomEvent('gameStateUpdate', {
+          detail: gameState,
+        })
+      );
+    } catch (error) {
+      console.error('Error in GameRenderer.render():', error);
     }
+  }
 
-    render(): void {
-        console.log('GameRenderer.render() called');
-        try {
-            const gameState = this.convertGameState();
-            console.log('Converted game state (first 100 chars):', JSON.stringify(gameState).substring(0, 100) + '...');
+  private isValidPatternLineDrop(
+    playerIndex: number,
+    lineIndex: number
+  ): boolean {
+    if (!this.selectedTile) return false;
 
-            // Dispatch game state update event
-            console.log('Dispatching gameStateUpdate event');
-            this.container.dispatchEvent(new CustomEvent('gameStateUpdate', {
-                detail: gameState
-            }));
+    const board = this.gameState.playerBoards[playerIndex];
+    const line = board.lines[lineIndex];
 
-            // Render the Preact component
-            console.log('Rendering Preact component');
-            render(h(Game, { gameContainer: this.container }), this.container);
-            console.log('Preact component rendered successfully');
-        } catch (error) {
-            console.error('Error in GameRenderer.render():', error);
-        }
-    }
+    // Check if line is already complete
+    if (line.length === lineIndex + 1) return false;
 
-    private isValidPatternLineDrop(playerIndex: number, lineIndex: number): boolean {
-        if (!this.selectedTile) return false;
+    // Check if line is empty or has same color
+    if (line.length === 0) return true;
+    return line[0] === this.selectedTile;
+  }
 
-        const board = this.gameState.playerBoards[playerIndex];
-        const line = board.lines[lineIndex];
+  private isValidFloorDrop(_playerIndex: number): boolean {
+    return this.selectedTile !== null;
+  }
 
-        // Check if line is already complete
-        if (line.length === lineIndex + 1) return false;
+  public playMove(move: Move): void {
+    // Clear selection
+    this.selectedFactory = -2;
+    this.selectedTile = null;
 
-        // Check if line is empty or has same color
-        if (line.length === 0) return true;
-        return line[0] === this.selectedTile;
-    }
+    // Apply the move to the game state
+    this.gameState.playMove(move);
 
-    private isValidFloorDrop(_playerIndex: number): boolean {
-        return this.selectedTile !== null;
-    }
+    // Re-render
+    this.render();
+  }
 
-    public playMove(move: Move): void {
-        // Clear selection
-        this.selectedFactory = -2;
-        this.selectedTile = null;
-
-        // Apply the move to the game state
-        this.gameState.playMove(move);
-
-        // Re-render
-        this.render();
-    }
-
-    public updateGameState(gameState: BaseGameState): void {
-        this.gameState = gameState;
-        this.render();
-    }
+  public updateGameState(gameState: BaseGameState): void {
+    this.gameState = gameState;
+    this.render();
+  }
 }

@@ -1,4 +1,4 @@
-import { Tile, ScoreDetails, FinalScoreDetails } from './types.js';
+import {Tile, ScoreDetails, FinalScoreDetails} from './types';
 
 function stringToTile(tileString: string): Tile | null {
   const s = tileString.toLowerCase();
@@ -12,7 +12,9 @@ function stringToTile(tileString: string): Tile | null {
   // The BGA data for floor uses "firstplayer" (all lowercase for the token)
   // Tile.FirstPlayer is 'firstPlayer', so the above line handles it due to s.toLowerCase().
 
-  console.warn(`[PlayerBoard] Unknown tile string for enum conversion: "${tileString}"`);
+  console.warn(
+    `[PlayerBoard] Unknown tile string for enum conversion: "${tileString}"`
+  );
   return null;
 }
 
@@ -23,7 +25,7 @@ export class PlayerBoard {
     [Tile.White, Tile.Blue, Tile.Yellow, Tile.Red, Tile.Black],
     [Tile.Black, Tile.White, Tile.Blue, Tile.Yellow, Tile.Red],
     [Tile.Red, Tile.Black, Tile.White, Tile.Blue, Tile.Yellow],
-    [Tile.Yellow, Tile.Red, Tile.Black, Tile.White, Tile.Blue]
+    [Tile.Yellow, Tile.Red, Tile.Black, Tile.White, Tile.Blue],
   ];
 
   wall: Array<Array<Tile | null>> = [[], [], [], [], []]; // Allow null for empty wall spots
@@ -53,23 +55,35 @@ export class PlayerBoard {
   }
 
   // Method to load state from BGA-like data
-  loadState(data: { lines: string[][]; wall: string[][]; floor: string[]; score: number }): void {
+  loadState(data: {
+    lines: string[][];
+    wall: string[][];
+    floor: string[];
+    score: number;
+  }): void {
     this.score = data.score;
 
     // Clear and load lines
-    this.lines = Array(5).fill(null).map(() => []);
+    this.lines = Array(5)
+      .fill(null)
+      .map(() => []);
     for (let i = 0; i < 5; i++) {
       if (data.lines[i]) {
-        this.lines[i] = data.lines[i].map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[];
+        this.lines[i] = data.lines[i]
+          .map(sTile => stringToTile(sTile))
+          .filter(t => t !== null) as Tile[];
       }
     }
 
     // Clear and load wall
-    this.wall = Array(5).fill(null).map(() => Array(5).fill(null));
+    this.wall = Array(5)
+      .fill(null)
+      .map(() => Array(5).fill(null));
     for (let r = 0; r < 5; r++) {
       if (data.wall[r]) {
         for (let c = 0; c < 5; c++) {
-          if (data.wall[r][c] && data.wall[r][c] !== '') { // Check for empty string representing no tile
+          if (data.wall[r][c] && data.wall[r][c] !== '') {
+            // Check for empty string representing no tile
             const tile = stringToTile(data.wall[r][c]);
             if (tile) {
               // We need to place the tile on the wall according to WALL_PATTERN
@@ -86,13 +100,15 @@ export class PlayerBoard {
     }
 
     // Load floor
-    this.floor = data.floor.map(sTile => stringToTile(sTile)).filter(t => t !== null) as Tile[];
+    this.floor = data.floor
+      .map(sTile => stringToTile(sTile))
+      .filter(t => t !== null) as Tile[];
 
     console.log('PlayerBoard loaded state:', {
       score: this.score,
       lines: this.lines,
       wall: this.wall,
-      floor: this.floor
+      floor: this.floor,
     });
   }
 
@@ -150,7 +166,10 @@ export class PlayerBoard {
   }
 
   // Move completed lines to wall and return score gained
-  moveToWall(discardPile: Array<Tile> = []): { scoreGained: number; details: ScoreDetails } {
+  moveToWall(discardPile: Array<Tile> = []): {
+    scoreGained: number;
+    details: ScoreDetails;
+  } {
     let scoreGained = 0;
     const details: ScoreDetails = {
       tilesPlaced: [],
@@ -158,7 +177,7 @@ export class PlayerBoard {
       totalTileScore: 0,
       totalFloorPenalty: 0,
       previousScore: this.score,
-      newScore: 0
+      newScore: 0,
     };
 
     // Move completed lines to wall
@@ -170,7 +189,8 @@ export class PlayerBoard {
         const tileToPlace = line[0]; // The tile type to be placed
         const wallCol = PlayerBoard.WALL_PATTERN[i].indexOf(tileToPlace);
 
-        if (wallCol !== -1 && this.wall[i][wallCol] === null) { // Check if spot is actually empty
+        if (wallCol !== -1 && this.wall[i][wallCol] === null) {
+          // Check if spot is actually empty
           this.wall[i][wallCol] = tileToPlace; // Place tile on wall
 
           // Calculate score for this tile
@@ -179,22 +199,30 @@ export class PlayerBoard {
           scoreGained += tileScore;
           details.totalTileScore += tileScore;
 
-          console.log(`  Tile ${tileToPlace} placed at (${i + 1}, ${wallCol + 1}): ${tileScore} points`);
-          console.log(`    Adjacent tiles: ${adjacentInfo.horizontal} horizontal, ${adjacentInfo.vertical} vertical`);
-          console.log(`    Score calculation: 1 base + ${Math.max(0, adjacentInfo.horizontal - 1)} horizontal + ${Math.max(0, adjacentInfo.vertical - 1)} vertical = ${tileScore}`);
+          console.log(
+            `  Tile ${tileToPlace} placed at (${i + 1}, ${wallCol + 1}): ${tileScore} points`
+          );
+          console.log(
+            `    Adjacent tiles: ${adjacentInfo.horizontal} horizontal, ${adjacentInfo.vertical} vertical`
+          );
+          console.log(
+            `    Score calculation: 1 base + ${Math.max(0, adjacentInfo.horizontal - 1)} horizontal + ${Math.max(0, adjacentInfo.vertical - 1)} vertical = ${tileScore}`
+          );
 
           details.tilesPlaced.push({
             tile: tileToPlace,
             row: i,
             col: wallCol,
             score: tileScore,
-            adjacentTiles: adjacentInfo
+            adjacentTiles: adjacentInfo,
           });
 
           // Discard excess tiles from completed line (all but one go to discard pile)
           const tilesToDiscard = line.slice(1); // All except the one placed on wall
           if (tilesToDiscard.length > 0) {
-            console.log(`  Discarding ${tilesToDiscard.length} excess ${tileToPlace} tiles to discard pile`);
+            console.log(
+              `  Discarding ${tilesToDiscard.length} excess ${tileToPlace} tiles to discard pile`
+            );
             discardPile.push(...tilesToDiscard);
           }
 
@@ -204,7 +232,9 @@ export class PlayerBoard {
           // This case should ideally not happen if canPlaceTile was checked correctly
           // or if line somehow filled with a tile already on the wall for that row.
           // For now, assume the tiles from this line go to floor as penalty if they can't be placed.
-          console.warn(`Cannot place tile ${tileToPlace} on wall row ${i}, col ${wallCol}. Spot occupied or invalid. Tiles go to floor.`);
+          console.warn(
+            `Cannot place tile ${tileToPlace} on wall row ${i}, col ${wallCol}. Spot occupied or invalid. Tiles go to floor.`
+          );
           this.floor.push(...line);
           this.lines[i] = [];
         }
@@ -224,7 +254,7 @@ export class PlayerBoard {
         details.floorPenalties.push({
           tile,
           position: floorTileCount,
-          penalty
+          penalty,
         });
         floorTileCount++;
       }
@@ -237,7 +267,9 @@ export class PlayerBoard {
 
     // Discard floor tiles (except first player token)
     if (tilesToDiscardFromFloor.length > 0) {
-      console.log(`  Discarding ${tilesToDiscardFromFloor.length} tiles from floor to discard pile`);
+      console.log(
+        `  Discarding ${tilesToDiscardFromFloor.length} tiles from floor to discard pile`
+      );
       discardPile.push(...tilesToDiscardFromFloor);
     }
 
@@ -248,16 +280,20 @@ export class PlayerBoard {
     this.score = Math.max(0, this.score + scoreGained);
     details.newScore = this.score;
 
-    return { scoreGained, details };
+    return {scoreGained, details};
   }
 
   // Get adjacent tiles info for debugging
-  private getAdjacentTilesInfo(row: number, col: number): { horizontal: number; vertical: number } {
+  private getAdjacentTilesInfo(
+    row: number,
+    col: number
+  ): {horizontal: number; vertical: number} {
     // Count horizontal connected tiles
     let horizontalCount = 1;
     // Count left
     for (let c = col - 1; c >= 0; c--) {
-      if (this.wall[row][c] !== null) { // Check if a tile is present
+      if (this.wall[row][c] !== null) {
+        // Check if a tile is present
         horizontalCount++;
       } else {
         break;
@@ -265,7 +301,8 @@ export class PlayerBoard {
     }
     // Count right
     for (let c = col + 1; c < 5; c++) {
-      if (this.wall[row][c] !== null) { // Check if a tile is present
+      if (this.wall[row][c] !== null) {
+        // Check if a tile is present
         horizontalCount++;
       } else {
         break;
@@ -276,7 +313,13 @@ export class PlayerBoard {
     let verticalCount = 1;
     // Count up
     for (let r = row - 1; r >= 0; r--) {
-      if (this.wall[r][PlayerBoard.WALL_PATTERN[r].indexOf(PlayerBoard.WALL_PATTERN[row][col])] !== null) {
+      if (
+        this.wall[r][
+          PlayerBoard.WALL_PATTERN[r].indexOf(
+            PlayerBoard.WALL_PATTERN[row][col]
+          )
+        ] !== null
+      ) {
         verticalCount++;
       } else {
         break;
@@ -284,21 +327,33 @@ export class PlayerBoard {
     }
     // Count down
     for (let r = row + 1; r < 5; r++) {
-      if (this.wall[r][PlayerBoard.WALL_PATTERN[r].indexOf(PlayerBoard.WALL_PATTERN[row][col])] !== null) {
+      if (
+        this.wall[r][
+          PlayerBoard.WALL_PATTERN[r].indexOf(
+            PlayerBoard.WALL_PATTERN[row][col]
+          )
+        ] !== null
+      ) {
         verticalCount++;
       } else {
         break;
       }
     }
 
-    return { horizontal: horizontalCount, vertical: verticalCount };
+    return {horizontal: horizontalCount, vertical: verticalCount};
   }
 
   // Calculate score for placing a tile at specific position
-  private calculateTileScore(row: number, col: number, tileBeingPlaced: Tile): number {
+  private calculateTileScore(
+    row: number,
+    col: number,
+    tileBeingPlaced: Tile
+  ): number {
     // Ensure the tile being scored is actually on the wall at [row][col] for accurate adjacent check
     if (this.wall[row][col] !== tileBeingPlaced) {
-      console.warn(`Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`);
+      console.warn(
+        `Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`
+      );
       // Fallback to avoid errors, though this indicates a logic issue.
       // If the tile isn't there, it gets 1 point for itself if it were placed.
       // But if it's not there, adjacent checks are for the tile that *is* there, or null.
@@ -350,11 +405,13 @@ export class PlayerBoard {
 
   // Check if game should end (player has completed a row)
   hasCompletedRow(): boolean {
-    return this.wall.some(row => row.filter(tile => tile !== null).length === 5);
+    return this.wall.some(
+      row => row.filter(tile => tile !== null).length === 5
+    );
   }
 
   // Calculate final bonus scores
-  calculateFinalScore(): { bonus: number; details: FinalScoreDetails } {
+  calculateFinalScore(): {bonus: number; details: FinalScoreDetails} {
     const result = this.getFinalScoreCalculation();
 
     // Only apply the bonus once
@@ -367,7 +424,7 @@ export class PlayerBoard {
   }
 
   // Calculate final bonus scores without modifying the board (for UI display)
-  getFinalScoreCalculation(): { bonus: number; details: FinalScoreDetails } {
+  getFinalScoreCalculation(): {bonus: number; details: FinalScoreDetails} {
     let bonus = 0;
     const details: FinalScoreDetails = {
       completedRows: 0,
@@ -376,7 +433,7 @@ export class PlayerBoard {
       rowBonus: 0,
       columnBonus: 0,
       colorBonus: 0,
-      previousScore: this.score
+      previousScore: this.score,
     };
 
     // Row completion bonus (2 points per complete row)
@@ -393,7 +450,13 @@ export class PlayerBoard {
       let columnComplete = true;
       for (let row = 0; row < 5; row++) {
         // Check against the specific tile that SHOULD be in wall[row][col]
-        if (this.wall[row][PlayerBoard.WALL_PATTERN[row].indexOf(PlayerBoard.WALL_PATTERN[row][col])] !== PlayerBoard.WALL_PATTERN[row][col]) {
+        if (
+          this.wall[row][
+            PlayerBoard.WALL_PATTERN[row].indexOf(
+              PlayerBoard.WALL_PATTERN[row][col]
+            )
+          ] !== PlayerBoard.WALL_PATTERN[row][col]
+        ) {
           columnComplete = false;
           break;
         }
@@ -409,7 +472,8 @@ export class PlayerBoard {
     const colorCounts = new Map<Tile, number>();
     for (const row of this.wall) {
       for (const tile of row) {
-        if (tile !== null) { // Only count actual tiles
+        if (tile !== null) {
+          // Only count actual tiles
           colorCounts.set(tile, (colorCounts.get(tile) || 0) + 1);
         }
       }
@@ -423,7 +487,7 @@ export class PlayerBoard {
       }
     }
 
-    return { bonus, details };
+    return {bonus, details};
   }
 
   // Create a deep copy of the player board

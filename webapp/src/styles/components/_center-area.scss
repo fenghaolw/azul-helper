@@ -1,88 +1,122 @@
 @use '../variables' as *;
 
 .center-area {
-    background: color(surface);
-    border-radius: border-radius(lg);
-    box-shadow: shadow(md);
-    padding: spacing(lg);
+  background: transparent;
+  padding: spacing(md);
+  width: 180px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 
-    &__title {
-        text-align: center;
-        font-size: font-size(xl);
-        color: color(text-primary);
-        margin-bottom: spacing(md);
+  &__title {
+    text-align: center;
+    font-size: font-size(sm);
+    color: color(text-primary);
+    margin-bottom: spacing(xs);
+    font-weight: font-weight(bold);
+  }
 
-        &::after {
-            content: "";
-            display: block;
-            width: 80px;
-            height: 2px;
-            background: color(gold);
-            margin: spacing(sm) auto 0;
-        }
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: spacing(xs);
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex: 1;
+    width: 100%;
+  }
+
+  &__tiles {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__tile {
+    position: absolute;
+    transition:
+      transform transition(fast),
+      z-index 0s;
+    cursor: pointer;
+
+    // Ensure tiles maintain proper size regardless of quantity
+    width: layout(tile-size) !important;
+    height: layout(tile-size) !important;
+    min-width: layout(tile-size) !important;
+    min-height: layout(tile-size) !important;
+    flex-shrink: 0;
+
+    &:hover {
+      z-index: z-index(overlay) !important;
+      transform: var(--hover-transform, transform);
+    }
+  }
+
+  &__group {
+    display: flex;
+    align-items: center;
+    gap: spacing(xs);
+    padding: spacing(sm);
+    border-radius: border-radius(md);
+    background: color(background-secondary);
+    border: 1px solid color(border-light);
+    cursor: pointer;
+    transition: transition(medium);
+
+    &:hover {
+      background: color(background-tertiary);
+      border-color: color(gold);
+      transform: translateY(-2px);
+      box-shadow: shadow(md);
     }
 
-    &__content {
-        display: flex;
-        flex-direction: column;
-        gap: spacing(md);
-        min-height: 200px;
-        align-items: center;
-        justify-content: center;
-    }
-
-    &__group {
-        display: flex;
-        align-items: center;
-        gap: spacing(xs);
-        padding: spacing(sm);
-        border-radius: border-radius(md);
-        background: color(background-secondary);
-        border: 1px solid color(border-light);
-        cursor: pointer;
-        transition: transition(medium);
-
-        &:hover {
-            background: color(background-tertiary);
-            border-color: color(gold);
-            transform: translateY(-2px);
-            box-shadow: shadow(md);
-        }
-
-        &--selected {
-            border-color: color(gold);
-            box-shadow: 0 0 0 2px color(gold);
-            background: color(background-tertiary);
-        }
-
-        &--empty {
-            opacity: 0.5;
-            cursor: not-allowed;
-
-            &:hover {
-                background: color(background-secondary);
-                border-color: color(border-light);
-                transform: none;
-                box-shadow: none;
-            }
-        }
-    }
-
-    &__count {
-        font-size: font-size(sm);
-        font-weight: font-weight(medium);
-        color: color(text-secondary);
-        background: color(surface);
-        padding: spacing(xs) spacing(sm);
-        border-radius: border-radius(sm);
-        min-width: 20px;
-        text-align: center;
+    &--selected {
+      border-color: color(gold);
+      box-shadow: 0 0 0 2px color(gold);
+      background: color(background-tertiary);
     }
 
     &--empty {
-        .center-area__content {
-            color: color(text-muted);
-            font-style: italic;
-        }
+      opacity: 0.5;
+      cursor: not-allowed;
+
+      &:hover {
+        background: color(background-secondary);
+        border-color: color(border-light);
+        transform: none;
+        box-shadow: none;
+      }
     }
+  }
+
+  &__count {
+    font-size: font-size(sm);
+    font-weight: font-weight(medium);
+    color: color(text-secondary);
+    background: color(surface);
+    padding: spacing(xs) spacing(sm);
+    border-radius: border-radius(sm);
+    min-width: 20px;
+    text-align: center;
+  }
+
+  &__empty {
+    color: color(text-muted);
+    font-style: italic;
+    font-size: font-size(xs);
+    text-align: center;
+  }
+
+  &--empty {
+    .center-area__content {
+      color: color(text-muted);
+      font-style: italic;
+    }
+  }
 }

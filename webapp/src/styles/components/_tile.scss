@@ -1,84 +1,172 @@
 @use '../variables' as *;
 
 .tile {
-    width: layout(tile-size);
-    height: layout(tile-size);
+  width: layout(tile-size);
+  height: layout(tile-size);
+  border-radius: border-radius(sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-block;
+  position: relative;
+
+  // 3D styling
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    // Main shadow
+    0 4px 8px rgba(0, 0, 0, 0.1),
+    // Deeper shadow
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    // Top highlight
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1); // Bottom edge
+
+  border: 1px solid rgba(0, 0, 0, 0.15);
+
+  // Slight 3D transform
+  transform: perspective(100px) rotateX(2deg);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     border-radius: border-radius(sm);
-    box-shadow: shadow(tile);
-    cursor: pointer;
-    transition: transition(fast);
-    border: 1px solid color(border-light);
-    display: inline-block;
-    position: relative;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+  }
 
-    &--red {
-        background: tile-color(red);
+  // Color-specific styling for tiles using SVG images
+  &--red,
+  &--blue,
+  &--yellow,
+  &--black,
+  &--white {
+    // SVG images provide the color, so no background needed
+    background: transparent;
+  }
+
+  &--white {
+    // Extra styling for white/turquoise tiles to ensure visibility
+    border: 2px solid #6c757d;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  &--first-player {
+    background: tile-color(first-player);
+    border: 2px solid color(gold);
+    cursor: default !important;
+    pointer-events: none;
+
+    &::after {
+      content: '1';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: font-size(xs);
+      font-weight: font-weight(bold);
+      color: color(text-primary);
     }
 
-    &--blue {
-        background: tile-color(blue);
-    }
-
-    &--yellow {
-        background: tile-color(yellow);
-    }
-
-    &--black {
-        background: tile-color(black);
-    }
-
-    &--white {
-        background: tile-color(white);
-    }
-
-    &--first-player {
-        background: tile-color(first-player);
-        border: 2px solid color(gold);
-
-        &::after {
-            content: "1";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: font-size(xs);
-            font-weight: font-weight(bold);
-            color: color(text-primary);
-        }
-    }
-
-    &--selected {
-        box-shadow: 0 0 0 2px color(gold);
-        transform: scale(1.1);
-    }
-
-    &--valid-drop {
-        box-shadow: 0 0 0 2px state-color(success);
-
-        &::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: state-color(success-light);
-            border-radius: border-radius(sm);
-        }
-    }
-
-    &:hover:not(&--selected) {
-        transform: scale(1.05);
-        box-shadow: shadow(tile-hover);
+    // No hover or active effects for first player token
+    &:hover {
+      transform: perspective(100px) rotateX(2deg) !important;
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.2),
+        0 4px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
     }
 
     &:active {
-        transform: scale(0.95);
+      transform: perspective(100px) rotateX(2deg) !important;
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.2),
+        0 4px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
     }
+  }
 
-    // Tile stacking
-    &.stacked {
-        margin-left: -spacing(sm);
+  &--selected {
+    box-shadow:
+      0 0 0 2px color(gold),
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      0 8px 24px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+    transform: perspective(100px) rotateX(2deg) scale(1.1) translateY(-2px);
+  }
 
-        &:first-child {
-            margin-left: 0;
-        }
+  &--valid-drop {
+    box-shadow: 0 0 0 2px state-color(success);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: state-color(success-light);
+      border-radius: border-radius(sm);
     }
+  }
+
+  &--faded {
+    opacity: 0.25;
+    filter: grayscale(0.5);
+    border-style: dashed;
+    border-color: color(border-medium);
+
+    &:hover {
+      opacity: 0.4;
+      transform: none;
+      box-shadow: shadow(tile);
+    }
+  }
+
+  &:hover:not(&--selected) {
+    transform: perspective(100px) rotateX(2deg) scale(1.05) translateY(-1px);
+    box-shadow:
+      0 3px 8px rgba(0, 0, 0, 0.25),
+      0 6px 16px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+
+    &.tile--white {
+      box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.25),
+        0 6px 16px rgba(0, 0, 0, 0.15),
+        0 0 0 2px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+    }
+  }
+
+  &:active {
+    transform: perspective(100px) rotateX(2deg) scale(0.95) translateY(1px);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  // Tile stacking
+  &.stacked {
+    margin-left: -spacing(sm);
+
+    &:first-child {
+      margin-left: 0;
+    }
+  }
 }

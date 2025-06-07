@@ -1,182 +1,182 @@
 @use '../variables' as *;
 
 .game-info {
-    background: color(surface);
-    border-radius: border-radius(lg);
-    box-shadow: shadow(md);
-    padding: spacing(lg);
+  background: color(surface);
+  border-radius: border-radius(lg);
+  box-shadow: shadow(md);
+  padding: spacing(lg);
 
-    &__title {
-        font-size: font-size(xl);
-        font-weight: font-weight(bold);
-        color: color(text-primary);
-        text-align: center;
-        margin-bottom: spacing(md);
+  &__title {
+    font-size: font-size(xl);
+    font-weight: font-weight(bold);
+    color: color(text-primary);
+    text-align: center;
+    margin-bottom: spacing(md);
 
-        &::after {
-            content: "";
-            display: block;
-            width: 60px;
-            height: 2px;
-            background: color(gold);
-            margin: spacing(sm) auto 0;
-        }
+    &::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 2px;
+      background: color(gold);
+      margin: spacing(sm) auto 0;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: spacing(md);
+  }
+
+  &__section {
+    padding: spacing(md);
+    background: color(background-secondary);
+    border-radius: border-radius(md);
+    border: 1px solid color(border-light);
+
+    &-title {
+      font-size: font-size(md);
+      font-weight: font-weight(medium);
+      color: color(text-primary);
+      margin-bottom: spacing(sm);
     }
 
-    &__content {
-        display: flex;
-        flex-direction: column;
-        gap: spacing(md);
+    &-content {
+      font-size: font-size(sm);
+      color: color(text-secondary);
+      line-height: 1.4;
+    }
+  }
+
+  &__round {
+    text-align: center;
+    font-size: font-size(lg);
+    font-weight: font-weight(bold);
+    color: color(text-primary);
+
+    .round-number {
+      display: inline-block;
+      background: color(gold);
+      color: color(surface);
+      padding: spacing(xs) spacing(sm);
+      border-radius: border-radius(md);
+      margin-left: spacing(xs);
+    }
+  }
+
+  &__current-player {
+    background: linear-gradient(135deg, color(gold), color(primary));
+    color: color(surface);
+    text-align: center;
+    font-weight: font-weight(bold);
+
+    .player-name {
+      display: block;
+      font-size: font-size(lg);
     }
 
-    &__section {
-        padding: spacing(md);
-        background: color(background-secondary);
-        border-radius: border-radius(md);
-        border: 1px solid color(border-light);
+    .turn-indicator {
+      font-size: font-size(sm);
+      opacity: 0.9;
+      margin-top: spacing(xs);
+    }
+  }
 
-        &-title {
-            font-size: font-size(md);
-            font-weight: font-weight(medium);
-            color: color(text-primary);
-            margin-bottom: spacing(sm);
-        }
-
-        &-content {
-            font-size: font-size(sm);
-            color: color(text-secondary);
-            line-height: 1.4;
-        }
+  &__scores {
+    .score-list {
+      display: flex;
+      flex-direction: column;
+      gap: spacing(xs);
     }
 
-    &__round {
-        text-align: center;
-        font-size: font-size(lg);
-        font-weight: font-weight(bold);
-        color: color(text-primary);
+    .score-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: spacing(xs) spacing(sm);
+      background: color(surface);
+      border-radius: border-radius(sm);
+      border: 1px solid color(border-light);
 
-        .round-number {
-            display: inline-block;
-            background: color(gold);
-            color: color(surface);
-            padding: spacing(xs) spacing(sm);
-            border-radius: border-radius(md);
-            margin-left: spacing(xs);
-        }
-    }
-
-    &__current-player {
-        background: linear-gradient(135deg, color(gold), color(primary));
+      &--current {
+        background: color(gold);
         color: color(surface);
-        text-align: center;
         font-weight: font-weight(bold);
+      }
 
-        .player-name {
-            display: block;
-            font-size: font-size(lg);
-        }
+      .player-name {
+        flex: 1;
+      }
 
-        .turn-indicator {
-            font-size: font-size(sm);
-            opacity: 0.9;
-            margin-top: spacing(xs);
-        }
-    }
-
-    &__scores {
-        .score-list {
-            display: flex;
-            flex-direction: column;
-            gap: spacing(xs);
-        }
-
-        .score-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: spacing(xs) spacing(sm);
-            background: color(surface);
-            border-radius: border-radius(sm);
-            border: 1px solid color(border-light);
-
-            &--current {
-                background: color(gold);
-                color: color(surface);
-                font-weight: font-weight(bold);
-            }
-
-            .player-name {
-                flex: 1;
-            }
-
-            .player-score {
-                font-weight: font-weight(medium);
-                font-size: font-size(md);
-            }
-        }
-    }
-
-    &__actions {
-        display: flex;
-        gap: spacing(sm);
-        justify-content: center;
-        margin-top: spacing(md);
-
-        .action-button {
-            padding: spacing(sm) spacing(md);
-            border: none;
-            border-radius: border-radius(md);
-            background: color(primary);
-            color: color(surface);
-            font-weight: font-weight(medium);
-            cursor: pointer;
-            transition: transition(medium);
-
-            &:hover {
-                background: color(gold);
-                transform: translateY(-2px);
-                box-shadow: shadow(md);
-            }
-
-            &:active {
-                transform: translateY(0);
-            }
-
-            &--secondary {
-                background: color(background-tertiary);
-                color: color(text-primary);
-                border: 1px solid color(border-medium);
-
-                &:hover {
-                    background: color(background-secondary);
-                    border-color: color(gold);
-                }
-            }
-        }
-    }
-
-    &__status {
-        text-align: center;
-        padding: spacing(md);
-        border-radius: border-radius(md);
+      .player-score {
         font-weight: font-weight(medium);
-
-        &--playing {
-            background: state-color(info-light);
-            color: state-color(info);
-            border: 1px solid state-color(info);
-        }
-
-        &--finished {
-            background: state-color(success-light);
-            color: state-color(success);
-            border: 1px solid state-color(success);
-        }
-
-        &--waiting {
-            background: color(background-secondary);
-            color: color(text-secondary);
-            border: 1px solid color(border-medium);
-        }
+        font-size: font-size(md);
+      }
     }
+  }
+
+  &__actions {
+    display: flex;
+    gap: spacing(sm);
+    justify-content: center;
+    margin-top: spacing(md);
+
+    .action-button {
+      padding: spacing(sm) spacing(md);
+      border: none;
+      border-radius: border-radius(md);
+      background: color(primary);
+      color: color(surface);
+      font-weight: font-weight(medium);
+      cursor: pointer;
+      transition: transition(medium);
+
+      &:hover {
+        background: color(gold);
+        transform: translateY(-2px);
+        box-shadow: shadow(md);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      &--secondary {
+        background: color(background-tertiary);
+        color: color(text-primary);
+        border: 1px solid color(border-medium);
+
+        &:hover {
+          background: color(background-secondary);
+          border-color: color(gold);
+        }
+      }
+    }
+  }
+
+  &__status {
+    text-align: center;
+    padding: spacing(md);
+    border-radius: border-radius(md);
+    font-weight: font-weight(medium);
+
+    &--playing {
+      background: state-color(info-light);
+      color: state-color(info);
+      border: 1px solid state-color(info);
+    }
+
+    &--finished {
+      background: state-color(success-light);
+      color: state-color(success);
+      border: 1px solid state-color(success);
+    }
+
+    &--waiting {
+      background: color(background-secondary);
+      color: color(text-secondary);
+      border: 1px solid color(border-medium);
+    }
+  }
 }

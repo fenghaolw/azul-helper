@@ -1,5 +1,5 @@
-import { BaseGameState } from './GameState.js';
-import { Move, SearchResult } from './types.js';
+import {BaseGameState} from './GameState';
+import {Move, SearchResult} from './types';
 
 interface ApiAIResponse {
   move: Move;
@@ -24,7 +24,7 @@ export class ApiAI {
     lastMoveTime?: Date;
     totalMoves?: number;
     averageSearchTime?: number;
-  } = { nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0 };
+  } = {nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0};
   private isConnected: boolean = false;
 
   constructor(playerIndex: number, apiBaseUrl?: string) {
@@ -55,8 +55,8 @@ export class ApiAI {
 
         // Race between fetch and timeout
         const response = await Promise.race([
-          fetch(`${testUrl}/health`, { method: 'GET' }),
-          timeoutPromise
+          fetch(`${testUrl}/health`, {method: 'GET'}),
+          timeoutPromise,
         ]);
 
         if (response.ok) {
@@ -93,7 +93,10 @@ export class ApiAI {
       if (response.ok) {
         const data = await response.json();
         this.isConnected = data.status === 'healthy';
-        console.log('C++ AI connection status:', this.isConnected ? 'connected' : 'disconnected');
+        console.log(
+          'C++ AI connection status:',
+          this.isConnected ? 'connected' : 'disconnected'
+        );
       } else {
         this.isConnected = false;
         console.warn('C++ AI server not responding');
@@ -120,7 +123,9 @@ export class ApiAI {
         }
 
         if (!this.isConnected) {
-          throw new Error('C++ AI server is not available. Please start the API server with: python start.py');
+          throw new Error(
+            'C++ AI server is not available. Please start the API server with: python start.py'
+          );
         }
       }
     }
@@ -138,34 +143,38 @@ export class ApiAI {
         searchTime: 0.001, // Very fast since no search needed
         lastMoveTime: new Date(),
         totalMoves: previousTotalMoves + 1,
-        averageSearchTime: this.lastStats.averageSearchTime || 0 // Keep existing average
+        averageSearchTime: this.lastStats.averageSearchTime || 0, // Keep existing average
       };
 
       return {
         move: gameState.availableMoves[0],
         value: 0,
         depth: 1,
-        nodesEvaluated: 1
+        nodesEvaluated: 1,
       };
     }
 
     try {
       const requestBody = {
-        gameState: this.convertGameStateForAPI(gameState)
+        gameState: this.convertGameStateForAPI(gameState),
       };
 
-      console.log(`AI Player ${this.playerIndex + 1} requesting move from C++ agent...`);
+      console.log(
+        `AI Player ${this.playerIndex + 1} requesting move from C++ agent...`
+      );
 
       const response = await fetch(`${this.apiBaseUrl}/agent/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `API request failed: ${response.status} ${response.statusText}`
+        );
       }
 
       const data: ApiAIResponse = await response.json();
@@ -178,7 +187,9 @@ export class ApiAI {
       const previousTotalMoves = this.lastStats.totalMoves || 0;
       const previousAverage = this.lastStats.averageSearchTime || 0;
       const newTotalMoves = previousTotalMoves + 1;
-      const newAverage = (previousAverage * previousTotalMoves + data.stats.searchTime) / newTotalMoves;
+      const newAverage =
+        (previousAverage * previousTotalMoves + data.stats.searchTime) /
+        newTotalMoves;
 
       this.lastStats = {
         nodesEvaluated: data.stats.nodesEvaluated,
@@ -187,12 +198,16 @@ export class ApiAI {
         searchTime: data.stats.searchTime,
         lastMoveTime: new Date(),
         totalMoves: newTotalMoves,
-        averageSearchTime: newAverage
+        averageSearchTime: newAverage,
       };
 
       // Log decision
-      console.log(`AI Player ${this.playerIndex + 1} decision (${data.stats.agent_type}):`);
-      console.log(`  Selected move: Factory ${data.move.factoryIndex}, Tile ${data.move.tile}, Line ${data.move.lineIndex + 1}`);
+      console.log(
+        `AI Player ${this.playerIndex + 1} decision (${data.stats.agent_type}):`
+      );
+      console.log(
+        `  Selected move: Factory ${data.move.factoryIndex}, Tile ${data.move.tile}, Line ${data.move.lineIndex + 1}`
+      );
       console.log(`  Search time: ${data.stats.searchTime.toFixed(3)}s`);
       console.log(`  Nodes evaluated: ${data.stats.nodesEvaluated}`);
 
@@ -200,9 +215,8 @@ export class ApiAI {
         move: data.move,
         value: 0, // C++ AI doesn't return evaluation value in same format
         depth: 0, // MCTS doesn't use traditional depth
-        nodesEvaluated: data.stats.nodesEvaluated
+        nodesEvaluated: data.stats.nodesEvaluated,
       };
-
     } catch (error) {
       console.error('C++ AI error:', error);
       // Fallback to simple move selection and update stats
@@ -216,7 +230,7 @@ export class ApiAI {
         searchTime: 0.01, // Assume 10ms for simple heuristic
         lastMoveTime: new Date(),
         totalMoves: previousTotalMoves + 1,
-        averageSearchTime: this.lastStats.averageSearchTime || 0 // Keep existing average
+        averageSearchTime: this.lastStats.averageSearchTime || 0, // Keep existing average
       };
 
       return result;
@@ -234,12 +248,12 @@ export class ApiAI {
         score: board.score,
         wall: board.wall,
         lines: board.lines,
-        floor: board.floor
+        floor: board.floor,
       })),
       factories: gameState.factories,
       center: gameState.center,
       firstPlayerIndex: gameState.firstPlayerIndex,
-      availableMoves: gameState.availableMoves
+      availableMoves: gameState.availableMoves,
     };
   }
 
@@ -257,8 +271,12 @@ export class ApiAI {
       let score = 0;
 
       // Prefer moves to pattern lines that are close to completion
-      if (move.lineIndex >= 0 && move.lineIndex < gameState.playerBoards[this.playerIndex].lines.length) {
-        const line = gameState.playerBoards[this.playerIndex].lines[move.lineIndex];
+      if (
+        move.lineIndex >= 0 &&
+        move.lineIndex < gameState.playerBoards[this.playerIndex].lines.length
+      ) {
+        const line =
+          gameState.playerBoards[this.playerIndex].lines[move.lineIndex];
         const lineCapacity = move.lineIndex + 1;
         const currentCount = line.filter(tile => tile !== null).length;
         const tilesNeeded = lineCapacity - currentCount;
@@ -284,7 +302,7 @@ export class ApiAI {
       move: bestMove,
       value: bestScore,
       depth: 1,
-      nodesEvaluated: gameState.availableMoves.length
+      nodesEvaluated: gameState.availableMoves.length,
     };
   }
 
@@ -301,7 +319,7 @@ export class ApiAI {
   }
 
   resetStats(): void {
-    this.lastStats = { nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0 };
+    this.lastStats = {nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0};
   }
 
   isServerConnected(): boolean {

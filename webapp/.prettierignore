@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Package files
+package-lock.json
+*.tgz
+
+# Log files
+*.log
+
+# Generated files
+coverage/
+.nyc_output/
+
+# OS generated files
+.DS_Store
+Thumbs.db 
