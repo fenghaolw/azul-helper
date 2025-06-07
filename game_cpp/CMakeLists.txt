@@ -68,6 +68,21 @@ if(NOT NLOHMANN_JSON_FOUND)
     message(FATAL_ERROR "nlohmann-json not found. Install with: brew install nlohmann-json")
 endif()
 
+# Find cxxopts
+find_path(CXXOPTS_INCLUDE_DIR cxxopts.hpp
+    PATHS 
+        /opt/homebrew/include
+        /usr/local/include
+        ${CMAKE_PREFIX_PATH}/include
+    NO_DEFAULT_PATH
+)
+
+if(CXXOPTS_INCLUDE_DIR)
+    message(STATUS "Found cxxopts: ${CXXOPTS_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "cxxopts not found. Install with: brew install cxxopts")
+endif()
+
 # Find cpp-httplib
 find_path(CPP_HTTPLIB_INCLUDE_DIR httplib.h
     PATHS 
@@ -99,6 +114,9 @@ if(NLOHMANN_JSON_INCLUDE_DIR)
 else()
     include_directories(SYSTEM ${NLOHMANN_JSON_INCLUDE_DIRS})
 endif()
+
+# Add cxxopts include directory
+include_directories(SYSTEM ${CXXOPTS_INCLUDE_DIR})
 
 # Add cpp-httplib include directory
 include_directories(SYSTEM ${CPP_HTTPLIB_INCLUDE_DIR})
