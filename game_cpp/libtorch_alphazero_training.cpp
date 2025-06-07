@@ -265,7 +265,7 @@ struct LibTorchAZConfig {
   // This is crucial for performance, since a full NN inference is costly and
   // MCTS generates millions of states to be evaluated. A small cache size will
   // significantly slow down training.
-  int inference_cache = 2000000;
+  int inference_cache = 3200000;
   // replay_buffer_size/replay_buffer_reuse decides when we take a step to
   // train. Currently it takes about 15m for us to generate 10k states (200-300
   // game plays).
