@@ -1,0 +1,88 @@
+@use '../variables' as *;
+
+.center-area {
+    background: color(surface);
+    border-radius: border-radius(lg);
+    box-shadow: shadow(md);
+    padding: spacing(lg);
+
+    &__title {
+        text-align: center;
+        font-size: font-size(xl);
+        color: color(text-primary);
+        margin-bottom: spacing(md);
+
+        &::after {
+            content: "";
+            display: block;
+            width: 80px;
+            height: 2px;
+            background: color(gold);
+            margin: spacing(sm) auto 0;
+        }
+    }
+
+    &__content {
+        display: flex;
+        flex-direction: column;
+        gap: spacing(md);
+        min-height: 200px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    &__group {
+        display: flex;
+        align-items: center;
+        gap: spacing(xs);
+        padding: spacing(sm);
+        border-radius: border-radius(md);
+        background: color(background-secondary);
+        border: 1px solid color(border-light);
+        cursor: pointer;
+        transition: transition(medium);
+
+        &:hover {
+            background: color(background-tertiary);
+            border-color: color(gold);
+            transform: translateY(-2px);
+            box-shadow: shadow(md);
+        }
+
+        &--selected {
+            border-color: color(gold);
+            box-shadow: 0 0 0 2px color(gold);
+            background: color(background-tertiary);
+        }
+
+        &--empty {
+            opacity: 0.5;
+            cursor: not-allowed;
+
+            &:hover {
+                background: color(background-secondary);
+                border-color: color(border-light);
+                transform: none;
+                box-shadow: none;
+            }
+        }
+    }
+
+    &__count {
+        font-size: font-size(sm);
+        font-weight: font-weight(medium);
+        color: color(text-secondary);
+        background: color(surface);
+        padding: spacing(xs) spacing(sm);
+        border-radius: border-radius(sm);
+        min-width: 20px;
+        text-align: center;
+    }
+
+    &--empty {
+        .center-area__content {
+            color: color(text-muted);
+            font-style: italic;
+        }
+    }
+}

@@ -1,0 +1,84 @@
+@use '../variables' as *;
+
+.tile {
+    width: layout(tile-size);
+    height: layout(tile-size);
+    border-radius: border-radius(sm);
+    box-shadow: shadow(tile);
+    cursor: pointer;
+    transition: transition(fast);
+    border: 1px solid color(border-light);
+    display: inline-block;
+    position: relative;
+
+    &--red {
+        background: tile-color(red);
+    }
+
+    &--blue {
+        background: tile-color(blue);
+    }
+
+    &--yellow {
+        background: tile-color(yellow);
+    }
+
+    &--black {
+        background: tile-color(black);
+    }
+
+    &--white {
+        background: tile-color(white);
+    }
+
+    &--first-player {
+        background: tile-color(first-player);
+        border: 2px solid color(gold);
+
+        &::after {
+            content: "1";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: font-size(xs);
+            font-weight: font-weight(bold);
+            color: color(text-primary);
+        }
+    }
+
+    &--selected {
+        box-shadow: 0 0 0 2px color(gold);
+        transform: scale(1.1);
+    }
+
+    &--valid-drop {
+        box-shadow: 0 0 0 2px state-color(success);
+
+        &::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: state-color(success-light);
+            border-radius: border-radius(sm);
+        }
+    }
+
+    &:hover:not(&--selected) {
+        transform: scale(1.05);
+        box-shadow: shadow(tile-hover);
+    }
+
+    &:active {
+        transform: scale(0.95);
+    }
+
+    // Tile stacking
+    &.stacked {
+        margin-left: -spacing(sm);
+
+        &:first-child {
+            margin-left: 0;
+        }
+    }
+}

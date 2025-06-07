@@ -1,3 +1,6 @@
+export type TileColor = 'red' | 'blue' | 'yellow' | 'black' | 'white' | 'first-player';
+
+// Original Tile enum for compatibility with existing game logic
 export enum Tile {
   Red = 'red',
   Blue = 'blue',
@@ -5,6 +8,61 @@ export enum Tile {
   Black = 'black',
   White = 'white',
   FirstPlayer = 'firstPlayer'
+}
+
+// New Tile interface for Preact components
+export interface TileData {
+  color: TileColor;
+  id: string;
+}
+
+export interface Factory {
+  tiles: TileData[];
+  isEmpty: boolean;
+}
+
+export interface CenterTile {
+  color: TileColor;
+  count: number;
+}
+
+export interface PatternLine {
+  color: TileColor | null;
+  tiles: TileData[];
+  capacity: number;
+  isComplete: boolean;
+}
+
+export interface WallSlot {
+  color: TileColor;
+  isFilled: boolean;
+  isScoring?: boolean;
+}
+
+export interface Player {
+  name: string;
+  score: number;
+  patternLines: PatternLine[];
+  wall: WallSlot[][];
+  floorTiles: TileData[];
+  isReadyToScore: boolean;
+}
+
+export interface GameState {
+  factories: Factory[];
+  centerTiles: CenterTile[];
+  players: Player[];
+  currentPlayerIndex: number;
+  round: number;
+  gamePhase: 'playing' | 'scoring' | 'finished';
+}
+
+export interface GameEvents {
+  factorySelected: { factoryIndex: number; color: TileColor };
+  centerSelected: { groupIndex: number; color: TileColor };
+  patternLineSelected: { playerIndex: number; lineIndex: number; color: TileColor };
+  floorSelected: { playerIndex: number; color: TileColor };
+  gameStateUpdate: GameState;
 }
 
 export interface Move {

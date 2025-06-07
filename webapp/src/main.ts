@@ -8,7 +8,7 @@ class AzulApp {
   private renderer: GameRenderer;
   private ai: ApiAI | null = null;
   private aiEnabled: boolean = true;
-  private canvas: HTMLCanvasElement;
+  private gameContainer: HTMLElement;
   private isAIThinking: boolean = false;
 
   // UI Elements
@@ -20,10 +20,10 @@ class AzulApp {
   private lastRoundScoring!: HTMLDivElement;
 
   constructor() {
-    this.canvas = this.setupUI();
+    this.gameContainer = this.setupUI();
     this.gameState = new WebAppGameState(2);
     this.gameState.newGame();
-    this.renderer = new GameRenderer(this.canvas, this.gameState);
+    this.renderer = new GameRenderer(this.gameContainer, this.gameState);
 
     // Initialize AI by default
     this.initializeAI();
@@ -39,7 +39,7 @@ class AzulApp {
     }
   }
 
-  private setupUI(): HTMLCanvasElement {
+  private setupUI(): HTMLElement {
     // Create main container
     const container = document.createElement('div');
     container.style.cssText = `
@@ -49,12 +49,13 @@ class AzulApp {
       background: #f5f5f5;
     `;
 
-    // Create game canvas
-    const canvas = document.createElement('canvas');
-    canvas.style.cssText = `
+    // Create game container (replaces canvas)
+    const gameContainer = document.createElement('div');
+    gameContainer.style.cssText = `
       flex: 1;
       background: white;
       border-right: 1px solid #e0e0e0;
+      overflow: auto;
     `;
 
     // Create sidebar with scrolling
@@ -279,11 +280,11 @@ class AzulApp {
     sidebar.appendChild(scoringSection);
     sidebar.appendChild(statsSection);
 
-    container.appendChild(canvas);
+    container.appendChild(gameContainer);
     container.appendChild(sidebar);
     document.body.appendChild(container);
 
-    return canvas;
+    return gameContainer;
   }
 
   private createMaterialButton(text: string, color: string): HTMLButtonElement {

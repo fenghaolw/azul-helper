@@ -1,0 +1,205 @@
+@use '../variables' as *;
+
+.player-boards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: spacing(xl);
+}
+
+.player-board {
+    background: color(surface);
+    border-radius: border-radius(lg);
+    box-shadow: shadow(md);
+    padding: spacing(lg);
+    border: 2px solid color(border-light);
+    transition: transition(medium);
+
+    &--current {
+        border-color: color(gold);
+        box-shadow: 0 0 0 2px color(gold), shadow(lg);
+
+        .player-board__header {
+            background: linear-gradient(135deg, color(gold), color(primary));
+            color: color(surface);
+        }
+    }
+
+    &--ready-to-score {
+        border-color: state-color(success);
+
+        .player-board__header {
+            background: linear-gradient(135deg, state-color(success), color(primary));
+            color: color(surface);
+        }
+    }
+
+    &__header {
+        background: color(background-secondary);
+        margin: -spacing(lg) -spacing(lg) spacing(md);
+        padding: spacing(md);
+        border-radius: border-radius(lg) border-radius(lg) 0 0;
+        text-align: center;
+        font-weight: font-weight(bold);
+        color: color(text-primary);
+        transition: transition(medium);
+    }
+
+    &__content {
+        display: flex;
+        gap: spacing(md);
+    }
+
+    &__left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: spacing(sm);
+    }
+
+    &__right {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: spacing(sm);
+    }
+
+    &__pattern-lines {
+        display: flex;
+        flex-direction: column;
+        gap: spacing(xs);
+    }
+
+    &__wall {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: spacing(xs);
+        padding: spacing(sm);
+        background: color(background-secondary);
+        border-radius: border-radius(md);
+        border: 1px solid color(border-light);
+    }
+
+    &__floor {
+        margin-top: spacing(md);
+        padding: spacing(sm);
+        background: color(background-secondary);
+        border-radius: border-radius(md);
+        border: 1px solid color(border-light);
+
+        &-title {
+            font-size: font-size(sm);
+            font-weight: font-weight(medium);
+            color: color(text-secondary);
+            margin-bottom: spacing(xs);
+        }
+
+        &-content {
+            display: flex;
+            gap: spacing(xs);
+            flex-wrap: wrap;
+            min-height: layout(tile-size);
+            align-items: center;
+        }
+    }
+
+    &__score {
+        text-align: center;
+        font-size: font-size(lg);
+        font-weight: font-weight(bold);
+        color: color(text-primary);
+        margin-top: spacing(sm);
+        padding: spacing(sm);
+        background: color(background-secondary);
+        border-radius: border-radius(md);
+        border: 1px solid color(border-light);
+    }
+}
+
+.pattern-line {
+    display: flex;
+    align-items: center;
+    gap: spacing(xs);
+    padding: spacing(xs);
+    border-radius: border-radius(md);
+    border: 1px solid color(border-light);
+    background: color(background-secondary);
+    transition: transition(medium);
+
+    &--valid-drop {
+        border-color: state-color(success);
+        background: state-color(success-light);
+
+        &:hover {
+            background: state-color(success-medium);
+        }
+    }
+
+    &--complete {
+        border-color: color(gold);
+        background: rgba(212, 175, 55, 0.1);
+    }
+
+    &__slots {
+        flex: 1;
+        display: flex;
+        gap: spacing(xs);
+        align-items: center;
+    }
+
+    &__slot {
+        width: layout(tile-size);
+        height: layout(tile-size);
+        border: 1px dashed color(border-medium);
+        border-radius: border-radius(sm);
+        background: color(surface);
+        transition: transition(fast);
+
+        &--filled {
+            border-style: solid;
+            border-color: color(border-dark);
+        }
+
+        &--valid-drop {
+            border-color: state-color(success);
+            background: state-color(success-light);
+        }
+    }
+
+    &__arrow {
+        color: color(text-muted);
+        font-size: font-size(lg);
+        margin: 0 spacing(xs);
+    }
+}
+
+.wall-slot {
+    width: layout(tile-size);
+    height: layout(tile-size);
+    border: 1px solid color(border-light);
+    border-radius: border-radius(sm);
+    background: color(surface);
+    position: relative;
+    transition: transition(fast);
+
+    &--filled {
+        border-color: color(border-dark);
+    }
+
+    &--scoring {
+        animation: scoring-pulse 1s ease-in-out;
+    }
+}
+
+@keyframes scoring-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: shadow(tile);
+    }
+
+    50% {
+        transform: scale(1.1);
+        box-shadow: shadow(tile-hover);
+    }
+}
