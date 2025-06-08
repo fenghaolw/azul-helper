@@ -1,10 +1,13 @@
 #include <atomic>
 #include <chrono>
+#include <cxxopts.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -15,6 +18,8 @@
 #include "open_spiel/algorithms/alpha_zero_torch/alpha_zero.h"
 #include "open_spiel/spiel.h"
 #include "open_spiel/utils/thread.h"
+
+using json = nlohmann::json;
 
 namespace azul {
 
@@ -269,9 +274,9 @@ struct LibTorchAZConfig {
   // replay_buffer_size/replay_buffer_reuse decides when we take a step to
   // train. Currently it takes about 15m for us to generate 10k states (200-300
   // game plays).
-  int replay_buffer_size = 100000;
-  int replay_buffer_reuse = 10;
-  int checkpoint_freq = 100;
+  int replay_buffer_size = 1000000;
+  int replay_buffer_reuse = 100;
+  int checkpoint_freq = 10;
   int evaluation_window = 100;
 
   // MCTS parameters
@@ -279,7 +284,7 @@ struct LibTorchAZConfig {
   double policy_alpha = 0.3;
   double policy_epsilon = 0.25;
   double temperature = 1.0;
-  double temperature_drop = 20.0;
+  double temperature_drop = 30.0;
   double cutoff_probability = 0.0;
   double cutoff_value = 0.0;
 
@@ -289,10 +294,67 @@ struct LibTorchAZConfig {
   // Output settings
   std::string checkpoint_dir = "models/libtorch_alphazero_azul";
   std::string device = "cpu";  // "cpu", "cuda", "mps"
-  bool explicit_learning = true;
+  bool explicit_learning = false;
   bool resume_from_checkpoint =
       false;  // Whether to resume from existing checkpoint
 };
+
+void from_json(const json& j, LibTorchAZConfig& config) {
+  config.game_name = j.value("game_name", "azul");
+  config.max_steps = j.value("max_steps", 1000);
+  config.actors = j.value("actors", 4);
+  config.evaluators = j.value("evaluators", 1);
+  config.max_simulations = j.value("max_simulations", 400);
+  config.nn_model = j.value("nn_model", "resnet");
+  config.nn_width = j.value("nn_width", 128);
+  config.nn_depth = j.value("nn_depth", 6);
+  config.learning_rate = j.value("learning_rate", 0.001);
+  config.weight_decay = j.value("weight_decay", 1e-4);
+  config.train_batch_size = j.value("train_batch_size", 256);
+  config.inference_batch_size = j.value("inference_batch_size", 4);
+  config.inference_threads = j.value("inference_threads", 1);
+  config.inference_cache = j.value("inference_cache", 3200000);
+  config.replay_buffer_size = j.value("replay_buffer_size", 1000000);
+  config.replay_buffer_reuse = j.value("replay_buffer_reuse", 100);
+  config.checkpoint_freq = j.value("checkpoint_freq", 10);
+  config.evaluation_window = j.value("evaluation_window", 100);
+  config.uct_c = j.value("uct_c", 1.4);
+  config.policy_alpha = j.value("policy_alpha", 0.3);
+  config.policy_epsilon = j.value("policy_epsilon", 0.25);
+  config.temperature = j.value("temperature", 1.0);
+  config.temperature_drop = j.value("temperature_drop", 30.0);
+  config.cutoff_probability = j.value("cutoff_probability", 0.0);
+  config.cutoff_value = j.value("cutoff_value", 0.0);
+  config.eval_levels = j.value("eval_levels", 3);
+  config.checkpoint_dir =
+      j.value("checkpoint_dir", "models/libtorch_alphazero_azul");
+  config.device = j.value("device", "cpu");
+  // Infer explicit_learning based on multiple devices
+  config.explicit_learning = config.device.find(',') != std::string::npos;
+  config.resume_from_checkpoint = j.value("resume_from_checkpoint", false);
+}
+
+/**
+ * Load configuration from JSON file
+ */
+auto LoadConfigFromJson(const std::string& config_file) -> LibTorchAZConfig {
+  try {
+    std::ifstream file(config_file);
+    if (!file.is_open()) {
+      throw std::runtime_error("Could not open config file: " + config_file);
+    }
+
+    json j;
+    file >> j;
+    LibTorchAZConfig config;
+    from_json(j, config);
+    return config;
+
+  } catch (const std::exception& e) {
+    throw std::runtime_error("Error loading config file: " +
+                             std::string(e.what()));
+  }
+}
 
 /**
  * LibTorch AlphaZero Trainer - uses pure C++ implementation
@@ -437,109 +499,113 @@ class LibTorchAZTrainer {
   ThroughputMonitor throughput_monitor_;
 };
 
-}  // namespace azul
-
 /**
- * Command line argument parsing
+ * Command line argument parsing using cxxopts
  */
-void PrintUsage(const char* program_name) {
-  std::cout << "LibTorch AlphaZero Training for Azul" << '\n';
-  std::cout << '\n';
-  std::cout << "Usage: " << program_name << " [options]" << '\n';
-  std::cout << '\n';
-  std::cout << "Options:" << '\n';
-  std::cout << "  --steps=N           Training steps (default: 1000)" << '\n';
-  std::cout << "  --actors=N          Actor threads (default: 2)" << '\n';
-  std::cout << "  --evaluators=N      Evaluator threads (default: 1)" << '\n';
-  std::cout << "  --simulations=N     MCTS simulations per move (default: 400)"
-            << '\n';
-  std::cout
-      << "  --model=TYPE        NN model: mlp|conv2d|resnet (default: resnet)"
-      << '\n';
-  std::cout << "  --width=N           NN width (default: 128)" << '\n';
-  std::cout << "  --depth=N           NN depth (default: 6)" << '\n';
-  std::cout << "  --lr=F              Learning rate (default: 0.001)" << '\n';
-  std::cout << "  --batch=N           Batch size (default: 32)" << '\n';
-  std::cout << "  --device=TYPE       Device: cpu|cuda|mps (default: cpu)"
-            << '\n';
-  std::cout << "  --dir=PATH          Checkpoint directory (default: "
-               "models/libtorch_alphazero_azul)"
-            << '\n';
-  std::cout << "  --no-explicit-learning  Disable explicit learning (default: "
-               "enabled)"
-            << '\n';
-  std::cout
-      << "  --resume              Resume from existing checkpoint (default: "
-         "not resuming)"
-      << '\n';
-  std::cout << "  --help              Show this help" << '\n';
-  std::cout << '\n';
-  std::cout << "Examples:" << '\n';
-  std::cout << "  " << program_name
-            << "                    # Quick training with defaults" << '\n';
-  std::cout << "  " << program_name
-            << " --steps=5000 --actors=4  # Longer training" << '\n';
-  std::cout << "  " << program_name
-            << " --device=mps        # Use Apple Silicon GPU" << '\n';
-  std::cout << "  " << program_name
-            << " --resume            # Resume from existing checkpoint" << '\n';
-  std::cout << "  " << program_name
-            << " --resume --steps=2000 # Resume and train for more steps"
-            << '\n';
-}
+auto ParseArguments(int argc, char** argv) -> LibTorchAZConfig {
+  LibTorchAZConfig config;
+  std::string config_file;
 
-auto ParseArguments(int argc, char** argv) -> azul::LibTorchAZConfig {
-  azul::LibTorchAZConfig config;
+  try {
+    cxxopts::Options options("libtorch_alphazero_training",
+                             "LibTorch AlphaZero Training for Azul");
 
-  for (int i = 1; i < argc; ++i) {
-    std::string arg = argv[i];
+    options.add_options()("c,config",
+                          "Load configuration from JSON file (mutually "
+                          "exclusive with other options)",
+                          cxxopts::value<std::string>())(
+        "s,steps", "Training steps",
+        cxxopts::value<int>()->default_value("1000"))(
+        "a,actors", "Actor threads", cxxopts::value<int>()->default_value("4"))(
+        "e,evaluators", "Evaluator threads",
+        cxxopts::value<int>()->default_value("1"))(
+        "simulations", "MCTS simulations per move",
+        cxxopts::value<int>()->default_value("400"))(
+        "m,model", "NN model: mlp|conv2d|resnet",
+        cxxopts::value<std::string>()->default_value("resnet"))(
+        "w,width", "NN width", cxxopts::value<int>()->default_value("128"))(
+        "d,depth", "NN depth", cxxopts::value<int>()->default_value("6"))(
+        "lr", "Learning rate",
+        cxxopts::value<double>()->default_value("0.001"))(
+        "b,batch", "Batch size", cxxopts::value<int>()->default_value("256"))(
+        "device", "Device: cpu|cuda|mps (comma-separated for multiple devices)",
+        cxxopts::value<std::string>()->default_value("cpu"))(
+        "dir", "Checkpoint directory",
+        cxxopts::value<std::string>()->default_value(
+            "models/libtorch_alphazero_azul"))(
+        "resume", "Resume from existing checkpoint")("h,help", "Show help");
 
-    if (arg == "--help") {
-      PrintUsage(argv[0]);
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") != 0U) {
+      std::cout << options.help() << '\n';
       exit(0);
-    } else if (arg.substr(0, 8) == "--steps=") {
-      config.max_steps = std::stoi(arg.substr(8));
-    } else if (arg.substr(0, 9) == "--actors=") {
-      config.actors = std::stoi(arg.substr(9));
-    } else if (arg.substr(0, 13) == "--evaluators=") {
-      config.evaluators = std::stoi(arg.substr(13));
-    } else if (arg.substr(0, 23) == "--inference-batch-size=") {
-      config.inference_batch_size = std::stoi(arg.substr(23));
-    } else if (arg.substr(0, 20) == "--inference-threads=") {
-      config.inference_threads = std::stoi(arg.substr(20));
-    } else if (arg.substr(0, 14) == "--simulations=") {
-      config.max_simulations = std::stoi(arg.substr(14));
-    } else if (arg.substr(0, 8) == "--model=") {
-      config.nn_model = arg.substr(8);
-    } else if (arg.substr(0, 8) == "--width=") {
-      config.nn_width = std::stoi(arg.substr(8));
-    } else if (arg.substr(0, 8) == "--depth=") {
-      config.nn_depth = std::stoi(arg.substr(8));
-    } else if (arg.substr(0, 5) == "--lr=") {
-      config.learning_rate = std::stod(arg.substr(5));
-    } else if (arg.substr(0, 8) == "--batch=") {
-      config.train_batch_size = std::stoi(arg.substr(8));
-    } else if (arg.substr(0, 9) == "--device=") {
-      config.device = arg.substr(9);
-    } else if (arg.substr(0, 6) == "--dir=") {
-      config.checkpoint_dir = arg.substr(6);
-    } else if (arg == "--no-explicit-learning") {
-      config.explicit_learning = false;
-    } else if (arg == "--resume") {
-      config.resume_from_checkpoint = true;
-    } else {
-      std::cerr << "Unknown option: " << arg << '\n';
-      PrintUsage(argv[0]);
+    }
+
+    // Check if config file is specified
+    bool has_config = result.count("config") != 0U;
+
+    // Check if any other options are specified
+    bool has_other_options =
+        result.count("steps") != 0U || result.count("actors") != 0U ||
+        result.count("evaluators") != 0U || result.count("simulations") != 0U ||
+        result.count("model") != 0U || result.count("width") != 0U ||
+        result.count("depth") != 0U || result.count("lr") != 0U ||
+        result.count("batch") != 0U || result.count("device") != 0U ||
+        result.count("dir") != 0U || result.count("resume") != 0U;
+
+    // If both config and other options are specified, show error
+    if (has_config && has_other_options) {
+      std::cerr << "Error: --config option cannot be used with other "
+                   "command-line options.\n"
+                << "Either use a config file or specify individual options, "
+                   "but not both.\n";
       exit(1);
     }
+
+    if (has_config) {
+      // Load from config file
+      config_file = result["config"].as<std::string>();
+      try {
+        config = LoadConfigFromJson(config_file);
+      } catch (const std::exception& e) {
+        std::cerr << "Error loading config file: " << e.what() << '\n';
+        exit(1);
+      }
+    } else {
+      // Use command line arguments
+      config.max_steps = result["steps"].as<int>();
+      config.actors = result["actors"].as<int>();
+      config.evaluators = result["evaluators"].as<int>();
+      config.max_simulations = result["simulations"].as<int>();
+      config.nn_model = result["model"].as<std::string>();
+      config.nn_width = result["width"].as<int>();
+      config.nn_depth = result["depth"].as<int>();
+      config.learning_rate = result["lr"].as<double>();
+      config.train_batch_size = result["batch"].as<int>();
+      config.device = result["device"].as<std::string>();
+      // Infer explicit_learning based on multiple devices
+      config.explicit_learning = config.device.find(',') != std::string::npos;
+      config.checkpoint_dir = result["dir"].as<std::string>();
+
+      if (result.count("resume") != 0U) {
+        config.resume_from_checkpoint = true;
+      }
+    }
+
+  } catch (const cxxopts::exceptions::exception& e) {
+    std::cerr << "Error parsing options: " << e.what() << '\n';
+    exit(1);
   }
 
   return config;
 }
 
-int main(int argc, char** argv) {
+}  // namespace azul
+
+auto main(int argc, char** argv) -> int {
   try {
-    auto config = ParseArguments(argc, argv);
+    auto config = azul::ParseArguments(argc, argv);
     azul::LibTorchAZTrainer trainer(config);
     trainer.Train();
     return 0;
