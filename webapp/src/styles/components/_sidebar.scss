@@ -1,0 +1,25 @@
+@use "../variables" as *;
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(lg);
+  height: 100vh;
+  overflow: hidden;
+  padding: spacing(md);
+  background: color(surface);
+  border-radius: border-radius(lg);
+  box-shadow: shadow(sm);
+
+  &__header {
+    flex-shrink: 0;
+  }
+
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: spacing(md);
+  }
+}

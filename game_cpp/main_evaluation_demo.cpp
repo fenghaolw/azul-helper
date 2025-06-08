@@ -121,10 +121,10 @@ void detailed_game_evaluation(
     move["player"] = current_player;
     move["agent"] = agent_name;
     move["action"] = action_str;
-    move["state_before"] = state_to_json(state.get());
+    state->ApplyAction(action);
+    move["state_after"] = state_to_json(state.get());
     game_replay["moves"].push_back(move);
 
-    state->ApplyAction(action);
     std::cout << "\nGame state after move:\n" << state->ToString() << '\n';
   }
 

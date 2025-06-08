@@ -60,8 +60,7 @@ export function Factories({
                     e?.stopPropagation();
                     handleFactoryClick(index, tile.color);
                   }}
-                  className="factory__tile"
-                  style={getTilePosition(index, tileIndex)}
+                  className={`factory__tile factory__tile--${index}-${tileIndex}`}
                 />
               ))}
             </div>

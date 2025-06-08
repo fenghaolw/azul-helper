@@ -196,12 +196,12 @@ export class GameRenderer {
         }));
 
         return {
-          name: `Player ${index + 1}`,
+          name: board.name,
           score: board.score,
           patternLines,
           wall,
           floorTiles,
-          isReadyToScore: false, // Simplified for now
+          isReadyToScore: false,
         };
       },
     );

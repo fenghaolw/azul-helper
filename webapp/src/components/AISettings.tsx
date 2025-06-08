@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { Sidebar } from "./Sidebar";
 
 interface AISettingsProps {
   aiEnabled: boolean;
@@ -107,135 +108,141 @@ export function AISettings({
   };
 
   return (
-    <div className="ai-settings">
-      <div className="ai-settings__header">
-        <h2>Game Controls</h2>
-        <div className="ai-settings__round">Round {round}</div>
-      </div>
-
-      <div className="ai-settings__controls">
-        <button
-          className="ai-settings__button ai-settings__button--primary"
-          onClick={onNewGame}
-        >
-          New Game
-        </button>
-
-        <button
-          className={`ai-settings__button ${
-            aiEnabled
-              ? "ai-settings__button--danger"
-              : "ai-settings__button--success"
-          }`}
-          onClick={onToggleAI}
-        >
-          {aiEnabled ? "Disable AI" : "Enable AI"}
-        </button>
-
-        {onSwitchToReplay && (
-          <button
-            className="ai-settings__button ai-settings__button--secondary"
-            onClick={onSwitchToReplay}
-          >
-            Load Replay
+    <Sidebar title="Game Controls" subtitle={`Round ${round}`}>
+      <div className="ai-settings">
+        <div className="ai-settings__controls">
+          <button className="button button--primary" onClick={onNewGame}>
+            New Game
           </button>
-        )}
-      </div>
 
-      <div className="ai-settings__status">
-        <h3>AI Status</h3>
+          <button
+            className={`button ${aiEnabled ? "button--danger" : "button--success"}`}
+            onClick={onToggleAI}
+          >
+            {aiEnabled ? "Disable AI" : "Enable AI"}
+          </button>
 
-        {!aiEnabled ? (
-          <div className="ai-settings__disabled">
-            🤖 AI is disabled - Human vs Human mode
-          </div>
-        ) : (
-          <div className="ai-settings__enabled">
-            <div
-              className={`ai-settings__connection ${isConnected ? "connected" : "disconnected"}`}
+          {onSwitchToReplay && (
+            <button
+              className="button button--primary"
+              onClick={onSwitchToReplay}
             >
-              <strong>Status:</strong>{" "}
-              {isConnected ? "🚀 Connected" : "❌ Disconnected"}
+              Load Replay
+            </button>
+          )}
+        </div>
+
+        <div className="ai-settings__section">
+          <div className="section-header">
+            <div className="section-header__accent section-header__accent--purple"></div>
+            <h3 className="section-header__title">AI Status</h3>
+          </div>
+
+          {!aiEnabled ? (
+            <div className="ai-settings__status-text">
+              🤖 AI is disabled - Human vs Human mode
             </div>
-
-            {isConnected && (
-              <div className="ai-settings__agent">
-                <strong>AI Agent:</strong> 🤖{" "}
-                {serverInfo?.agentName ||
-                  serverInfo?.agentType ||
-                  "Unknown Agent"}
+          ) : (
+            <div className="ai-settings__status">
+              <div
+                className={`ai-settings__status-indicator ${isConnected ? "ai-settings__status-indicator--connected" : "ai-settings__status-indicator--disconnected"}`}
+              >
+                <strong>Status:</strong>{" "}
+                {isConnected ? "🚀 Connected" : "❌ Disconnected"}
               </div>
-            )}
 
-            {isConnected && (
-              <div className="ai-settings__server">
-                <strong>Server:</strong> localhost:5000
-              </div>
-            )}
+              {isConnected && (
+                <div className="ai-settings__info">
+                  <strong>AI Agent:</strong> 🤖{" "}
+                  {serverInfo?.agentName ||
+                    serverInfo?.agentType ||
+                    "Unknown Agent"}
+                </div>
+              )}
 
-            {!isConnected && (
-              <div className="ai-settings__help">
-                💡 Try: python start.py --server-only
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+              {isConnected && (
+                <div className="ai-settings__info">
+                  <strong>Server:</strong> localhost:5000
+                </div>
+              )}
 
-      {aiEnabled && aiStats && isConnected && (
-        <div className="ai-settings__stats">
-          <h3>📊 Performance Statistics</h3>
-
-          <div className="ai-settings__stat">
-            <strong>Last Search:</strong>{" "}
-            {aiStats.nodesEvaluated.toLocaleString()} nodes
-          </div>
-
-          <div className="ai-settings__stat">
-            <strong>Last Time:</strong> {formatTime(aiStats.searchTime)}
-          </div>
-
-          <div className="ai-settings__stat">
-            <strong>Avg Time:</strong> {formatTime(aiStats.averageSearchTime)}
-          </div>
-
-          <div className="ai-settings__stat">
-            <strong>Moves Made:</strong> {aiStats.totalMoves}
-          </div>
-
-          {aiStats.lastMoveTime && (
-            <div className="ai-settings__stat">
-              <strong>Last Move:</strong>{" "}
-              {Math.floor((Date.now() - aiStats.lastMoveTime.getTime()) / 1000)}
-              s ago
+              {!isConnected && (
+                <div className="ai-settings__info">
+                  💡 Try: python start.py --server-only
+                </div>
+              )}
             </div>
           )}
+        </div>
 
-          {(() => {
-            const perf = getPerformanceIndicator(aiStats.averageSearchTime);
-            return (
-              <div
-                className="ai-settings__performance"
-                style={{ color: perf.color }}
-              >
-                {perf.icon} <strong>Speed:</strong> {perf.text}
+        {aiEnabled && aiStats && isConnected && (
+          <div className="ai-settings__section">
+            <div className="section-header">
+              <div className="section-header__accent section-header__accent--green"></div>
+              <h3 className="section-header__title">Performance Statistics</h3>
+            </div>
+
+            <div className="ai-settings__stats">
+              <div className="ai-settings__stat">
+                <strong>Last Search:</strong>{" "}
+                {aiStats.nodesEvaluated.toLocaleString()} nodes
               </div>
-            );
-          })()}
-        </div>
-      )}
 
-      {aiEnabled && isConnected && (
-        <div className="ai-settings__config">
-          <h3>⚙️ Configuration</h3>
-          <div className="ai-settings__config-note">
-            💡 AI difficulty controlled by server configuration
+              <div className="ai-settings__stat">
+                <strong>Last Time:</strong> {formatTime(aiStats.searchTime)}
+              </div>
+
+              <div className="ai-settings__stat">
+                <strong>Avg Time:</strong>{" "}
+                {formatTime(aiStats.averageSearchTime)}
+              </div>
+
+              <div className="ai-settings__stat">
+                <strong>Moves Made:</strong> {aiStats.totalMoves}
+              </div>
+
+              {aiStats.lastMoveTime && (
+                <div className="ai-settings__stat">
+                  <strong>Last Move:</strong>{" "}
+                  {Math.floor(
+                    (Date.now() - aiStats.lastMoveTime.getTime()) / 1000,
+                  )}
+                  s ago
+                </div>
+              )}
+
+              {(() => {
+                const perf = getPerformanceIndicator(aiStats.averageSearchTime);
+                return (
+                  <div
+                    className="ai-settings__stat ai-settings__stat--performance"
+                    style={{ color: perf.color }}
+                  >
+                    {perf.icon} <strong>Speed:</strong> {perf.text}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
-          <div className="ai-settings__config-note">
-            🔧 Restart server with different flags to change settings
+        )}
+
+        {aiEnabled && isConnected && (
+          <div className="ai-settings__section">
+            <div className="section-header">
+              <div className="section-header__accent section-header__accent--orange"></div>
+              <h3 className="section-header__title">Configuration</h3>
+            </div>
+            <div className="ai-settings__config">
+              <div className="ai-settings__config-item">
+                💡 AI difficulty controlled by server configuration
+              </div>
+              <div className="ai-settings__config-item">
+                🔧 Restart server with different flags to change settings
+              </div>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Sidebar>
   );
 }

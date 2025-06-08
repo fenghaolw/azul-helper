@@ -42,6 +42,7 @@ export function Tile({
     `tile--${color}`,
     isSelected && "tile--selected",
     isValidDrop && "tile--valid-drop",
+    onClick && "tile--clickable",
     className,
   ]
     .filter(Boolean)

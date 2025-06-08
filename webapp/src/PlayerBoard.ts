@@ -32,9 +32,11 @@ export class PlayerBoard {
   lines: Array<Array<Tile>> = [[], [], [], [], []];
   floor: Array<Tile> = [];
   score: number = 0;
+  name: string = "Player"; // Default name
   private finalScoringApplied: boolean = false;
 
-  constructor() {
+  constructor(name: string = "Player") {
+    this.name = name;
     // Initialize wall with nulls and lines with empty arrays
     for (let i = 0; i < 5; i++) {
       this.wall[i] = Array(5).fill(null); // Wall spots are initially empty (null)
@@ -492,7 +494,7 @@ export class PlayerBoard {
 
   // Create a deep copy of the player board
   clone(): PlayerBoard {
-    const cloned = new PlayerBoard();
+    const cloned = new PlayerBoard(this.name);
     cloned.score = this.score;
     cloned.finalScoringApplied = this.finalScoringApplied;
 
