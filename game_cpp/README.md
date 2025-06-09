@@ -31,36 +31,7 @@ This project uses a **local forked Azul game** approach rather than depending on
 
 ### Setup Instructions
 
-1. **Build OpenSpiel as shared library**:
-   ```bash
-   cd /path/to/open_spiel
-   rm -rf build && mkdir build && cd build
-   BUILD_SHARED_LIB=ON CXX=clang++ cmake -DPython3_EXECUTABLE=$(which python3) -DCMAKE_CXX_COMPILER=${CXX} ../open_spiel
-   make -j$(nproc) open_spiel
-   ```
-
-2. **Copy the shared library**:
-   ```bash
-   cp libopen_spiel.dylib /path/to/azul-helper/game_cpp/
-   ```
-
-3. **Build the project**:
-   ```bash
-   cd game_cpp
-   mkdir -p build && cd build
-   cmake ..
-   make
-   ```
-
-4. **Test the integration**:
-   ```bash
-   ./azul_evaluation_demo    # Run agent evaluation and tournament
-   ./azul_profiling_demo     # Profile agent performance (use --help for options)
-   ```
-
-### LibTorch AlphaZero Setup (Optional)
-
-To use LibTorch AlphaZero training instead of Python-based training, complete these additional steps **before building**:
+To use LibTorch AlphaZero training, complete these additional steps **before building**:
 
 #### Prerequisites for LibTorch Support
 
@@ -101,6 +72,25 @@ To use LibTorch AlphaZero training instead of Python-based training, complete th
    rm -rf build && mkdir build && cd build
    BUILD_SHARED_LIB=ON CXX=clang++ cmake -DPython3_EXECUTABLE=$(which python3) -DCMAKE_CXX_COMPILER=${CXX} ../open_spiel
    make -j$(nproc) open_spiel
+   ```
+
+7. **Copy the shared library**:
+   ```bash
+   cp libopen_spiel.dylib /path/to/azul-helper/game_cpp/
+   ```
+
+8. **Build the project**:
+   ```bash
+   cd game_cpp
+   mkdir -p build && cd build
+   cmake ..
+   make
+   ```
+
+9. **Test the integration**:
+   ```bash
+   ./azul_evaluation_demo    # Run agent evaluation and tournament
+   ./azul_profiling_demo     # Profile agent performance (use --help for options)
    ```
 
 #### Using LibTorch AlphaZero

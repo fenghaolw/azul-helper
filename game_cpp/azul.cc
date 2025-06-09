@@ -783,100 +783,21 @@ auto AzulState::Returns() const -> std::vector<double> {
     return std::vector<double>(num_players_, 0.0);
   }
 
-  std::vector<double> returns(num_players_);
-  std::vector<int> scores(num_players_);
-  std::vector<int> completed_rows(num_players_);
-  int max_score = -1000;
+  // For 2-player games, simply use tanh of score difference
+  SPIEL_CHECK_EQ(num_players_, 2);
 
-  // Calculate all scores and completed rows, find maximum score
-  for (int player = 0; player < num_players_; ++player) {
-    scores[player] = CalculateScore(player);
-    max_score = std::max(max_score, scores[player]);
+  std::vector<double> returns(2);
+  int score0 = CalculateScore(0);
+  int score1 = CalculateScore(1);
 
-    // Count completed horizontal lines (rows)
-    completed_rows[player] = 0;
-    const PlayerBoard& board = player_boards_[player];
-    for (int row = 0; row < kWallSize; ++row) {
-      bool complete = true;
-      for (int col = 0; col < kWallSize; ++col) {
-        if (!board.wall[row][col]) {
-          complete = false;
-          break;
-        }
-      }
-      if (complete) {
-        completed_rows[player]++;
-      }
-    }
-  }
+  // Calculate score difference and apply tanh
+  const double scaling_factor = 40.0;  // Controls reward sensitivity
+  double score_diff = score0 - score1;
+  double reward = std::tanh(score_diff / scaling_factor);
 
-  // Find players with max score
-  std::vector<int> score_tied_players;
-  for (int player = 0; player < num_players_; ++player) {
-    if (scores[player] == max_score) {
-      score_tied_players.push_back(player);
-    }
-  }
-
-  // Apply tiebreaker: among score-tied players, find max completed rows
-  int max_completed_rows = -1;
-  for (int player : score_tied_players) {
-    max_completed_rows = std::max(max_completed_rows, completed_rows[player]);
-  }
-
-  // Final winners: max score AND max completed rows among score-tied players
-  std::vector<int> final_winners;
-  for (int player : score_tied_players) {
-    if (completed_rows[player] == max_completed_rows) {
-      final_winners.push_back(player);
-    }
-  }
-
-  // Calculate average opponent score for each player
-  std::vector<double> avg_opponent_scores(num_players_, 0.0);
-  for (int player = 0; player < num_players_; ++player) {
-    double total_opponent_score = 0.0;
-    int num_opponents = 0;
-    for (int other = 0; other < num_players_; ++other) {
-      if (other != player) {
-        total_opponent_score += scores[other];
-        num_opponents++;
-      }
-    }
-    avg_opponent_scores[player] = total_opponent_score / num_opponents;
-  }
-
-  // Calculate normalized score differentials using tanh
-  const double scaling_factor =
-      40.0;  // Adjust this value to control reward sensitivity
-  double total_reward = 0.0;
-
-  for (int player = 0; player < num_players_; ++player) {
-    double score_diff = scores[player] - avg_opponent_scores[player];
-    double base_reward = std::tanh(score_diff / scaling_factor);
-
-    // Apply tiebreaker bonus/penalty
-    double tiebreaker_bonus = 0.0;
-    if (scores[player] == max_score) {
-      // Player has max score
-      if (completed_rows[player] == max_completed_rows) {
-        // Player is a final winner
-        tiebreaker_bonus = 0.1;  // Small bonus for winning the tiebreaker
-      } else {
-        // Player has max score but lost tiebreaker
-        tiebreaker_bonus = -0.05;  // Small penalty for losing tiebreaker
-      }
-    }
-
-    returns[player] = base_reward + tiebreaker_bonus;
-    total_reward += returns[player];
-  }
-
-  // Ensure zero-sum by redistributing any residual
-  double residual = total_reward / num_players_;
-  for (int player = 0; player < num_players_; ++player) {
-    returns[player] -= residual;
-  }
+  // Assign rewards (zero-sum)
+  returns[0] = reward;
+  returns[1] = -reward;
 
   return returns;
 }

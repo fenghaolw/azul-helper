@@ -132,11 +132,31 @@ endif()
 # Find nlohmann_json package
 find_package(nlohmann_json 3.11.2 REQUIRED)
 
+# Find Google Test
+find_package(GTest REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
 # Create local Azul game library
 add_library(azul_local STATIC
     azul.cc
     azul.h
 )
+
+# Add test executable
+add_executable(azul_test
+    azul_test.cc
+)
+
+target_link_libraries(azul_test
+    azul_local
+    ${LOCAL_OPENSPIEL_LIB}
+    ${GTEST_LIBRARIES}
+    ${GTEST_MAIN_LIBRARIES}
+    pthread
+)
+
+# Add test target
+add_test(NAME azul_test COMMAND azul_test)
 
 # OpenSpiel includes are now handled as system includes globally
 
@@ -331,10 +351,11 @@ message(STATUS "✅ Simplified OpenSpiel Azul integration configured")
 message(STATUS "📁 OpenSpiel source: ${OPENSPIEL_ROOT}")
 message(STATUS "📚 Shared library: ${LOCAL_OPENSPIEL_LIB}")
 message(STATUS "🔥 LibTorch found: ${TORCH_INSTALL_PREFIX}")
-message(STATUS "🎯 Build targets: azul_evaluation_demo, azul_profiling_demo, neural_mcts_trainer")
+message(STATUS "🎯 Build targets: azul_evaluation_demo, azul_profiling_demo, neural_mcts_trainer, azul_test")
 message(STATUS "")
 message(STATUS "🚀 To build and run:")
 message(STATUS "   make azul_evaluation_demo && ./azul_evaluation_demo")
 message(STATUS "   make azul_profiling_demo && ./azul_profiling_demo --help")
 message(STATUS "   make neural_mcts_trainer && ./neural_mcts_trainer")
+message(STATUS "   make azul_test && ./azul_test")
 message(STATUS "")
