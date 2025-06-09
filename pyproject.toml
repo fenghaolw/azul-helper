@@ -97,6 +97,7 @@ patterns = [
     "game_cpp",
     "open_spiel",
     "extension/node_modules",
+    "webapp/node_modules",
     "*.egg-info",
     ".eggs"
 ]
@@ -119,6 +120,7 @@ extend-exclude = '''
     | game_cpp
     | open_spiel
     | extension/node_modules
+    | webapp/node_modules
     | \.eggs
     | .*\.egg-info
 )/
@@ -143,6 +145,7 @@ skip_glob = [
     "game_cpp/*",
     "open_spiel/*",
     "extension/node_modules/*",
+    "webapp/node_modules/*",
     ".eggs/*",
     "*.egg-info/*"
 ]
@@ -185,6 +188,7 @@ exclude = [
     "game_cpp/",
     "open_spiel",
     "extension/node_modules",
+    "webapp/node_modules/*",
     ".eggs",
     "*.egg-info"
 ]
@@ -216,6 +220,7 @@ exclude = [
     "game_cpp/",
     "open_spiel/",
     "extension/node_modules/",
+    "webapp/node_modules/*",
     ".eggs/",
     ".*\\.egg-info/",
     "tests/",
