@@ -27,8 +27,7 @@ export class ApiAI {
   } = { nodesEvaluated: 0 };
   private playerIndex: number = 1; // AI is always player 1
 
-  constructor(playerIndex: number = 1) {
-    this.playerIndex = 1; // Force AI to be player 1
+  constructor() {
     this.autoDiscoverServer();
   }
 

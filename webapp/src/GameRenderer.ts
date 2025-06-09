@@ -21,7 +21,11 @@ export class GameRenderer {
   private ai: ApiAI | null = null;
   private aiEnabled: boolean;
 
-  constructor(container: HTMLElement, gameState: BaseGameState, aiEnabled: boolean = false) {
+  constructor(
+    container: HTMLElement,
+    gameState: BaseGameState,
+    aiEnabled: boolean = false,
+  ) {
     this.container = container;
     this.gameState = gameState;
     this.aiEnabled = aiEnabled;
@@ -171,46 +175,44 @@ export class GameRenderer {
     }));
 
     // Convert players
-    const players: Player[] = this.gameState.playerBoards.map(
-      (board, index) => {
-        // Convert pattern lines
-        const patternLines: PatternLine[] = board.lines.map(
-          (line: any, lineIndex: any) => ({
-            color: line.length > 0 ? this.mapTileColor(line[0]) : null,
-            tiles: line.map((tile: any) => ({
-              color: this.mapTileColor(tile),
-              id: `${tile}-${Math.random()}`,
-            })),
-            capacity: lineIndex + 1,
-            isComplete: line.length === lineIndex + 1,
-          }),
-        );
-
-        // Convert wall
-        const wall: WallSlot[][] = board.wall.map((row) =>
-          row.map((slot) => ({
-            color: slot ? this.mapTileColor(slot) : "white",
-            isFilled: slot !== null,
-            isScoring: false,
+    const players: Player[] = this.gameState.playerBoards.map((board, _) => {
+      // Convert pattern lines
+      const patternLines: PatternLine[] = board.lines.map(
+        (line: any, lineIndex: any) => ({
+          color: line.length > 0 ? this.mapTileColor(line[0]) : null,
+          tiles: line.map((tile: any) => ({
+            color: this.mapTileColor(tile),
+            id: `${tile}-${Math.random()}`,
           })),
-        );
+          capacity: lineIndex + 1,
+          isComplete: line.length === lineIndex + 1,
+        }),
+      );
 
-        // Convert floor tiles
-        const floorTiles = board.floor.map((tile: any) => ({
-          color: this.mapTileColor(tile),
-          id: `${tile}-${Math.random()}`,
-        }));
+      // Convert wall
+      const wall: WallSlot[][] = board.wall.map((row) =>
+        row.map((slot) => ({
+          color: slot ? this.mapTileColor(slot) : "white",
+          isFilled: slot !== null,
+          isScoring: false,
+        })),
+      );
 
-        return {
-          name: board.name,
-          score: board.score,
-          patternLines,
-          wall,
-          floorTiles,
-          isReadyToScore: false,
-        };
-      },
-    );
+      // Convert floor tiles
+      const floorTiles = board.floor.map((tile: any) => ({
+        color: this.mapTileColor(tile),
+        id: `${tile}-${Math.random()}`,
+      }));
+
+      return {
+        name: board.name,
+        score: board.score,
+        patternLines,
+        wall,
+        floorTiles,
+        isReadyToScore: false,
+      };
+    });
 
     return {
       factories,
@@ -271,7 +273,7 @@ export class GameRenderer {
   public setAIEnabled(enabled: boolean) {
     this.aiEnabled = enabled;
     if (enabled && !this.ai) {
-      this.ai = new ApiAI(1); // AI plays as player 1
+      this.ai = new ApiAI();
     }
     this.checkForAIMove();
   }

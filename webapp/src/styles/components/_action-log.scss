@@ -1,74 +1,74 @@
 @use "../variables" as *;
 
 .action-log {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  background: color(surface);
+  border-radius: border-radius(lg);
+  box-shadow: shadow(sm);
+  overflow: hidden;
+
+  &__content {
     display: flex;
     flex-direction: column;
-    gap: spacing(md);
-    background: color(surface);
-    border-radius: border-radius(lg);
-    box-shadow: shadow(sm);
-    overflow: hidden;
+    gap: spacing(sm);
+    padding: spacing(md);
+    max-height: 300px;
+    overflow-y: auto;
 
-    &__content {
-        display: flex;
-        flex-direction: column;
-        gap: spacing(sm);
-        padding: spacing(md);
-        max-height: 300px;
-        overflow-y: auto;
-
-        &::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        &::-webkit-scrollbar-track {
-            background: color(background);
-            border-radius: border-radius(md);
-        }
-
-        &::-webkit-scrollbar-thumb {
-            background: color(border-medium);
-            border-radius: border-radius(md);
-
-            &:hover {
-                background: color(border-dark);
-            }
-        }
+    &::-webkit-scrollbar {
+      width: 6px;
     }
 
-    &__entry {
-        padding: spacing(sm);
-        border-radius: border-radius(md);
-        background: color(background);
-        transition: all 0.2s ease;
-
-        &:hover {
-            background: color(background-secondary);
-        }
+    &::-webkit-scrollbar-track {
+      background: color(background);
+      border-radius: border-radius(md);
     }
 
-    &__timestamp {
-        font-size: font-size(xs);
-        color: color(text-muted);
-        margin-bottom: spacing(xs);
-    }
+    &::-webkit-scrollbar-thumb {
+      background: color(border-medium);
+      border-radius: border-radius(md);
 
-    &__details {
-        display: flex;
-        align-items: center;
-        gap: spacing(xs);
+      &:hover {
+        background: color(border-dark);
+      }
     }
+  }
 
-    &__player {
-        font-weight: font-weight(medium);
-        color: color(text-primary);
-    }
+  &__entry {
+    padding: spacing(sm);
+    border-radius: border-radius(md);
+    background: color(background);
+    transition: all 0.2s ease;
 
-    &__separator {
-        color: color(text-muted);
+    &:hover {
+      background: color(background-secondary);
     }
+  }
 
-    &__action {
-        color: color(text-secondary);
-    }
+  &__timestamp {
+    font-size: font-size(xs);
+    color: color(text-muted);
+    margin-bottom: spacing(xs);
+  }
+
+  &__details {
+    display: flex;
+    align-items: center;
+    gap: spacing(xs);
+  }
+
+  &__player {
+    font-weight: font-weight(medium);
+    color: color(text-primary);
+  }
+
+  &__separator {
+    color: color(text-muted);
+  }
+
+  &__action {
+    color: color(text-secondary);
+  }
 }

@@ -8,22 +8,6 @@ interface FactoriesProps {
   onFactoryClick: (factoryIndex: number, color: TileColor) => void;
 }
 
-// Generate consistent but random-looking positions for tiles
-const getTilePosition = (factoryIndex: number, tileIndex: number) => {
-  const seed = factoryIndex * 1000 + tileIndex;
-  const angle = (seed * 137.5) % 360; // Golden angle for good distribution
-  const radius = 8 + ((seed * 0.05) % 15); // Smaller radius between 8-23px from center
-  const x = Math.cos((angle * Math.PI) / 180) * radius;
-  const y = Math.sin((angle * Math.PI) / 180) * radius;
-  const rotation = ((seed * 23) % 60) - 30; // Limited rotation between -30 and +30 degrees
-
-  return {
-    transform: `translate(${x}px, ${y}px) rotate(${rotation}deg)`,
-    zIndex: tileIndex,
-    "--hover-transform": `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(1.1)`,
-  };
-};
-
 export function Factories({
   factories,
   selectedFactory,

@@ -56,7 +56,11 @@ export function GameView({ aiEnabled, onToggleAI }: GameViewProps) {
         try {
           // Clear the container first
           gameContainer.innerHTML = "";
-          const renderer = new GameRenderer(gameContainer, gameState, aiEnabled);
+          const renderer = new GameRenderer(
+            gameContainer,
+            gameState,
+            aiEnabled,
+          );
           setGameRenderer(renderer);
           console.log("✅ GameRenderer created successfully");
         } catch (error) {

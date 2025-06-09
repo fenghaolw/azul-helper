@@ -1,5 +1,3 @@
-import { h } from "preact";
-
 interface SidebarProps {
   title: string;
   subtitle?: string;
