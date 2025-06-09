@@ -7,11 +7,19 @@ mature and optimized implementation instead of our custom one.
 """
 
 import os
+import sys
 import time
 from typing import Any, Dict, Union
 
 import numpy as np
 from absl import app, flags
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# OpenSpiel imports
+from open_spiel.python.algorithms.alpha_zero import alpha_zero
+from open_spiel.python.algorithms.alpha_zero import model as az_model
+from open_spiel.python.utils import data_logger
 
 # Import agents for type annotations
 from agents.openspiel_agents import OpenSpielMCTSAgent, RandomAgent
@@ -19,34 +27,51 @@ from agents.openspiel_agents import OpenSpielMCTSAgent, RandomAgent
 # Our game implementation
 from game.azul_openspiel import AzulGame
 
-# OpenSpiel imports
-from open_spiel.python.algorithms.alpha_zero import alpha_zero
-from open_spiel.python.algorithms.alpha_zero import model as az_model
-from open_spiel.python.utils import data_logger
-
 FLAGS = flags.FLAGS
 
 # Training configuration
 flags.DEFINE_string(
     "checkpoint_dir", "models/openspiel_alphazero", "Directory to save checkpoints"
 )
-flags.DEFINE_integer("num_iterations", 100, "Number of training iterations")
+flags.DEFINE_string("model_type", "resnet", "Model type (mlp, conv2d, resnet)")
+flags.DEFINE_float("learning_rate", 2e-4, "Learning rate")
 flags.DEFINE_integer(
-    "num_self_play_games", 100, "Number of self-play games per iteration"
+    "nn_width", 64, "Neural network width (reduced for faster training)"
 )
-flags.DEFINE_integer("num_mcts_simulations", 400, "Number of MCTS simulations per move")
-flags.DEFINE_float("learning_rate", 0.001, "Learning rate for neural network")
-flags.DEFINE_integer("batch_size", 32, "Batch size for training")
-flags.DEFINE_integer("train_steps", 100, "Training steps per iteration")
-flags.DEFINE_integer("checkpoint_freq", 10, "Checkpoint frequency")
-flags.DEFINE_integer("eval_freq", 10, "Evaluation frequency")
-flags.DEFINE_integer("num_eval_games", 20, "Number of evaluation games")
-flags.DEFINE_float("c_puct", 1.0, "PUCT exploration constant")
-flags.DEFINE_float("dirichlet_alpha", 0.3, "Dirichlet noise alpha")
-flags.DEFINE_float("dirichlet_epsilon", 0.25, "Dirichlet noise epsilon")
-flags.DEFINE_string("model_type", "mlp", "Neural network architecture (mlp, resnet)")
-flags.DEFINE_integer("nn_width", 256, "Neural network width")
-flags.DEFINE_integer("nn_depth", 4, "Neural network depth")
+flags.DEFINE_integer(
+    "nn_depth", 3, "Neural network depth (reduced for faster training)"
+)
+flags.DEFINE_integer(
+    "num_mcts_simulations",
+    100,
+    "Number of MCTS simulations per move (reduced for faster training)",
+)
+flags.DEFINE_float("c_puct", 1.0, "Exploration constant for PUCT")
+flags.DEFINE_float("dirichlet_alpha", 0.3, "Alpha parameter for Dirichlet noise")
+flags.DEFINE_float("dirichlet_epsilon", 0.25, "Epsilon for Dirichlet noise")
+flags.DEFINE_integer(
+    "num_iterations", 10, "Number of training iterations (reduced for testing)"
+)
+flags.DEFINE_integer(
+    "num_self_play_games",
+    10,
+    "Number of self-play games per iteration (reduced for testing)",
+)
+flags.DEFINE_integer("batch_size", 16, "Training batch size (reduced for memory)")
+flags.DEFINE_integer(
+    "train_steps", 10, "Training steps per iteration (reduced for testing)"
+)
+flags.DEFINE_integer("checkpoint_freq", 1, "Checkpoint frequency (iterations)")
+flags.DEFINE_integer("eval_freq", 1, "Evaluation frequency (iterations)")
+flags.DEFINE_integer(
+    "num_eval_games", 5, "Number of evaluation games (reduced for testing)"
+)
+flags.DEFINE_integer(
+    "num_actors", 2, "Number of self-play actors (reduced for resource constraints)"
+)
+flags.DEFINE_integer(
+    "num_evaluators", 1, "Number of evaluators (reduced for resource constraints)"
+)
 flags.DEFINE_integer("num_players", 2, "Number of players")
 flags.DEFINE_integer("seed", 42, "Random seed")
 
@@ -98,9 +123,11 @@ class AzulAlphaZeroTrainer:
         self.model = self._create_model()
         print(f"Created model with {self._count_parameters()} parameters")
 
-        # Create data logger
-        self.data_logger = data_logger.DataLogger(
-            FLAGS.checkpoint_dir, "azul_alphazero", True  # Write to disk
+        # Create data logger using DataLoggerJsonLines
+        log_dir = os.path.join(FLAGS.checkpoint_dir, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        self.data_logger = data_logger.DataLoggerJsonLines(
+            log_dir, "azul_alphazero", True  # Write to disk
         )
 
         # Ensure checkpoint directory exists
@@ -108,13 +135,27 @@ class AzulAlphaZeroTrainer:
 
     def _create_model(self) -> az_model.Model:
         """Create the neural network model."""
+        # Create a temporary directory for the model
+        import os
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp(prefix="azul_az_")
+        model_path = os.path.join(temp_dir, "model")
+
+        # Get the observation shape and ensure it's a list
+        obs_shape = list(self.game.observation_tensor_shape())
+
         return az_model.Model.build_model(
             model_type=self.config["model_type"],
-            observation_shape=self.game.observation_tensor_shape(),
-            num_actions=self.game.num_distinct_actions(),
+            input_shape=obs_shape,
+            output_size=self.game.num_distinct_actions(),
             nn_width=self.config["nn_width"],
             nn_depth=self.config["nn_depth"],
+            weight_decay=self.config.get(
+                "weight_decay", 0.0001
+            ),  # Default weight decay
             learning_rate=self.config["learning_rate"],
+            path=model_path,
         )
 
     def _count_parameters(self) -> int:
@@ -127,95 +168,80 @@ class AzulAlphaZeroTrainer:
     def train(self):
         """Run the main training loop."""
         print("Starting AlphaZero training for Azul...")
-        print(f"Configuration: {self.config}")
+        print("Configuration:")
+        for k, v in self.config.items():
+            print(f"  {k}: {v}")
+        print("\n")
 
-        # Create AlphaZero learner
-        learner = alpha_zero.AlphaZero(
-            game=self.game,
-            model=self.model,
-            replay_buffer_capacity=1000000,
-            **{
-                k: v
-                for k, v in self.config.items()
-                if k
-                in [
-                    "num_mcts_simulations",
-                    "c_puct",
-                    "dirichlet_alpha",
-                    "dirichlet_epsilon",
-                    "num_self_play_games",
-                    "batch_size",
-                    "train_steps",
-                ]
-            },
-        )
+        # Create checkpoint directory
+        import os
 
-        start_time = time.time()
+        checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, "checkpoints")
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        print(f"Checkpoints will be saved to: {checkpoint_dir}")
 
-        for iteration in range(self.config["num_iterations"]):
-            iter_start = time.time()
+        # Print system information
+        import sys
 
+        import tensorflow as tf
+
+        print("\nSystem information:")
+        print(f"Python version: {sys.version}")
+        print(f"TensorFlow version: {tf.__version__}")
+        print(f"Available GPUs: {tf.config.list_physical_devices('GPU')}")
+        print("\n")
+
+        # Create AlphaZero config with reduced parameters for testing
+        try:
+            print("Creating AlphaZero configuration...")
+            config = alpha_zero.Config(
+                game=self.game.get_type().short_name,
+                path=checkpoint_dir,
+                learning_rate=self.config["learning_rate"],
+                weight_decay=self.config.get("weight_decay", 0.0001),
+                train_batch_size=self.config["batch_size"],
+                replay_buffer_size=10000,  # Reduced for testing
+                replay_buffer_reuse=1,
+                max_steps=self.config["num_iterations"],
+                checkpoint_freq=self.config["checkpoint_freq"],
+                actors=min(2, self.config.get("num_actors", 2)),  # Reduced for testing
+                evaluators=min(
+                    1, self.config.get("num_evaluators", 1)
+                ),  # Reduced for testing
+                evaluation_window=5,  # Reduced for testing
+                eval_levels=3,  # Reduced for testing
+                uct_c=self.config["c_puct"],
+                max_simulations=self.config["num_mcts_simulations"],
+                policy_alpha=self.config["dirichlet_alpha"],
+                policy_epsilon=self.config["dirichlet_epsilon"],
+                temperature=1.0,
+                temperature_drop=5,  # Reduced for testing
+                nn_model=self.config["model_type"],
+                nn_width=self.config["nn_width"],
+                nn_depth=self.config["nn_depth"],
+                observation_shape=list(self.game.observation_tensor_shape()),
+                output_size=self.game.num_distinct_actions(),
+                quiet=False,  # Enable verbose logging
+            )
+            print("Configuration created successfully!")
+            print("\nStarting training...")
+
+            # Start training - this will run the full AlphaZero training loop
+            alpha_zero.alpha_zero(config)
+
+        except Exception as e:
+            print(f"\nError during training: {e}")
+            import traceback
+
+            traceback.print_exc()
+            print("\nTraining failed. Please check the error message above.")
+            print("Common issues:")
+            print("1. Out of memory: Try reducing batch_size, nn_width, or nn_depth")
+            print("2. TensorFlow version mismatch: Check OpenSpiel's requirements")
             print(
-                f"\n=== Iteration {iteration + 1}/{self.config['num_iterations']} ==="
+                "3. GPU issues: Try running with CPU only (set CUDA_VISIBLE_DEVICES='')"
             )
-
-            # Self-play
-            print("Running self-play...")
-            self_play_start = time.time()
-            learner.generate_self_play_games(self.config["num_self_play_games"])
-            self_play_time = time.time() - self_play_start
-            print(f"Self-play completed in {self_play_time:.2f}s")
-
-            # Training
-            print("Training neural network...")
-            train_start = time.time()
-            for _ in range(self.config["train_steps"]):
-                learner.train_network()
-            train_time = time.time() - train_start
-            print(f"Training completed in {train_time:.2f}s")
-
-            # Logging
-            iter_time = time.time() - iter_start
-            total_time = time.time() - start_time
-
-            self.data_logger.write(
-                {
-                    "iteration": iteration + 1,
-                    "self_play_time": self_play_time,
-                    "train_time": train_time,
-                    "iteration_time": iter_time,
-                    "total_time": total_time,
-                }
-            )
-
-            print(
-                f"Iteration {iteration + 1} completed in {iter_time:.2f}s "
-                f"(total: {total_time:.2f}s)"
-            )
-
-            # Checkpointing
-            if (iteration + 1) % self.config["checkpoint_freq"] == 0:
-                checkpoint_path = os.path.join(
-                    FLAGS.checkpoint_dir, f"checkpoint_{iteration + 1}.pkl"
-                )
-                self._save_checkpoint(checkpoint_path, iteration + 1, learner)
-                print(f"Saved checkpoint: {checkpoint_path}")
-
-            # Evaluation
-            if (iteration + 1) % self.config["eval_freq"] == 0:
-                print("Running evaluation...")
-                eval_results = self._evaluate_model(learner)
-                self.data_logger.write(
-                    {f"eval_iteration_{iteration + 1}": eval_results}
-                )
-                print(f"Evaluation results: {eval_results}")
-
-        # Final checkpoint
-        final_checkpoint = os.path.join(FLAGS.checkpoint_dir, "final_model.pkl")
-        self._save_checkpoint(final_checkpoint, self.config["num_iterations"], learner)
-        print(f"Training completed! Final model saved: {final_checkpoint}")
-
-        return learner
+            raise
 
     def _save_checkpoint(self, path: str, iteration: int, learner):
         """Save model checkpoint."""

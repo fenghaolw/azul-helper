@@ -11,7 +11,7 @@ tensorflow>=2.12.0  # Required by OpenSpiel
 # OpenSpiel integration for MCTS and AlphaZero (primary AI engine)
 # Note: Install from source on Apple Silicon using the fixed abseil version
 # See docs/OPENSPIEL_MIGRATION.md for installation instructions
-open-spiel>=1.6
+-e ../open_spiel
 
 # Training monitoring
 tensorboard>=2.10.0

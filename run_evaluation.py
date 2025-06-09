@@ -12,8 +12,6 @@ import time
 from pathlib import Path
 from typing import Optional, Union
 
-import torch
-
 # Add evaluation module to path
 sys.path.append(str(Path(__file__).parent))
 

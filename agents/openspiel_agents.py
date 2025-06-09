@@ -9,13 +9,13 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pyspiel
-
-from game.azul_openspiel import AzulGame, AzulState
-from game.game_state import Action, GameState
 from open_spiel.python.algorithms import mcts
 from open_spiel.python.algorithms.alpha_zero import alpha_zero
 from open_spiel.python.algorithms.alpha_zero import evaluator as az_evaluator
 from open_spiel.python.algorithms.alpha_zero import model as az_model
+
+from game.azul_openspiel import AzulGame, AzulState
+from game.game_state import Action, GameState
 
 
 class OpenSpielMCTSAgent:
