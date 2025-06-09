@@ -774,11 +774,11 @@ Action AzulState::EncodeAction(bool from_center, int factory_id,
   return str;
 }
 
-bool AzulState::IsTerminal() const {
+auto AzulState::IsTerminal() const -> bool {
   return game_ended_;
 }
 
-std::vector<double> AzulState::Returns() const {
+auto AzulState::Returns() const -> std::vector<double> {
   if (!IsTerminal()) {
     return std::vector<double>(num_players_, 0.0);
   }
@@ -832,31 +832,50 @@ std::vector<double> AzulState::Returns() const {
     }
   }
 
-  int num_winners = final_winners.size();
-
-  // Zero-sum assignment:
-  // If all players tie, everyone gets 0
-  // Otherwise, winners split +1, losers split -1
-  if (num_winners == num_players_) {
-    // All players tied - everyone gets 0
-    for (int player = 0; player < num_players_; ++player) {
-      returns[player] = 0.0;
+  // Calculate average opponent score for each player
+  std::vector<double> avg_opponent_scores(num_players_, 0.0);
+  for (int player = 0; player < num_players_; ++player) {
+    double total_opponent_score = 0.0;
+    int num_opponents = 0;
+    for (int other = 0; other < num_players_; ++other) {
+      if (other != player) {
+        total_opponent_score += scores[other];
+        num_opponents++;
+      }
     }
-  } else {
-    // Some players won, others lost
-    double winner_utility = 1.0 / num_winners;
-    int num_losers = num_players_ - num_winners;
-    double loser_utility = -1.0 / num_losers;
+    avg_opponent_scores[player] = total_opponent_score / num_opponents;
+  }
 
-    // Initialize all as losers
-    for (int player = 0; player < num_players_; ++player) {
-      returns[player] = loser_utility;
+  // Calculate normalized score differentials using tanh
+  const double scaling_factor =
+      40.0;  // Adjust this value to control reward sensitivity
+  double total_reward = 0.0;
+
+  for (int player = 0; player < num_players_; ++player) {
+    double score_diff = scores[player] - avg_opponent_scores[player];
+    double base_reward = std::tanh(score_diff / scaling_factor);
+
+    // Apply tiebreaker bonus/penalty
+    double tiebreaker_bonus = 0.0;
+    if (scores[player] == max_score) {
+      // Player has max score
+      if (completed_rows[player] == max_completed_rows) {
+        // Player is a final winner
+        tiebreaker_bonus = 0.1;  // Small bonus for winning the tiebreaker
+      } else {
+        // Player has max score but lost tiebreaker
+        tiebreaker_bonus = -0.05;  // Small penalty for losing tiebreaker
+      }
     }
 
-    // Set winners
-    for (int winner : final_winners) {
-      returns[winner] = winner_utility;
-    }
+    returns[player] = base_reward + tiebreaker_bonus;
+    total_reward += returns[player];
+  }
+
+  // Ensure zero-sum by redistributing any residual
+  double residual = total_reward / num_players_;
+  for (int player = 0; player < num_players_; ++player) {
+    returns[player] -= residual;
   }
 
   return returns;
