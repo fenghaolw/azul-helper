@@ -15,11 +15,17 @@
 #include <utility>
 #include <vector>
 
+#include "azul.h"
 #include "open_spiel/algorithms/alpha_zero_torch/alpha_zero.h"
 #include "open_spiel/spiel.h"
 #include "open_spiel/utils/thread.h"
 
 using json = nlohmann::json;
+
+void force_azul_registration() {
+  // Reference symbols from azul namespace to force linking
+  (void)open_spiel::azul::TileColorToString(open_spiel::azul::TileColor::kBlue);
+}
 
 namespace azul {
 
