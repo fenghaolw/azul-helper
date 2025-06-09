@@ -136,11 +136,11 @@ export abstract class BaseGameState {
     this.factories = [];
     this.center = [];
     this.playerBoards = [];
-    this.currentPlayer = 0;
+    this.currentPlayer = Math.floor(Math.random() * this.numPlayers); // Random first player
     this.round = 1;
     this.phase = GamePhase.TileSelection;
     this.gameOver = false;
-    this.firstPlayerIndex = 0;
+    this.firstPlayerIndex = this.currentPlayer; // Set first player index to match current player
 
     // Create player boards
     for (let i = 0; i < this.numPlayers; i++) {
@@ -1484,25 +1484,11 @@ export abstract class BaseGameState {
  * GameState for web app - includes full game simulation capabilities
  */
 export class WebAppGameState extends BaseGameState {
+  public lastAction: string = "";
+
   // Initialize a new game
   newGame(): void {
-    this.tilebag = [];
-    this.discardPile = []; // Initialize empty discard pile
-    this.factories = [];
-    this.center = [];
-    this.playerBoards = [];
-    this.currentPlayer = 0;
-    this.round = 1;
-    this.phase = GamePhase.TileSelection;
-    this.gameOver = false;
-    this.firstPlayerIndex = 0;
-
-    // Create player boards
-    for (let i = 0; i < this.numPlayers; i++) {
-      this.playerBoards.push(new PlayerBoard());
-    }
-
-    this.newRound();
+    super.newGame(); // Use the base class implementation which has random first player
   }
 
   // Start a new round
@@ -1599,6 +1585,29 @@ export class WebAppGameState extends BaseGameState {
     cloned.getMoves();
 
     return cloned;
+  }
+
+  applyAction(action: any) {
+    // Update lastAction before applying the action
+    this.lastAction = this.formatAction(action);
+
+    // ... rest of applyAction implementation ...
+  }
+
+  private formatAction(action: any): string {
+    if (!action) return "Unknown action";
+
+    if (action.type === "factory") {
+      return `Took ${action.color} tiles from Factory ${action.factoryIndex + 1}`;
+    } else if (action.type === "center") {
+      return `Took ${action.color} tiles from Center`;
+    } else if (action.type === "pattern") {
+      return `Placed tiles in Pattern Line ${action.lineIndex + 1}`;
+    } else if (action.type === "floor") {
+      return "Placed tiles in Floor Line";
+    }
+
+    return "Unknown action";
   }
 }
 

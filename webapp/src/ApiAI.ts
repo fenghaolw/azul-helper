@@ -14,30 +14,22 @@ interface ApiAIResponse {
 }
 
 export class ApiAI {
-  private playerIndex: number;
-  private apiBaseUrl: string;
+  private apiBaseUrl: string | null = null;
+  private isConnected: boolean = false;
   private lastStats: {
     nodesEvaluated: number;
+    searchTime?: number;
     agent_type?: string;
     agent_name?: string;
-    searchTime?: number;
     lastMoveTime?: Date;
     totalMoves?: number;
     averageSearchTime?: number;
-  } = { nodesEvaluated: 0, totalMoves: 0, averageSearchTime: 0 };
-  private isConnected: boolean = false;
+  } = { nodesEvaluated: 0 };
+  private playerIndex: number = 1; // AI is always player 1
 
-  constructor(playerIndex: number, apiBaseUrl?: string) {
-    this.playerIndex = playerIndex;
-
-    // If no specific URL provided, we'll auto-discover the server
-    if (apiBaseUrl) {
-      this.apiBaseUrl = apiBaseUrl;
-      this.checkConnection();
-    } else {
-      this.apiBaseUrl = ""; // Will be set by auto-discovery
-      this.autoDiscoverServer();
-    }
+  constructor(playerIndex: number = 1) {
+    this.playerIndex = 1; // Force AI to be player 1
+    this.autoDiscoverServer();
   }
 
   private async autoDiscoverServer(): Promise<void> {

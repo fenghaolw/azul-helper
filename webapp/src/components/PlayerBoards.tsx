@@ -16,6 +16,7 @@ interface PlayerBoardsProps {
   selectedColor: TileColor | null;
   onPatternLineClick: (playerIndex: number, lineIndex: number) => void;
   onFloorClick: (playerIndex: number) => void;
+  aiEnabled: boolean;
 }
 
 export function PlayerBoards({
@@ -24,6 +25,7 @@ export function PlayerBoards({
   selectedColor,
   onPatternLineClick,
   onFloorClick,
+  aiEnabled,
 }: PlayerBoardsProps) {
   const canPlaceOnLine = (
     player: Player,
@@ -59,13 +61,16 @@ export function PlayerBoards({
       {players.map((player, playerIndex) => (
         <div
           key={playerIndex}
-          className={`player-board ${
-            playerIndex === currentPlayerIndex
+          className={`player-board ${playerIndex === currentPlayerIndex
               ? "player-board--current"
               : "player-board--inactive"
-          } ${player.isReadyToScore ? "player-board--ready-to-score" : ""}`}
+            } ${player.isReadyToScore ? "player-board--ready-to-score" : ""}`}
         >
-          <div className="player-board__header">{player.name}</div>
+          <div className="player-board__header">
+            {aiEnabled
+              ? (playerIndex === 0 ? "Player" : "AI")
+              : `Player ${playerIndex + 1}`}
+          </div>
 
           <div className="player-board__content">
             <div className="player-board__left">
@@ -73,10 +78,8 @@ export function PlayerBoards({
                 {player.patternLines.map((line, lineIndex) => (
                   <div
                     key={lineIndex}
-                    className={`pattern-line ${
-                      line.isComplete ? "pattern-line--complete" : ""
-                    } ${
-                      canPlaceOnLine(
+                    className={`pattern-line ${line.isComplete ? "pattern-line--complete" : ""
+                      } ${canPlaceOnLine(
                         player,
                         lineIndex,
                         selectedColor!,
@@ -84,7 +87,7 @@ export function PlayerBoards({
                       )
                         ? "pattern-line--valid-drop"
                         : ""
-                    }`}
+                      }`}
                     onClick={() =>
                       handlePatternLineClick(playerIndex, lineIndex)
                     }
@@ -94,12 +97,10 @@ export function PlayerBoards({
                         (_, slotIndex) => (
                           <div
                             key={slotIndex}
-                            className={`pattern-line__slot ${
-                              slotIndex < line.tiles.length
+                            className={`pattern-line__slot ${slotIndex < line.tiles.length
                                 ? "pattern-line__slot--filled"
                                 : ""
-                            } ${
-                              canPlaceOnLine(
+                              } ${canPlaceOnLine(
                                 player,
                                 lineIndex,
                                 selectedColor!,
@@ -107,7 +108,7 @@ export function PlayerBoards({
                               )
                                 ? "pattern-line__slot--valid-drop"
                                 : ""
-                            }`}
+                              }`}
                           >
                             {slotIndex < line.tiles.length && (
                               <Tile color={line.tiles[slotIndex].color} />
@@ -130,11 +131,10 @@ export function PlayerBoards({
                     return (
                       <div
                         key={`${rowIndex}-${colIndex}`}
-                        className={`wall-slot ${
-                          slot.isFilled
+                        className={`wall-slot ${slot.isFilled
                             ? "wall-slot--filled"
                             : "wall-slot--empty"
-                        } ${slot.isScoring ? "wall-slot--scoring" : ""}`}
+                          } ${slot.isScoring ? "wall-slot--scoring" : ""}`}
                       >
                         <Tile
                           color={expectedColor}

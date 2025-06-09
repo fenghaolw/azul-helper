@@ -7,11 +7,13 @@ import { PlayerBoards } from "./PlayerBoards";
 interface GameProps {
   gameContainer: HTMLElement;
   gameState?: GameState | null;
+  aiEnabled: boolean;
 }
 
 export function Game({
   gameContainer,
   gameState: initialGameState,
+  aiEnabled,
 }: GameProps) {
   const [gameState, setGameState] = useState<GameState | null>(
     initialGameState || null,
@@ -184,12 +186,11 @@ export function Game({
                       {factory.tiles.map((tile, tileIndex) => (
                         <div
                           key={`${tile.id}-${tileIndex}`}
-                          className={`tile tile--${tile.color} factory__tile ${
-                            selectedFactory === index &&
-                            selectedColor === tile.color
+                          className={`tile tile--${tile.color} factory__tile ${selectedFactory === index &&
+                              selectedColor === tile.color
                               ? "tile--selected"
                               : ""
-                          }`}
+                            }`}
                           style={{
                             backgroundImage: `url("${getTileImagePath(tile.color)}")`,
                             backgroundSize: "contain",
@@ -219,6 +220,7 @@ export function Game({
             selectedColor={selectedColor}
             onPatternLineClick={handlePatternLineClick}
             onFloorClick={handleFloorClick}
+            aiEnabled={aiEnabled}
           />
         </div>
       </div>

@@ -4,6 +4,8 @@ import { AISettings } from "./AISettings";
 import { WebAppGameState } from "../GameState";
 import { useContext } from "preact/hooks";
 import { ReplayDataContext } from "../main";
+import { ActionLog } from "./ActionLog";
+import { Sidebar } from "./Sidebar";
 
 // Import GameRenderer dynamically to avoid conflicts
 let GameRenderer: any = null;
@@ -54,8 +56,7 @@ export function GameView({ aiEnabled, onToggleAI }: GameViewProps) {
         try {
           // Clear the container first
           gameContainer.innerHTML = "";
-          const renderer = new GameRenderer(gameContainer, gameState);
-          renderer.setAIEnabled(aiEnabled);
+          const renderer = new GameRenderer(gameContainer, gameState, aiEnabled);
           setGameRenderer(renderer);
           console.log("✅ GameRenderer created successfully");
         } catch (error) {
@@ -122,6 +123,11 @@ export function GameView({ aiEnabled, onToggleAI }: GameViewProps) {
           round={gameState?.round || 1}
           onSwitchToReplay={handleSwitchToReplay}
         />
+        {gameState && (
+          <Sidebar title="Action Log" subtitle="Game History">
+            <ActionLog gameState={gameState} />
+          </Sidebar>
+        )}
       </div>
 
       <div className="azul-app__game" id="gameContainer">

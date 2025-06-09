@@ -19,11 +19,12 @@ export class GameRenderer {
   private selectedFactory: number = -2; // -2 = none, -1 = center, 0+ = factory
   private selectedTile: Tile | null = null;
   private ai: ApiAI | null = null;
-  private aiEnabled: boolean = false;
+  private aiEnabled: boolean;
 
-  constructor(container: HTMLElement, gameState: BaseGameState) {
+  constructor(container: HTMLElement, gameState: BaseGameState, aiEnabled: boolean = false) {
     this.container = container;
     this.gameState = gameState;
+    this.aiEnabled = aiEnabled;
 
     // Set up the container
     this.setupContainer();
@@ -33,6 +34,11 @@ export class GameRenderer {
 
     // Initial render
     this.render();
+
+    // Check for AI move if it's AI's turn
+    if (this.aiEnabled) {
+      this.checkForAIMove();
+    }
   }
 
   private setupContainer(): void {
@@ -216,13 +222,17 @@ export class GameRenderer {
     };
   }
 
-  render(): void {
+  private render() {
     try {
       const gameState = this.convertGameState();
 
       // Render the Preact component with gameState as prop
       render(
-        h(Game, { gameContainer: this.container, gameState }),
+        h(Game, {
+          gameContainer: this.container,
+          gameState: gameState,
+          aiEnabled: this.aiEnabled,
+        }),
         this.container,
       );
 
@@ -271,11 +281,13 @@ export class GameRenderer {
       return;
     }
 
-    // If it's AI's turn
+    // If it's AI's turn (AI is always player 1)
     if (this.gameState.currentPlayer === 1) {
       try {
         const result = await this.ai.getBestMove(this.gameState);
-        this.playMove(result.move);
+        if (result) {
+          this.playMove(result.move);
+        }
       } catch (error) {
         console.error("AI move error:", error);
       }
@@ -290,11 +302,13 @@ export class GameRenderer {
     // Apply the move to the game state
     this.gameState.playMove(move);
 
-    // Re-render
+    // Re-render the game
     this.render();
 
-    // Check for AI move after a short delay
-    setTimeout(() => this.checkForAIMove(), 500);
+    // Check for AI move if it's AI's turn
+    if (this.aiEnabled) {
+      this.checkForAIMove();
+    }
   }
 
   public updateGameState(gameState: BaseGameState): void {

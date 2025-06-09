@@ -53,18 +53,20 @@
 
   &__header {
     background: color(background-secondary);
-    margin: -spacing(lg) -spacing(lg) spacing(md);
-    padding: spacing(md);
+    margin: -spacing(lg) -spacing(lg) spacing(xl);
+    padding: spacing(md) spacing(lg);
     border-radius: border-radius(lg) border-radius(lg) 0 0;
     text-align: center;
     font-weight: font-weight(bold);
     color: color(text-primary);
     transition: transition(medium);
+    letter-spacing: 0.5px;
   }
 
   &__content {
     display: flex;
     gap: spacing(md);
+    padding-top: spacing(md);
   }
 
   &__left {
@@ -287,6 +289,7 @@
 }
 
 @keyframes scoring-pulse {
+
   0%,
   100% {
     transform: scale(1);
