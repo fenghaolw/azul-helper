@@ -21,6 +21,7 @@ interface ServerInfo {
   agentType?: string;
   agentName?: string;
   version?: string;
+  port?: number;
 }
 
 export function AISettings({
@@ -33,6 +34,7 @@ export function AISettings({
   const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
+  const [serverPort, setServerPort] = useState<number>(5000);
 
   // Check actual server connection status
   useEffect(() => {
@@ -68,6 +70,7 @@ export function AISettings({
               if (healthData.status === "healthy") {
                 setIsConnected(true);
                 setServerInfo(healthData);
+                setServerPort(port);
                 return;
               }
             }
@@ -90,8 +93,7 @@ export function AISettings({
     };
 
     checkConnection();
-    const interval = setInterval(checkConnection, 3000); // Check every 3 seconds
-
+    const interval = setInterval(checkConnection, 3000);
     return () => clearInterval(interval);
   }, [aiEnabled]);
 
@@ -162,7 +164,7 @@ export function AISettings({
 
               {isConnected && (
                 <div className="ai-settings__info">
-                  <strong>Server:</strong> localhost:5000
+                  <strong>Server:</strong> localhost:{serverPort}
                 </div>
               )}
 

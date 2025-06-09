@@ -2,9 +2,7 @@
 #include <csignal>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <string>
-#include <thread>
 #include <vector>
 
 // HTTP server library (header-only)
@@ -12,6 +10,9 @@
 
 // JSON library
 #include <nlohmann/json.hpp>
+
+// Command line parsing
+#include <cxxopts.hpp>
 
 // OpenSpiel and Azul includes
 #include "agent_evaluator.h"
@@ -49,18 +50,20 @@ class AzulApiServer {
   double uct_c_;
   int port_;
   int seed_;
+  int minimax_depth_;
 
  public:
   AzulApiServer(const std::string& agent_type = "alphazero",
                 const std::string& checkpoint_path = "",
-                int num_simulations = 2000, double uct_c = 1.4, int port = 5001,
-                int seed = -1)
+                int num_simulations = 2000, double uct_c = 1.4, int port = 5000,
+                int seed = -1, int minimax_depth = 4)
       : agent_type_(agent_type),
         checkpoint_path_(checkpoint_path),
         num_simulations_(num_simulations),
         uct_c_(uct_c),
         port_(port),
-        seed_(seed) {
+        seed_(seed),
+        minimax_depth_(minimax_depth) {
     // Force registration
     force_azul_registration();
 
@@ -71,7 +74,7 @@ class AzulApiServer {
 
  private:
   void initialize_agent() {
-    std::cout << "🚀 Initializing " << agent_type_ << " agent..." << std::endl;
+    std::cout << "🚀 Initializing " << agent_type_ << " agent..." << '\n';
 
     if (agent_type_ == "alphazero") {
       if (checkpoint_path_.empty()) {
@@ -90,10 +93,8 @@ class AzulApiServer {
           num_simulations_, uct_c_, seed_, "MCTS_API_Server");
 
     } else if (agent_type_ == "minimax") {
-      // For minimax, use num_simulations as depth (clamped to reasonable range)
-      int depth = std::max(1, std::min(6, num_simulations_ / 100));
-      current_agent_ =
-          azul::create_minimax_evaluation_agent(depth, "Minimax_API_Server");
+      current_agent_ = azul::create_minimax_evaluation_agent(
+          minimax_depth_, "Minimax_API_Server");
 
     } else {
       throw std::runtime_error(
@@ -101,8 +102,7 @@ class AzulApiServer {
           ". Supported types: alphazero, random, mcts, minimax");
     }
 
-    std::cout << "✅ " << current_agent_->get_name() << " initialized"
-              << std::endl;
+    std::cout << "✅ " << current_agent_->get_name() << " initialized" << '\n';
   }
 
   void setup_routes() {
@@ -125,8 +125,8 @@ class AzulApiServer {
                 [this](const httplib::Request&, httplib::Response& res) {
                   json response;
                   response["status"] = "healthy";
-                  response["agent_type"] = agent_type_;
-                  response["agent_name"] = current_agent_->get_name();
+                  response["agentType"] = agent_type_;
+                  response["agentName"] = current_agent_->get_name();
                   res.set_content(response.dump(), "application/json");
                 });
 
@@ -165,8 +165,8 @@ class AzulApiServer {
         response["success"] = true;
         response["move"] = action_json;
         response["stats"] = {
-            {"agent_type", agent_type_},
-            {"agent_name", current_agent_->get_name()},
+            {"agentType", agent_type_},
+            {"agentName", current_agent_->get_name()},
             {"nodesEvaluated", current_agent_->get_nodes_explored()},
             {"searchTime", thinking_time}};
 
@@ -185,18 +185,17 @@ class AzulApiServer {
 
  public:
   void start() {
-    std::cout << "🌐 Starting Azul C++ API Server on port " << port_
-              << std::endl;
+    std::cout << "🌐 Starting Azul C++ API Server on port " << port_ << '\n';
     std::cout << "🧠 Agent: " << current_agent_->get_name() << " ("
               << agent_type_ << ", " << num_simulations_
-              << " simulations, UCT=" << uct_c_ << ")" << std::endl;
+              << " simulations, UCT=" << uct_c_ << ")" << '\n';
     if (!checkpoint_path_.empty()) {
-      std::cout << "📁 Checkpoint: " << checkpoint_path_ << std::endl;
+      std::cout << "📁 Checkpoint: " << checkpoint_path_ << '\n';
     }
-    std::cout << "🎯 Available endpoints:" << std::endl;
-    std::cout << "  GET  /health - Health check" << std::endl;
-    std::cout << "  POST /agent/move - Get best move" << std::endl;
-    std::cout << "✅ Server ready!" << std::endl;
+    std::cout << "🎯 Available endpoints:" << '\n';
+    std::cout << "  GET  /health - Health check" << '\n';
+    std::cout << "  POST /agent/move - Get best move" << '\n';
+    std::cout << "✅ Server ready!" << '\n';
 
     server_.listen("0.0.0.0", port_);
   }
@@ -207,20 +206,31 @@ class AzulApiServer {
   /**
    * Convert webapp tile color string to OpenSpiel TileColor enum
    */
-  open_spiel::azul::TileColor string_to_tile_color(
-      const std::string& color_str) {
-    if (color_str == "red") return open_spiel::azul::TileColor::kRed;
-    if (color_str == "blue") return open_spiel::azul::TileColor::kBlue;
-    if (color_str == "yellow") return open_spiel::azul::TileColor::kYellow;
-    if (color_str == "black") return open_spiel::azul::TileColor::kBlack;
-    if (color_str == "white") return open_spiel::azul::TileColor::kWhite;
+  static auto string_to_tile_color(const std::string& color_str)
+      -> open_spiel::azul::TileColor {
+    if (color_str == "red") {
+      return open_spiel::azul::TileColor::kRed;
+    }
+    if (color_str == "blue") {
+      return open_spiel::azul::TileColor::kBlue;
+    }
+    if (color_str == "yellow") {
+      return open_spiel::azul::TileColor::kYellow;
+    }
+    if (color_str == "black") {
+      return open_spiel::azul::TileColor::kBlack;
+    }
+    if (color_str == "white") {
+      return open_spiel::azul::TileColor::kWhite;
+    }
     throw std::runtime_error("Unknown tile color: " + color_str);
   }
 
   /**
    * Convert OpenSpiel TileColor to webapp string
    */
-  std::string tile_color_to_string(open_spiel::azul::TileColor color) {
+  static auto tile_color_to_string(open_spiel::azul::TileColor color)
+      -> std::string {
     switch (color) {
       case open_spiel::azul::TileColor::kRed:
         return "red";
@@ -240,8 +250,8 @@ class AzulApiServer {
   /**
    * Parse tiles array from JSON and convert to vector of TileColor
    */
-  std::vector<open_spiel::azul::TileColor> parse_tiles_array(
-      const json& tiles_json) {
+  static auto parse_tiles_array(const json& tiles_json)
+      -> std::vector<open_spiel::azul::TileColor> {
     std::vector<open_spiel::azul::TileColor> tiles;
     if (tiles_json.is_array()) {
       for (const auto& tile_str : tiles_json) {
@@ -256,7 +266,8 @@ class AzulApiServer {
   /**
    * Parse factory from JSON object with color counts
    */
-  open_spiel::azul::Factory parse_factory(const json& factory_json) {
+  static auto parse_factory(const json& factory_json)
+      -> open_spiel::azul::Factory {
     open_spiel::azul::Factory factory;
 
     if (factory_json.contains("red") &&
@@ -291,7 +302,8 @@ class AzulApiServer {
   /**
    * Parse player board from JSON
    */
-  open_spiel::azul::PlayerBoard parse_player_board(const json& player_json) {
+  static auto parse_player_board(const json& player_json)
+      -> open_spiel::azul::PlayerBoard {
     open_spiel::azul::PlayerBoard board;
 
     // Parse score
@@ -355,8 +367,8 @@ class AzulApiServer {
    * Create OpenSpiel AzulState from webapp JSON gamestate with full
    * reconstruction
    */
-  std::unique_ptr<open_spiel::azul::AzulState> create_state_from_json(
-      const json& game_state_json) {
+  static auto create_state_from_json(const json& game_state_json)
+      -> std::unique_ptr<open_spiel::azul::AzulState> {
     // Determine number of players
     int num_players = open_spiel::azul::kDefaultNumPlayers;
     if (game_state_json.contains("players") &&
@@ -467,8 +479,8 @@ class AzulApiServer {
    * Convert OpenSpiel action to webapp JSON format using AzulState's
    * DecodeAction
    */
-  json action_to_json(open_spiel::Action action,
-                      const open_spiel::azul::AzulState& state) {
+  static auto action_to_json(open_spiel::Action action,
+                             const open_spiel::azul::AzulState& state) -> json {
     json action_json;
 
     try {
@@ -507,69 +519,76 @@ void print_usage(const char* program_name) {
                "minimax (default: alphazero)\n";
   std::cout << "  --checkpoint <path>  AlphaZero checkpoint path (required for "
                "alphazero)\n";
-  std::cout << "  --port <n>           Server port (default: 5001)\n";
+  std::cout << "  --port <n>           Server port (default: 5000)\n";
   std::cout
       << "  --simulations <n>    Number of MCTS simulations (default: 800)\n";
   std::cout
       << "  --uct <c>            UCT exploration constant (default: 1.4)\n";
   std::cout << "  --seed <n>           Random seed (default: -1 for random)\n";
+  std::cout << "  --depth <n>          Minimax search depth (default: 4)\n";
   std::cout << "  --help               Show this help message\n";
 }
 
-int main(int argc, char* argv[]) {
-  std::string agent_type = "alphazero";  // Default to AlphaZero
-  std::string checkpoint_path;
-  int port = 5001;
-  int num_simulations = 800;
-  double uct_c = 1.4;
-  int seed = -1;
-
-  // Parse command line arguments
-  for (int i = 1; i < argc; ++i) {
-    std::string arg = argv[i];
-
-    if (arg == "--help") {
-      print_usage(argv[0]);
-      return 0;
-    } else if (arg == "--agent" && i + 1 < argc) {
-      agent_type = argv[++i];
-    } else if (arg == "--checkpoint" && i + 1 < argc) {
-      checkpoint_path = argv[++i];
-    } else if (arg == "--port" && i + 1 < argc) {
-      port = std::stoi(argv[++i]);
-    } else if (arg == "--simulations" && i + 1 < argc) {
-      num_simulations = std::stoi(argv[++i]);
-    } else if (arg == "--uct" && i + 1 < argc) {
-      uct_c = std::stod(argv[++i]);
-    } else if (arg == "--seed" && i + 1 < argc) {
-      seed = std::stoi(argv[++i]);
-    }
-  }
-
-  // Validate required parameters
-  if (agent_type == "alphazero" && checkpoint_path.empty()) {
-    std::cerr
-        << "❌ Error: --checkpoint parameter is required for alphazero agent"
-        << std::endl;
-    print_usage(argv[0]);
-    return 1;
-  }
-
+auto main(int argc, char* argv[]) -> int {
   try {
+    cxxopts::Options options("azul_api_server", "Azul C++ API Server");
+    options.add_options()(
+        "a,agent", "Agent type (alphazero, mcts, random, minimax)",
+        cxxopts::value<std::string>()->default_value("alphazero"))(
+        "c,checkpoint", "AlphaZero checkpoint path",
+        cxxopts::value<std::string>())(
+        "p,port", "Server port", cxxopts::value<int>()->default_value("5000"))(
+        "s,simulations", "Number of MCTS simulations",
+        cxxopts::value<int>()->default_value("800"))(
+        "u,uct", "UCT exploration constant",
+        cxxopts::value<double>()->default_value("1.4"))(
+        "seed", "Random seed", cxxopts::value<int>()->default_value("-1"))(
+        "d,depth", "Minimax search depth",
+        cxxopts::value<int>()->default_value("4"))("h,help", "Print usage");
+
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") != 0U) {
+      std::cout << options.help() << '\n';
+      return 0;
+    }
+
+    std::string agent_type = result["agent"].as<std::string>();
+    std::string checkpoint_path = (result.count("checkpoint") != 0U)
+                                      ? result["checkpoint"].as<std::string>()
+                                      : "";
+    int port = result["port"].as<int>();
+    int num_simulations = result["simulations"].as<int>();
+    double uct_c = result["uct"].as<double>();
+    int seed = result["seed"].as<int>();
+    int minimax_depth = result["depth"].as<int>();
+
+    // Validate required parameters
+    if (agent_type == "alphazero" && checkpoint_path.empty()) {
+      std::cerr
+          << "❌ Error: --checkpoint parameter is required for alphazero agent"
+          << '\n';
+      std::cout << options.help() << '\n';
+      return 1;
+    }
+
     // Create and start the server
     AzulApiServer server(agent_type, checkpoint_path, num_simulations, uct_c,
-                         port, seed);
+                         port, seed, minimax_depth);
 
     // Handle Ctrl+C gracefully
     std::signal(SIGINT, [](int) {
-      std::cout << "\n🛑 Shutting down server..." << std::endl;
+      std::cout << "\n🛑 Shutting down server..." << '\n';
       std::exit(0);
     });
 
     server.start();
 
+  } catch (const cxxopts::exceptions::exception& e) {
+    std::cerr << "❌ Error parsing options: " << e.what() << '\n';
+    return 1;
   } catch (const std::exception& e) {
-    std::cerr << "❌ Server error: " << e.what() << std::endl;
+    std::cerr << "❌ Server error: " << e.what() << '\n';
     return 1;
   }
 

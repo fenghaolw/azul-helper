@@ -30,12 +30,16 @@ def find_api_server_port(
                 if response.status == 200:
                     data = json.loads(response.read().decode("utf-8"))
                     if data.get("status") == "healthy":
+                        # Handle both snake_case and camelCase formats
+                        agent_type = (
+                            data.get("agent_type")  # snake_case
+                            or data.get("agentType")  # camelCase
+                            or data.get("active_agent_type", "unknown")  # legacy
+                        )
                         return {
                             "port": port,
                             "url": f"http://localhost:{port}",
-                            "agent_type": data.get(
-                                "agent_type", data.get("active_agent_type", "unknown")
-                            ),
+                            "agent_type": agent_type,
                             "server_info": data.get("server", {}),
                             "health_data": data,
                         }

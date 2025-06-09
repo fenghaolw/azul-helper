@@ -100,7 +100,11 @@ def build_cpp_server():
 
 
 def start_cpp_api_server(
-    port=5001, kill_existing=False, agent_type="alphazero", background=False
+    port=5001,
+    kill_existing=False,
+    agent_type="alphazero",
+    minimax_depth=4,
+    background=False,
 ):
     """Start the C++ API server with smart port management."""
     print("🚀 Starting C++ API server...")
@@ -129,6 +133,10 @@ def start_cpp_api_server(
         "--checkpoint",
         "models/libtorch_alphazero_azul/checkpoint--1",
     ]
+
+    if agent_type == "minimax":
+        cmd.append("--depth")
+        cmd.append(str(minimax_depth))
 
     try:
         if background:
@@ -253,6 +261,13 @@ def main():
         default="alphazero",
         help="Agent type (default: alphazero)",
     )
+    parser.add_argument(
+        "--minimax-depth",
+        "-m",
+        type=int,
+        default=4,
+        help="Minimax search depth (default: 4)",
+    )
 
     # UI options
     parser.add_argument(
@@ -307,7 +322,11 @@ def main():
             sys.exit(1)
 
         server_info, api_process = start_cpp_api_server(
-            args.port, args.kill_existing, args.agent, background=False
+            args.port,
+            args.kill_existing,
+            args.agent,
+            args.minimax_depth,
+            background=False,
         )
 
         if not server_info:
