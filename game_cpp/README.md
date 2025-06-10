@@ -351,34 +351,18 @@ The build system automatically:
 - **Game Properties**: Check game type classification in demo output
 - **Agent Fallbacks**: MinimaxAgent has graceful degradation to random selection
 
-## 📈 Performance Characteristics
+## 📈 Performance Tips
 
-### MCTS Performance
-- **Speed**: ~50,000-70,000 simulations/second
-- **Memory**: <1 MB for typical game trees
-- **Scalability**: Handles deep game trees efficiently
+### Set `OMP_NUM_THREADS=1` before running the training
 
-### Minimax Performance
-- **Node Exploration**: 50-3,500 nodes per move (depth dependent)
-- **Zero-Sum Optimization**: Significant speedup over general-sum
-- **Custom Evaluation**: Domain-specific heuristics for better play
+Why? More threads actually hurt the performance. See "nested parallelism" or "over-subscription." Here is the sequence of events:
+- (Level 1 Parallelism): We have multiple actor threads (e.g., 10 C++ threads) to run MCTS simulations in parallel.
+- PyTorch/LibTorch (Level 2 Parallelism): When one of actor threads calls the model for an inference (e.g., model.forward()), it eventually executes a CPU-intensive operation like a convolution (at::native::convolution).
+- OpenMP's "Helpfulness": The PyTorch library, seeing it's on a multi-core CPU, tries to be helpful. It uses its internal OpenMP thread pool to parallelize the computation of that single convolution.
 
-## 🔮 Future Extensions
+The Conflict: We now have 10 "outer" threads each trying to spawn a new team of "inner" threads. These thread teams are all competing for the same limited pool of CPU cores. The overhead of creating, managing, and synchronizing these nested threads becomes astronomically high, and they spend all their time waiting on locks and barriers instead of computing.
 
-### Potential Enhancements
-
-1. **Neural Network Integration**: Connect TensorFlow/PyTorch models
-2. **Multi-Threading**: Parallel MCTS or minimax search
-3. **Game Variants**: Implement Azul: Stained Glass of Sintra, etc.
-4. **Tournament System**: Automated agent evaluation framework
-5. **Visualization**: Game state rendering and move analysis
-
-### Research Applications
-
-- **AI Algorithm Comparison**: Systematic evaluation of different approaches
-- **Game Balance Analysis**: Modify rules and measure impact
-- **Human vs AI Studies**: Behavioral analysis with custom game variants
-- **Optimization Research**: Fine-tune evaluation functions and search parameters
+By setting `OMP_NUM_THREADS=1`, we are telling the OpenMP runtime inside PyTorch: "When you execute an operation like a convolution, just run it on the single, current thread. Do not spawn a new team of threads." This eliminates the entire nested parallelism problem. Each of your 10 actor threads will now execute its model inference sequentially on its own core.
 
 ## 📝 License
 
