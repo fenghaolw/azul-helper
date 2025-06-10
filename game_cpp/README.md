@@ -353,6 +353,15 @@ The build system automatically:
 
 ## 📈 Performance Tips
 
+### Profiling
+
+```
+cmake -DPROFILING_ENABLED=ON ..
+make
+OMP_NUM_THREADS=1 ./libtorch_alphazero_training --profile
+pprof --text ./libtorch_alphazero_trainer ./azul_training.prof 2> pprof_errors.txt > pprof_out.txt
+```
+
 ### Set `OMP_NUM_THREADS=1` before running the training
 
 Why? More threads actually hurt the performance. See "nested parallelism" or "over-subscription." Here is the sequence of events:

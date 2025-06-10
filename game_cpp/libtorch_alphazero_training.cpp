@@ -1,11 +1,13 @@
 #include <atomic>
 #include <chrono>
+#include <csignal>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <regex>
@@ -16,12 +18,54 @@
 #include <utility>
 #include <vector>
 
+#ifdef PROFILING_ENABLED
+#include <gperftools/profiler.h>
+#endif
+
 #include "azul.h"
 #include "open_spiel/algorithms/alpha_zero_torch/alpha_zero.h"
 #include "open_spiel/spiel.h"
 #include "open_spiel/utils/thread.h"
 
 using json = nlohmann::json;
+
+// Global variables for signal handling
+namespace {
+std::atomic<bool> g_stop_requested(false);
+std::string g_profile_file;
+open_spiel::StopToken *g_stop_token = nullptr;
+std::mutex g_cleanup_mutex;
+bool g_profiling_active = false;
+
+void cleanup_profiler() {
+  std::lock_guard<std::mutex> lock(g_cleanup_mutex);
+  if (g_profiling_active) {
+#ifdef PROFILING_ENABLED
+    ProfilerStop();
+    std::cout << "\n=== PROFILING RESULTS ===" << '\n';
+    std::cout << "CPU profile saved to: " << g_profile_file << '\n';
+    std::cout << "To analyze the profile, run: pprof --text " << g_profile_file
+              << '\n';
+    std::cout << "For a graphical view, run: pprof --pdf " << g_profile_file
+              << " > profile.pdf" << '\n';
+#endif
+    g_profiling_active = false;
+  }
+}
+} // namespace
+
+void signal_handler(int signal) {
+  if (signal == SIGINT) {
+    std::cout << "\nReceived Ctrl+C. Stopping training gracefully..."
+              << std::endl;
+    g_stop_requested.store(true);
+    if (g_stop_token) {
+      g_stop_token->Stop();
+    }
+    // Ensure profiler is stopped and output is written
+    cleanup_profiler();
+  }
+}
 
 void force_azul_registration() {
   // Reference symbols from azul namespace to force linking
@@ -350,6 +394,10 @@ struct LibTorchAZConfig {
   bool explicit_learning = false;
   bool resume_from_checkpoint =
       false; // Whether to resume from existing checkpoint
+
+  // Profiling settings
+  bool enable_profiling = false;
+  std::string profile_file = "azul_training.prof";
 };
 
 void from_json(const json &j, LibTorchAZConfig &config) {
@@ -385,6 +433,8 @@ void from_json(const json &j, LibTorchAZConfig &config) {
   // Infer explicit_learning based on multiple devices
   config.explicit_learning = config.device.find(',') != std::string::npos;
   config.resume_from_checkpoint = j.value("resume_from_checkpoint", false);
+  config.enable_profiling = j.value("enable_profiling", false);
+  config.profile_file = j.value("profile_file", "azul_training.prof");
 }
 
 /**
@@ -437,6 +487,15 @@ public:
 
     // Create checkpoint directory
     std::filesystem::create_directories(config_.checkpoint_dir);
+
+    // Set up signal handling for graceful shutdown
+    std::signal(SIGINT, signal_handler);
+    g_profile_file = config_.profile_file;
+  }
+
+  ~LibTorchAZTrainer() {
+    // Ensure profiler is stopped in destructor
+    cleanup_profiler();
   }
 
   /**
@@ -455,6 +514,9 @@ public:
     std::cout << "Simulations per move: " << config_.max_simulations << '\n';
     std::cout << "Device: " << config_.device << '\n';
     std::cout << "Checkpoint dir: " << config_.checkpoint_dir << '\n';
+    if (config_.enable_profiling) {
+      std::cout << "Profiling enabled: " << config_.profile_file << '\n';
+    }
     std::cout << '\n';
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -463,11 +525,27 @@ public:
     throughput_monitor_.Start();
 
     try {
+      // Start profiling if enabled
+      if (config_.enable_profiling) {
+#ifdef PROFILING_ENABLED
+        {
+          std::lock_guard<std::mutex> lock(g_cleanup_mutex);
+          ProfilerStart(config_.profile_file.c_str());
+          g_profiling_active = true;
+        }
+#else
+        std::cout << "Warning: Profiling is enabled but PROFILING_ENABLED is "
+                     "not defined.\n";
+        std::cout << "To enable profiling, rebuild with -DPROFILING_ENABLED\n";
+#endif
+      }
+
       // Create AlphaZero configuration
       auto az_config = CreateAlphaZeroConfig();
 
       // Create stop token for graceful shutdown
       open_spiel::StopToken stop_token;
+      g_stop_token = &stop_token; // Set global pointer for signal handler
 
       // Start training (resuming if specified)
       bool success = open_spiel::algorithms::torch_az::AlphaZero(
@@ -478,14 +556,18 @@ public:
       }
 
     } catch (const std::exception &e) {
-      // Stop monitoring before reporting error
+      // Stop monitoring and profiling before reporting error
       throughput_monitor_.Stop();
+      cleanup_profiler();
       std::cerr << "Training failed: " << e.what() << '\n';
       throw;
     }
 
     // Stop throughput monitoring
     throughput_monitor_.Stop();
+
+    // Stop profiling if enabled
+    cleanup_profiler();
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration =
@@ -586,7 +668,11 @@ auto ParseArguments(int argc, char **argv) -> LibTorchAZConfig {
         "dir", "Checkpoint directory",
         cxxopts::value<std::string>()->default_value(
             "models/libtorch_alphazero_azul"))(
-        "resume", "Resume from existing checkpoint")("h,help", "Show help");
+        "resume", "Resume from existing checkpoint")("profile",
+                                                     "Enable CPU profiling")(
+        "profile-file", "Profile output file",
+        cxxopts::value<std::string>()->default_value("azul_training.prof"))(
+        "h,help", "Show help");
 
     auto result = options.parse(argc, argv);
 
@@ -605,7 +691,8 @@ auto ParseArguments(int argc, char **argv) -> LibTorchAZConfig {
         result.count("model") != 0U || result.count("width") != 0U ||
         result.count("depth") != 0U || result.count("lr") != 0U ||
         result.count("batch") != 0U || result.count("device") != 0U ||
-        result.count("dir") != 0U || result.count("resume") != 0U;
+        result.count("dir") != 0U || result.count("resume") != 0U ||
+        result.count("profile") != 0U || result.count("profile-file") != 0U;
 
     // If both config and other options are specified, show error
     if (has_config && has_other_options) {
@@ -644,6 +731,12 @@ auto ParseArguments(int argc, char **argv) -> LibTorchAZConfig {
       if (result.count("resume") != 0U) {
         config.resume_from_checkpoint = true;
       }
+
+      // Profiling options
+      if (result.count("profile") != 0U) {
+        config.enable_profiling = true;
+      }
+      config.profile_file = result["profile-file"].as<std::string>();
     }
 
   } catch (const cxxopts::exceptions::exception &e) {

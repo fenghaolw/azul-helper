@@ -271,8 +271,10 @@ target_link_libraries(azul_profiling_demo
     ${LOCAL_OPENSPIEL_LIB}
     alpha_zero_torch
     ${TORCH_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
+# Add gperftools linking if available
 if(GPERFTOOLS_FOUND)
     target_include_directories(azul_profiling_demo PRIVATE ${GPERFTOOLS_INCLUDE_DIRS})
     target_link_libraries(azul_profiling_demo ${GPERFTOOLS_LIBRARIES})
@@ -342,11 +344,18 @@ if(EXISTS "${ALPHA_ZERO_TORCH_DIR}/alpha_zero.cc")
     )
     
     target_link_libraries(libtorch_alphazero_trainer
-        alpha_zero_torch
         azul_local
         ${LOCAL_OPENSPIEL_LIB}
+        alpha_zero_torch
         ${TORCH_LIBRARIES}
+        nlohmann_json::nlohmann_json
     )
+    
+    # Add gperftools linking if available
+    if(GPERFTOOLS_FOUND)
+        target_include_directories(libtorch_alphazero_trainer PRIVATE ${GPERFTOOLS_INCLUDE_DIRS})
+        target_link_libraries(libtorch_alphazero_trainer ${GPERFTOOLS_LIBRARIES})
+    endif()
     
     # Also add alpha_zero_torch support to evaluation demo
     target_link_libraries(azul_evaluation_demo

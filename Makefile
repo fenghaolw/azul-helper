@@ -71,12 +71,3 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	@echo "✓ Cleanup complete"
-
-# Run example
-example:
-	@echo "Running example game..."
-	python3 examples/example_game.py
-
-# Quick development setup
-dev-setup: install-dev pre-commit
-	@echo "✓ Development environment setup complete!"
