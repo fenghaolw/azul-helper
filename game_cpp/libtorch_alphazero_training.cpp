@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -36,7 +37,10 @@ class ThroughputMonitor {
 public:
   explicit ThroughputMonitor(std::string log_directory)
       : log_directory_(std::move(log_directory)), stop_monitoring_(false),
-        first_report_(true) {}
+        first_report_(true) {
+    // Clear existing logs when starting
+    ClearExistingLogs();
+  }
 
   ~ThroughputMonitor() { Stop(); }
 
@@ -53,6 +57,29 @@ public:
   }
 
 private:
+  struct GameCompletion {
+    std::string timestamp;
+    std::chrono::system_clock::time_point time_point;
+  };
+
+  void ClearExistingLogs() {
+    try {
+      for (const auto &entry :
+           std::filesystem::directory_iterator(log_directory_)) {
+        if (entry.is_regular_file()) {
+          std::string filename = entry.path().filename().string();
+          if (filename.find("log-actor-") == 0 && filename.length() >= 4 &&
+              filename.substr(filename.length() - 4) == ".txt") {
+            std::filesystem::remove(entry.path());
+          }
+        }
+      }
+    } catch (const std::exception &e) {
+      std::cerr << "Warning: Could not clear existing logs: " << e.what()
+                << '\n';
+    }
+  }
+
   void MonitorLoop() {
     std::cout << "\n=== Throughput Monitor Started ===\n";
     std::cout << "Monitoring directory: " << log_directory_ << "\n";
@@ -70,86 +97,10 @@ private:
     }
   }
 
-  void ReportThroughput() {
-    auto completion_times = ParseActorLogs();
-
-    // Clear previous report if not the first one
-    if (!first_report_) {
-      // Move cursor up by the number of lines we printed last time
-      for (int i = 0; i < lines_printed_; ++i) {
-        std::cout << "\033[A"; // Move cursor up one line
-      }
-      // Move to beginning of line and clear from cursor to end of screen
-      std::cout << "\r\033[J";
-    }
-
-    lines_printed_ = 0; // Reset line counter
-
-    if (completion_times.size() < 2) {
-      std::cout << "[Throughput] Not enough data to calculate throughput. "
-                   "Games completed so far: "
-                << completion_times.size();
-      std::cout.flush();
-      lines_printed_ = 1;
-      first_report_ = false;
-      return;
-    }
-
-    // Calculate duration from first to last game
-    auto duration = completion_times.back() - completion_times.front();
-    auto total_seconds =
-        std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-
-    if (total_seconds == 0) {
-      std::cout << "[Throughput] All games finished in the same second. Cannot "
-                   "calculate rate.";
-      std::cout.flush();
-      lines_printed_ = 1;
-      first_report_ = false;
-      return;
-    }
-
-    double total_hours = total_seconds / 3600.0;
-    double games_per_hour = completion_times.size() / total_hours;
-
-    // Format timestamps for display
-    auto first_time = std::chrono::system_clock::from_time_t(
-        std::chrono::system_clock::to_time_t(completion_times.front()));
-    auto last_time = std::chrono::system_clock::from_time_t(
-        std::chrono::system_clock::to_time_t(completion_times.back()));
-
-    std::time_t first_tt = std::chrono::system_clock::to_time_t(first_time);
-    std::time_t last_tt = std::chrono::system_clock::to_time_t(last_time);
-
-    // Print the throughput report (tracking line count)
-    std::cout << "--- Training Throughput Report ---\n";
-    lines_printed_++;
-    std::cout << "  Total Games Completed: " << completion_times.size() << "\n";
-    lines_printed_++;
-    std::cout << "  Time of First Game: "
-              << std::put_time(std::localtime(&first_tt), "%Y-%m-%d %H:%M:%S")
-              << "\n";
-    lines_printed_++;
-    std::cout << "  Time of Last Game:  "
-              << std::put_time(std::localtime(&last_tt), "%Y-%m-%d %H:%M:%S")
-              << "\n";
-    lines_printed_++;
-    std::cout << "  Duration Analyzed: " << FormatDuration(duration) << "\n";
-    lines_printed_++;
-    std::cout << "------------------------------------\n";
-    lines_printed_++;
-    std::cout << "  Current Throughput: " << std::fixed << std::setprecision(2)
-              << games_per_hour << " games per hour\n";
-    lines_printed_++;
-    std::cout << "------------------------------------";
-    lines_printed_++;
-
-    std::cout.flush(); // Ensure output is displayed immediately
-    first_report_ = false;
-  }
-
-  auto ParseActorLogs() -> std::vector<std::chrono::system_clock::time_point> {
-    std::vector<std::chrono::system_clock::time_point> completion_times;
+  auto ParseNewLogEntries() -> std::vector<GameCompletion> {
+    std::vector<GameCompletion> new_completions;
+    std::regex game_line_regex(
+        R"(\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\] Game \d+: Returns:)");
 
     // Find all actor log files
     std::vector<std::string> log_files;
@@ -165,25 +116,33 @@ private:
         }
       }
     } catch (const std::exception &e) {
-      // Directory might not exist yet or be accessible
-      return completion_times;
+      return new_completions;
     }
-
-    if (log_files.empty()) {
-      return completion_times;
-    }
-
-    // Regex to match game completion lines: [YYYY-MM-DD HH:MM:SS.mmm] Game X:
-    // Returns:
-    std::regex game_line_regex(
-        R"(\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\] Game \d+: Returns:)");
 
     for (const auto &log_file : log_files) {
       try {
         std::ifstream file(log_file);
-        std::string line;
+        if (!file.is_open()) {
+          continue;
+        }
 
+        // Count total lines (excluding header)
+        size_t line_count = 0;
+        std::string line;
         while (std::getline(file, line)) {
+          line_count++;
+        }
+
+        // If we have at least 2 lines (header + at least one game)
+        if (line_count > 1) {
+          // Get the last line
+          file.clear();
+          file.seekg(0, std::ios::beg);
+          for (size_t i = 0; i < line_count - 1; i++) {
+            std::getline(file, line);
+          }
+          std::getline(file, line);
+
           std::smatch match;
           if (std::regex_search(line, match, game_line_regex)) {
             std::string timestamp_str = match[1].str();
@@ -202,10 +161,13 @@ private:
                 milliseconds = std::stoi(timestamp_str.substr(dot_pos + 1));
               }
 
+              // Convert to system time point for duration calculations
               auto time_point =
                   std::chrono::system_clock::from_time_t(std::mktime(&tm));
               time_point += std::chrono::milliseconds(milliseconds);
-              completion_times.push_back(time_point);
+
+              // Store both the original timestamp string and the time point
+              new_completions.push_back({timestamp_str, time_point});
             }
           }
         }
@@ -215,9 +177,93 @@ private:
       }
     }
 
-    // Sort chronologically
-    std::sort(completion_times.begin(), completion_times.end());
-    return completion_times;
+    // Add new completions to our collection
+    completions_.insert(completions_.end(), new_completions.begin(),
+                        new_completions.end());
+
+    // Sort chronologically by time_point
+    std::sort(completions_.begin(), completions_.end(),
+              [](const GameCompletion &a, const GameCompletion &b) {
+                return a.time_point < b.time_point;
+              });
+
+    return new_completions;
+  }
+
+  void ReportThroughput() {
+    auto new_completions = ParseNewLogEntries();
+
+    // Clear previous report if not the first one
+    if (!first_report_) {
+      // Move cursor up by the number of lines we printed last time
+      for (int i = 0; i < lines_printed_; ++i) {
+        std::cout << "\033[A"; // Move cursor up one line
+      }
+      // Move to beginning of line and clear from cursor to end of screen
+      std::cout << "\r\033[J";
+    }
+
+    lines_printed_ = 0; // Reset line counter
+
+    if (completions_.empty()) {
+      std::cout << "[Throughput] Waiting for first game completion...";
+      std::cout.flush();
+      lines_printed_ = 1;
+      first_report_ = false;
+      return;
+    }
+
+    if (completions_.size() < 2) {
+      std::cout << "[Throughput] Waiting for more games to complete. "
+                   "Games completed so far: "
+                << completions_.size();
+      std::cout.flush();
+      lines_printed_ = 1;
+      first_report_ = false;
+      return;
+    }
+
+    // Calculate duration from first to last game
+    auto duration =
+        completions_.back().time_point - completions_.front().time_point;
+    auto total_seconds =
+        std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+
+    if (total_seconds == 0) {
+      std::cout << "[Throughput] All games finished in the same second. Cannot "
+                   "calculate rate.";
+      std::cout.flush();
+      lines_printed_ = 1;
+      first_report_ = false;
+      return;
+    }
+
+    double total_hours = total_seconds / 3600.0;
+    double games_per_hour = completions_.size() / total_hours;
+
+    // Print the throughput report (tracking line count)
+    std::cout << "--- Training Throughput Report ---\n";
+    lines_printed_++;
+    std::cout << "  Total Games Completed: " << completions_.size() << "\n";
+    lines_printed_++;
+    std::cout << "  Time of First Game: " << completions_.front().timestamp
+              << "\n";
+    lines_printed_++;
+    std::cout << "  Time of Last Game:  " << completions_.back().timestamp
+              << "\n";
+    lines_printed_++;
+    std::cout << "  Duration Analyzed: " << FormatDuration(duration) << "\n";
+    lines_printed_++;
+    std::cout << "------------------------------------\n";
+    lines_printed_++;
+    std::cout << "  Current Throughput: " << std::fixed << std::setprecision(2)
+              << games_per_hour << " games per hour\n";
+    lines_printed_++;
+    std::cout << "------------------------------------";
+    lines_printed_++;
+
+    std::cout.flush(); // Ensure output is displayed immediately
+    first_report_ = false;
   }
 
   static auto
@@ -246,6 +292,7 @@ private:
   std::thread monitor_thread_;
   int lines_printed_{};
   bool first_report_{};
+  std::vector<GameCompletion> completions_;
 };
 
 /**
