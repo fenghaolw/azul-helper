@@ -5,20 +5,24 @@
 #include <string>
 #include <vector>
 
+#ifdef PROFILING_ENABLED
+#include <gperftools/profiler.h>
+#endif
+
 #include "agent_evaluator.h"
 #include "agent_profiler.h"
 #include "evaluation_config.h"
 
 // Simple command line argument parsing
 struct ProfilingConfig {
-  std::string agent_type = "mcts";   // "mcts", "minimax", or "alphazero"
-  int depth = 4;                     // for minimax
-  int simulations = 1000;            // for mcts
-  double uct_c = 1.4;                // for mcts
-  int num_games = 5;                 // number of profiling games
-  int seed = 42;                     // random seed
-  bool verbose = true;               // verbose output
-  std::string checkpoint_path = "";  // for alphazero
+  std::string agent_type = "mcts";  // "mcts", "minimax", or "alphazero"
+  int depth = 4;                    // for minimax
+  int simulations = 1000;           // for mcts
+  double uct_c = 1.4;               // for mcts
+  int num_games = 5;                // number of profiling games
+  int seed = 42;                    // random seed
+  bool verbose = true;              // verbose output
+  std::string checkpoint_path = ""; // for alphazero
 };
 
 namespace {
@@ -27,7 +31,7 @@ void force_azul_registration() {
   (void)open_spiel::azul::TileColorToString(open_spiel::azul::TileColor::kBlue);
 }
 
-void print_usage(const char* program_name) {
+void print_usage(const char *program_name) {
   std::cout << "Usage: " << program_name << " [options]\n";
   std::cout << "Options:\n";
   std::cout << "  --agent <type>       Agent type: 'mcts', 'minimax', or "
@@ -45,7 +49,7 @@ void print_usage(const char* program_name) {
   std::cout << "  --help               Show this help message\n";
 }
 
-ProfilingConfig parse_arguments(int argc, char* argv[]) {
+ProfilingConfig parse_arguments(int argc, char *argv[]) {
   ProfilingConfig config;
   config.verbose = true;
 
@@ -108,10 +112,16 @@ ProfilingConfig parse_arguments(int argc, char* argv[]) {
 
   return config;
 }
-}  // namespace
+} // namespace
 
-auto main(int argc, char* argv[]) -> int {
+auto main(int argc, char *argv[]) -> int {
   auto config = parse_arguments(argc, argv);
+
+#ifdef PROFILING_ENABLED
+  // Start CPU profiling
+  std::string profile_file = "azul_profile.prof";
+  ProfilerStart(profile_file.c_str());
+#endif
 
   std::cout << "=== AZUL AGENT PROFILING DEMO ===" << '\n';
   std::cout << "Agent: " << config.agent_type;
@@ -142,7 +152,7 @@ auto main(int argc, char* argv[]) -> int {
     }
 
     // Enable profiling
-    auto& profiler = azul::AgentProfiler::instance();
+    auto &profiler = azul::AgentProfiler::instance();
     profiler.start_profiling();
 
     // Create profiled agent based on configuration
@@ -166,7 +176,7 @@ auto main(int argc, char* argv[]) -> int {
                     << config.checkpoint_path << ", " << config.simulations
                     << " sims, UCT " << config.uct_c << ")" << '\n';
         }
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         std::cerr << "❌ Failed to load AlphaZero model: " << e.what() << '\n';
         return 1;
       }
@@ -197,7 +207,7 @@ auto main(int argc, char* argv[]) -> int {
       }
 
       while (!state->IsTerminal() &&
-             moves < 50) {  // Limit moves to prevent long games
+             moves < 50) { // Limit moves to prevent long games
         auto current_player = state->CurrentPlayer();
 
         // Handle chance events
@@ -224,8 +234,8 @@ auto main(int argc, char* argv[]) -> int {
           auto legal_actions = state->LegalActions();
           if (!legal_actions.empty()) {
             std::mt19937 rng(config.seed + moves);
-            std::uniform_int_distribution<size_t> dist(
-                0, legal_actions.size() - 1);
+            std::uniform_int_distribution<size_t> dist(0, legal_actions.size() -
+                                                              1);
             action = legal_actions[dist(rng)];
           } else {
             break;
@@ -237,47 +247,36 @@ auto main(int argc, char* argv[]) -> int {
       }
     }
 
+#ifdef PROFILING_ENABLED
+    // Stop CPU profiling
+    ProfilerStop();
+
     // Print profiling results
     std::cout << "\n=== PROFILING RESULTS ===" << '\n';
-    profiler.print_profile_report();
-
-    if (config.verbose) {
-      std::cout << "\nTop performance hotspots:" << '\n';
-      profiler.print_hotspots(std::cout, 5);
-    }
-
-    // Save profiling report with agent configuration in filename
-    std::string filename = "profiling_" + config.agent_type;
-    if (config.agent_type == "minimax") {
-      filename += "_d" + std::to_string(config.depth);
-    } else if (config.agent_type == "alphazero") {
-      // Extract just the filename from checkpoint path for cleaner filename
-      std::string checkpoint_name = config.checkpoint_path;
-      size_t last_slash = checkpoint_name.find_last_of("/\\");
-      if (last_slash != std::string::npos) {
-        checkpoint_name = checkpoint_name.substr(last_slash + 1);
-      }
-      // Remove file extension if present
-      size_t last_dot = checkpoint_name.find_last_of(".");
-      if (last_dot != std::string::npos) {
-        checkpoint_name = checkpoint_name.substr(0, last_dot);
-      }
-      filename +=
-          "_" + checkpoint_name + "_s" + std::to_string(config.simulations);
-    } else {
-      filename += "_s" + std::to_string(config.simulations) + "_uct" +
-                  std::to_string((int)(config.uct_c * 10));
-    }
-    filename += "_report.txt";
-
-    profiler.save_profile_report(filename);
-    std::cout << "\nProfiling report saved to: " << filename << '\n';
+    std::cout << "CPU profile saved to: " << profile_file << '\n';
+    std::cout << "To analyze the profile, run: pprof --text " << profile_file
+              << '\n';
+    std::cout << "For a graphical view, run: pprof --pdf " << profile_file
+              << " > profile.pdf" << '\n';
+#else
+    std::cout << "\n=== PROFILING RESULTS ===" << '\n';
+    std::cout << "CPU profiling is disabled. Install gperftools to enable "
+                 "detailed profiling."
+              << '\n';
+    std::cout << "On macOS: brew install gperftools" << '\n';
+    std::cout << "On Ubuntu/Debian: sudo apt-get install google-perftools "
+                 "libgoogle-perftools-dev"
+              << '\n';
+#endif
 
     profiler.stop_profiling();
 
     std::cout << "\n✅ PROFILING DEMO COMPLETED SUCCESSFULLY!" << '\n';
 
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
+#ifdef PROFILING_ENABLED
+    ProfilerStop(); // Make sure to stop profiling even if there's an error
+#endif
     std::cerr << "❌ Error during profiling: " << e.what() << '\n';
     return 1;
   }

@@ -186,7 +186,75 @@ target_link_libraries(azul_evaluation_demo
     nlohmann_json::nlohmann_json
 )
 
-# Profiling demo executable
+# Find gperftools (with fallback for macOS)
+if(APPLE)
+    # On macOS, try Homebrew paths first
+    find_path(GPERFTOOLS_INCLUDE_DIR profiler.h
+        PATHS
+            /opt/homebrew/Cellar/gperftools/2.16/include/gperftools
+            /opt/homebrew/include/gperftools
+            /usr/local/include/gperftools
+        NO_DEFAULT_PATH
+    )
+    
+    find_library(GPERFTOOLS_LIBRARY profiler
+        PATHS
+            /opt/homebrew/Cellar/gperftools/2.16/lib
+            /opt/homebrew/lib
+            /usr/local/lib
+        NO_DEFAULT_PATH
+    )
+    
+    if(GPERFTOOLS_INCLUDE_DIR AND GPERFTOOLS_LIBRARY)
+        set(GPERFTOOLS_FOUND TRUE)
+        set(GPERFTOOLS_INCLUDE_DIRS ${GPERFTOOLS_INCLUDE_DIR})
+        set(GPERFTOOLS_LIBRARIES ${GPERFTOOLS_LIBRARY})
+        message(STATUS "Found gperftools via Homebrew: ${GPERFTOOLS_INCLUDE_DIR}")
+    endif()
+else()
+    # On Linux, try pkg-config first
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(GPERFTOOLS QUIET libprofiler)
+    endif()
+endif()
+
+# If not found via pkg-config or Homebrew, try standard paths
+if(NOT GPERFTOOLS_FOUND)
+    find_path(GPERFTOOLS_INCLUDE_DIR profiler.h
+        PATHS
+            /usr/include/gperftools
+            /usr/local/include/gperftools
+    )
+    
+    find_library(GPERFTOOLS_LIBRARY profiler
+        PATHS
+            /usr/lib
+            /usr/local/lib
+    )
+    
+    if(GPERFTOOLS_INCLUDE_DIR AND GPERFTOOLS_LIBRARY)
+        set(GPERFTOOLS_FOUND TRUE)
+        set(GPERFTOOLS_INCLUDE_DIRS ${GPERFTOOLS_INCLUDE_DIR})
+        set(GPERFTOOLS_LIBRARIES ${GPERFTOOLS_LIBRARY})
+        message(STATUS "Found gperftools in standard paths: ${GPERFTOOLS_INCLUDE_DIR}")
+    endif()
+endif()
+
+if(NOT GPERFTOOLS_FOUND)
+    message(WARNING "gperftools not found. Profiling will be disabled.")
+    add_definitions(-DPROFILING_DISABLED)
+else()
+    add_definitions(-DPROFILING_ENABLED)
+    message(STATUS "gperftools found at: ${GPERFTOOLS_INCLUDE_DIR}")
+endif()
+
+# Add profiling flags
+if(NOT MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fno-omit-frame-pointer")
+endif()
+
+# Add profiling demo executable
 add_executable(azul_profiling_demo
     main_profiling_demo.cpp
 )
@@ -204,6 +272,11 @@ target_link_libraries(azul_profiling_demo
     alpha_zero_torch
     ${TORCH_LIBRARIES}
 )
+
+if(GPERFTOOLS_FOUND)
+    target_include_directories(azul_profiling_demo PRIVATE ${GPERFTOOLS_INCLUDE_DIRS})
+    target_link_libraries(azul_profiling_demo ${GPERFTOOLS_LIBRARIES})
+endif()
 
 # Neural MCTS Training executable with LibTorch
 add_executable(neural_mcts_trainer
