@@ -17,9 +17,9 @@ void force_azul_registration() {
 }
 
 // Helper function to convert game state to JSON format
-nlohmann::json state_to_json(const open_spiel::State* state) {
-  const auto* azul_state =
-      dynamic_cast<const open_spiel::azul::AzulState*>(state);
+nlohmann::json state_to_json(const open_spiel::State *state) {
+  const auto *azul_state =
+      dynamic_cast<const open_spiel::azul::AzulState *>(state);
   if (!azul_state) {
     throw std::runtime_error("Invalid state type");
   }
@@ -32,7 +32,7 @@ nlohmann::json state_to_json(const open_spiel::State* state) {
 
   // Convert factories
   state_json["factories"] = nlohmann::json::array();
-  for (const auto& factory : azul_state->Factories()) {
+  for (const auto &factory : azul_state->Factories()) {
     nlohmann::json factory_json;
     for (int color = 0; color < open_spiel::azul::kNumTileColors; ++color) {
       factory_json[open_spiel::azul::TileColorToString(
@@ -53,7 +53,7 @@ nlohmann::json state_to_json(const open_spiel::State* state) {
   // Convert player boards
   state_json["playerBoards"] = nlohmann::json::array();
   for (int player = 0; player < azul_state->num_players_; ++player) {
-    const auto& board = azul_state->GetPlayerBoard(player);
+    const auto &board = azul_state->GetPlayerBoard(player);
     nlohmann::json board_json;
     board_json["score"] = board.score;
 
@@ -79,7 +79,7 @@ nlohmann::json state_to_json(const open_spiel::State* state) {
 
     // Convert floor
     board_json["floor"] = nlohmann::json::array();
-    for (const auto& tile : board.floor_line) {
+    for (const auto &tile : board.floor_line) {
       board_json["floor"].push_back(open_spiel::azul::TileColorToString(tile));
     }
 
@@ -90,11 +90,11 @@ nlohmann::json state_to_json(const open_spiel::State* state) {
 }
 
 void detailed_game_evaluation(
-    const std::shared_ptr<const open_spiel::Game>& game,
-    std::unique_ptr<azul::EvaluationAgent>& agent1,
-    std::unique_ptr<azul::EvaluationAgent>& agent2,
-    const std::string& agent1_name, const std::string& agent2_name,
-    const std::string& output_file = "") {
+    const std::shared_ptr<const open_spiel::Game> &game,
+    std::unique_ptr<azul::EvaluationAgent> &agent1,
+    std::unique_ptr<azul::EvaluationAgent> &agent2,
+    const std::string &agent1_name, const std::string &agent2_name,
+    const std::string &output_file = "") {
   auto state = game->NewInitialState();
   std::cout << "\nInitial game state:\n" << state->ToString() << '\n';
 
@@ -107,7 +107,7 @@ void detailed_game_evaluation(
 
   while (!state->IsTerminal()) {
     int current_player = state->CurrentPlayer();
-    auto& agent = (current_player == 0) ? *agent1 : *agent2;
+    auto &agent = (current_player == 0) ? *agent1 : *agent2;
     std::string agent_name = (current_player == 0) ? agent1_name : agent2_name;
 
     auto action = agent.get_action(*state, current_player);
@@ -151,9 +151,9 @@ void detailed_game_evaluation(
   }
 }
 
-}  // namespace
+} // namespace
 
-auto main(int argc, char* argv[]) -> int {
+auto main(int argc, char *argv[]) -> int {
   std::cout << "=== AZUL AGENT EVALUATION DEMO ===" << '\n';
 
   try {
@@ -194,17 +194,15 @@ auto main(int argc, char* argv[]) -> int {
     std::cout << "✅ Azul game loaded successfully" << '\n';
 
     // Create agents
-    // auto alphazero_mcts_agent = azul::create_alphazero_mcts_evaluation_agent(
-    //     "models/libtorch_alphazero_azul/checkpoint--1", 400, 1.4, 42,
-    //     "AlphaZero_MCTS_400");
-    auto mcts_agent =
-        azul::create_mcts_evaluation_agent(400, 1.4, 42, "MCTS_400");
+    auto mcts_agent = azul::create_alphazero_mcts_evaluation_agent(
+        "models/libtorch_alphazero_azul/checkpoint--1", 400, 1.4, 42,
+        "AlphaZero_MCTS_400");
     auto minimax_agent = azul::create_minimax_evaluation_agent(3, "Minimax_D3");
     auto random_agent = azul::create_random_evaluation_agent(42, "Random");
 
     if (mode == "detailed") {
       detailed_game_evaluation(game, mcts_agent, minimax_agent,
-                               "MCTS (400 sims)", "Minimax (D3)",
+                               "AlphaZero MCTS (400 sims)", "Minimax (D3)",
                                result["output"].as<std::string>());
     } else {
       // Run tournament using the existing Tournament class
@@ -220,10 +218,10 @@ auto main(int argc, char* argv[]) -> int {
       auto tournament_result = tournament.run_tournament();
     }
 
-  } catch (const cxxopts::exceptions::exception& e) {
+  } catch (const cxxopts::exceptions::exception &e) {
     std::cerr << "❌ Error parsing options: " << e.what() << '\n';
     return 1;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "❌ Error during evaluation: " << e.what() << '\n';
     return 1;
   }

@@ -33,10 +33,9 @@ namespace azul {
  * Throughput Monitor - parses actor logs and reports training throughput
  */
 class ThroughputMonitor {
- public:
+public:
   explicit ThroughputMonitor(std::string log_directory)
-      : log_directory_(std::move(log_directory)),
-        stop_monitoring_(false),
+      : log_directory_(std::move(log_directory)), stop_monitoring_(false),
         first_report_(true) {}
 
   ~ThroughputMonitor() { Stop(); }
@@ -53,7 +52,7 @@ class ThroughputMonitor {
     }
   }
 
- private:
+private:
   void MonitorLoop() {
     std::cout << "\n=== Throughput Monitor Started ===\n";
     std::cout << "Monitoring directory: " << log_directory_ << "\n";
@@ -78,13 +77,13 @@ class ThroughputMonitor {
     if (!first_report_) {
       // Move cursor up by the number of lines we printed last time
       for (int i = 0; i < lines_printed_; ++i) {
-        std::cout << "\033[A";  // Move cursor up one line
+        std::cout << "\033[A"; // Move cursor up one line
       }
       // Move to beginning of line and clear from cursor to end of screen
       std::cout << "\r\033[J";
     }
 
-    lines_printed_ = 0;  // Reset line counter
+    lines_printed_ = 0; // Reset line counter
 
     if (completion_times.size() < 2) {
       std::cout << "[Throughput] Not enough data to calculate throughput. "
@@ -145,7 +144,7 @@ class ThroughputMonitor {
     std::cout << "------------------------------------";
     lines_printed_++;
 
-    std::cout.flush();  // Ensure output is displayed immediately
+    std::cout.flush(); // Ensure output is displayed immediately
     first_report_ = false;
   }
 
@@ -155,7 +154,7 @@ class ThroughputMonitor {
     // Find all actor log files
     std::vector<std::string> log_files;
     try {
-      for (const auto& entry :
+      for (const auto &entry :
            std::filesystem::directory_iterator(log_directory_)) {
         if (entry.is_regular_file()) {
           std::string filename = entry.path().filename().string();
@@ -165,7 +164,7 @@ class ThroughputMonitor {
           }
         }
       }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       // Directory might not exist yet or be accessible
       return completion_times;
     }
@@ -179,7 +178,7 @@ class ThroughputMonitor {
     std::regex game_line_regex(
         R"(\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\] Game \d+: Returns:)");
 
-    for (const auto& log_file : log_files) {
+    for (const auto &log_file : log_files) {
       try {
         std::ifstream file(log_file);
         std::string line;
@@ -210,7 +209,7 @@ class ThroughputMonitor {
             }
           }
         }
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         // Skip files that can't be read
         continue;
       }
@@ -221,8 +220,9 @@ class ThroughputMonitor {
     return completion_times;
   }
 
-  static auto FormatDuration(
-      const std::chrono::system_clock::duration& duration) -> std::string {
+  static auto
+  FormatDuration(const std::chrono::system_clock::duration &duration)
+      -> std::string {
     auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
     auto minutes =
         std::chrono::duration_cast<std::chrono::minutes>(duration - hours);
@@ -262,7 +262,7 @@ struct LibTorchAZConfig {
   int max_simulations = 400;
 
   // Neural network architecture
-  std::string nn_model = "resnet";  // "mlp", "conv2d", "resnet"
+  std::string nn_model = "resnet"; // "mlp", "conv2d", "resnet"
   int nn_width = 128;
   int nn_depth = 6;
 
@@ -299,13 +299,13 @@ struct LibTorchAZConfig {
 
   // Output settings
   std::string checkpoint_dir = "models/libtorch_alphazero_azul";
-  std::string device = "cpu";  // "cpu", "cuda", "mps"
+  std::string device = "cpu"; // "cpu", "cuda", "mps"
   bool explicit_learning = false;
   bool resume_from_checkpoint =
-      false;  // Whether to resume from existing checkpoint
+      false; // Whether to resume from existing checkpoint
 };
 
-void from_json(const json& j, LibTorchAZConfig& config) {
+void from_json(const json &j, LibTorchAZConfig &config) {
   config.game_name = j.value("game_name", "azul");
   config.max_steps = j.value("max_steps", 1000);
   config.actors = j.value("actors", 4);
@@ -343,7 +343,7 @@ void from_json(const json& j, LibTorchAZConfig& config) {
 /**
  * Load configuration from JSON file
  */
-auto LoadConfigFromJson(const std::string& config_file) -> LibTorchAZConfig {
+auto LoadConfigFromJson(const std::string &config_file) -> LibTorchAZConfig {
   try {
     std::ifstream file(config_file);
     if (!file.is_open()) {
@@ -356,7 +356,7 @@ auto LoadConfigFromJson(const std::string& config_file) -> LibTorchAZConfig {
     from_json(j, config);
     return config;
 
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     throw std::runtime_error("Error loading config file: " +
                              std::string(e.what()));
   }
@@ -366,7 +366,7 @@ auto LoadConfigFromJson(const std::string& config_file) -> LibTorchAZConfig {
  * LibTorch AlphaZero Trainer - uses pure C++ implementation
  */
 class LibTorchAZTrainer {
- public:
+public:
   explicit LibTorchAZTrainer(LibTorchAZConfig config)
       : config_(std::move(config)),
         throughput_monitor_(config_.checkpoint_dir) {
@@ -430,7 +430,7 @@ class LibTorchAZTrainer {
         throw std::runtime_error("LibTorch AlphaZero training failed");
       }
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       // Stop monitoring before reporting error
       throughput_monitor_.Stop();
       std::cerr << "Training failed: " << e.what() << '\n';
@@ -450,7 +450,7 @@ class LibTorchAZTrainer {
               << '\n';
   }
 
- private:
+private:
   /**
    * Create OpenSpiel AlphaZero configuration from our config
    */
@@ -508,7 +508,7 @@ class LibTorchAZTrainer {
 /**
  * Command line argument parsing using cxxopts
  */
-auto ParseArguments(int argc, char** argv) -> LibTorchAZConfig {
+auto ParseArguments(int argc, char **argv) -> LibTorchAZConfig {
   LibTorchAZConfig config;
   std::string config_file;
 
@@ -574,7 +574,7 @@ auto ParseArguments(int argc, char** argv) -> LibTorchAZConfig {
       config_file = result["config"].as<std::string>();
       try {
         config = LoadConfigFromJson(config_file);
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         std::cerr << "Error loading config file: " << e.what() << '\n';
         exit(1);
       }
@@ -599,7 +599,7 @@ auto ParseArguments(int argc, char** argv) -> LibTorchAZConfig {
       }
     }
 
-  } catch (const cxxopts::exceptions::exception& e) {
+  } catch (const cxxopts::exceptions::exception &e) {
     std::cerr << "Error parsing options: " << e.what() << '\n';
     exit(1);
   }
@@ -607,15 +607,15 @@ auto ParseArguments(int argc, char** argv) -> LibTorchAZConfig {
   return config;
 }
 
-}  // namespace azul
+} // namespace azul
 
-auto main(int argc, char** argv) -> int {
+auto main(int argc, char **argv) -> int {
   try {
     auto config = azul::ParseArguments(argc, argv);
     azul::LibTorchAZTrainer trainer(config);
     trainer.Train();
     return 0;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << '\n';
     return 1;
   }
