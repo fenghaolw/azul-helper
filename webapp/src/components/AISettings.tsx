@@ -92,9 +92,8 @@ export function AISettings({
       }
     };
 
+    // Only check connection when component mounts or AI is enabled/disabled
     checkConnection();
-    const interval = setInterval(checkConnection, 3000);
-    return () => clearInterval(interval);
   }, [aiEnabled]);
 
   const formatTime = (seconds: number): string => {

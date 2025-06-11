@@ -317,9 +317,9 @@ export class PlayerBoard {
     for (let r = row - 1; r >= 0; r--) {
       if (
         this.wall[r][
-          PlayerBoard.WALL_PATTERN[r].indexOf(
-            PlayerBoard.WALL_PATTERN[row][col],
-          )
+        PlayerBoard.WALL_PATTERN[r].indexOf(
+          PlayerBoard.WALL_PATTERN[row][col],
+        )
         ] !== null
       ) {
         verticalCount++;
@@ -331,9 +331,9 @@ export class PlayerBoard {
     for (let r = row + 1; r < 5; r++) {
       if (
         this.wall[r][
-          PlayerBoard.WALL_PATTERN[r].indexOf(
-            PlayerBoard.WALL_PATTERN[row][col],
-          )
+        PlayerBoard.WALL_PATTERN[r].indexOf(
+          PlayerBoard.WALL_PATTERN[row][col],
+        )
         ] !== null
       ) {
         verticalCount++;
@@ -351,58 +351,51 @@ export class PlayerBoard {
     col: number,
     tileBeingPlaced: Tile,
   ): number {
+    console.log(`\nCalculating score for tile ${tileBeingPlaced} at (${row}, ${col}) for ${this.name}`);
+
     // Ensure the tile being scored is actually on the wall at [row][col] for accurate adjacent check
     if (this.wall[row][col] !== tileBeingPlaced) {
       console.warn(
-        `Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring.`,
+        `Scoring mismatch: Tile ${tileBeingPlaced} not found at wall[${row}][${col}] during scoring for ${this.name}.`,
       );
-      // Fallback to avoid errors, though this indicates a logic issue.
-      // If the tile isn't there, it gets 1 point for itself if it were placed.
-      // But if it's not there, adjacent checks are for the tile that *is* there, or null.
-      // This implies it couldn't be placed, so score should be 0 for this specific tile,
-      // or handled by moveToWall logic (e.g. tiles go to floor).
-      // For robustness, if we reach here assuming it *was* just placed:
-      if (this.wall[row][col] === null) return 1; // It was just placed in an empty spot
+      if (this.wall[row][col] === null) {
+        console.log(`Tile not found in wall for ${this.name}, returning base score of 1`);
+        return 1;
+      }
     }
 
-    let score = 0; // Tile itself gives 0 unless part of a line
     const adjacent = this.getAdjacentTilesInfo(row, col);
+    console.log(`Adjacent tiles info: horizontal=${adjacent.horizontal}, vertical=${adjacent.vertical}`);
 
-    if (adjacent.horizontal > 0) score += adjacent.horizontal; // if 1 tile, score 1; if 2, score 2, etc.
-    if (adjacent.vertical > 0) score += adjacent.vertical;
+    let score = 0;
 
-    // If it forms both a horizontal AND vertical line, the tile itself is counted twice in the above.
-    // But it should only be counted once. So if both are > 1 (meaning lines of 2+), subtract 1.
-    if (adjacent.horizontal > 1 && adjacent.vertical > 1) {
-      score -= 1;
-    }
-    // If it's an isolated tile (no adjacent tiles either way), it scores 1 point.
-    // adjacent.horizontal and vertical would be 1 each. Score = 1+1 = 2. This is wrong.
-    // If horiz=1 and vert=1, then score = 1.
-    // Correct logic:
-    // A tile always scores at least 1 point for itself if placed.
-    // If it extends a horizontal line, it gets points for all tiles in that line (including itself).
-    // If it extends a vertical line, it gets points for all tiles in that line (including itself).
-    // If it's part of both, it's counted in both sums, so the tile itself is counted twice.
-    // The base point is for the tile itself.
-    // score for horizontal line = num tiles in horizontal line (if > 1, else 0 points from line)
-    // score for vertical line = num tiles in vertical line (if > 1, else 0 points from line)
-    // total score = (points from horizontal) + (points from vertical)
-    // if horizontal line length = 1 AND vertical line length = 1, then score is 1.
-    // else, score = (length of horiz line) + (length of vert line)
-    // Example: H line of 3, V line of 2. Tile is at intersection. H=3, V=2. Score = 3+2 = 5. Correct.
-    // Example: H line of 1 (isolated), V line of 1 (isolated). H=1, V=1. Score = 1+1 = 2. Incorrect, should be 1.
-
+    // Handle isolated tile case
     if (adjacent.horizontal === 1 && adjacent.vertical === 1) {
-      return 1; // Isolated tile
+      console.log('Isolated tile detected, returning base score of 1');
+      return 1;
     }
-    score = 0;
-    if (adjacent.horizontal > 1) score += adjacent.horizontal;
-    if (adjacent.vertical > 1) score += adjacent.vertical;
-    if (adjacent.horizontal === 1 && adjacent.vertical > 1) score += 1; // Part of vertical only, count itself
-    if (adjacent.vertical === 1 && adjacent.horizontal > 1) score += 1; // Part of horizontal only, count itself
 
-    return Math.max(1, score); // Must score at least 1 if placed.
+    // Calculate score based on lines
+    if (adjacent.horizontal > 1) {
+      score += adjacent.horizontal;
+      console.log(`Adding ${adjacent.horizontal} points from horizontal line`);
+    }
+    if (adjacent.vertical > 1) {
+      score += adjacent.vertical;
+      console.log(`Adding ${adjacent.vertical} points from vertical line`);
+    }
+    if (adjacent.horizontal === 1 && adjacent.vertical > 1) {
+      score += 1;
+      console.log('Adding 1 point for tile being part of vertical line only');
+    }
+    if (adjacent.vertical === 1 && adjacent.horizontal > 1) {
+      score += 1;
+      console.log('Adding 1 point for tile being part of horizontal line only');
+    }
+
+    const finalScore = Math.max(1, score);
+    console.log(`Final score calculation: ${score} points (minimum 1)`);
+    return finalScore;
   }
 
   // Check if game should end (player has completed a row)
@@ -427,6 +420,7 @@ export class PlayerBoard {
 
   // Calculate final bonus scores without modifying the board (for UI display)
   getFinalScoreCalculation(): { bonus: number; details: FinalScoreDetails } {
+    console.log(`\nCalculating end-of-game bonuses for ${this.name}:`);
     let bonus = 0;
     const details: FinalScoreDetails = {
       completedRows: 0,
@@ -439,24 +433,30 @@ export class PlayerBoard {
     };
 
     // Row completion bonus (2 points per complete row)
-    for (const row of this.wall) {
-      if (row.filter((tile) => tile !== null).length === 5) {
+    console.log(`\nChecking completed rows for ${this.name}:`);
+    for (let i = 0; i < this.wall.length; i++) {
+      const row = this.wall[i];
+      const filledTiles = row.filter((tile) => tile !== null).length;
+      console.log(`${this.name} - Row ${i + 1}: ${filledTiles}/5 tiles filled`);
+      if (filledTiles === 5) {
         details.completedRows++;
         details.rowBonus += 2;
         bonus += 2;
+        console.log(`${this.name} - Row ${i + 1} completed! Adding 2 points (total row bonus: ${details.rowBonus})`);
       }
     }
 
     // Column completion bonus (7 points per complete column)
+    console.log(`\nChecking completed columns for ${this.name}:`);
     for (let col = 0; col < 5; col++) {
       let columnComplete = true;
       for (let row = 0; row < 5; row++) {
         // Check against the specific tile that SHOULD be in wall[row][col]
         if (
           this.wall[row][
-            PlayerBoard.WALL_PATTERN[row].indexOf(
-              PlayerBoard.WALL_PATTERN[row][col],
-            )
+          PlayerBoard.WALL_PATTERN[row].indexOf(
+            PlayerBoard.WALL_PATTERN[row][col],
+          )
           ] !== PlayerBoard.WALL_PATTERN[row][col]
         ) {
           columnComplete = false;
@@ -467,27 +467,40 @@ export class PlayerBoard {
         details.completedColumns++;
         details.columnBonus += 7;
         bonus += 7;
+        console.log(`${this.name} - Column ${col + 1} completed! Adding 7 points (total column bonus: ${details.columnBonus})`);
+      } else {
+        console.log(`${this.name} - Column ${col + 1}: incomplete`);
       }
     }
 
     // Color completion bonus (10 points per complete color)
+    console.log(`\nChecking completed colors for ${this.name}:`);
     const colorCounts = new Map<Tile, number>();
     for (const row of this.wall) {
       for (const tile of row) {
         if (tile !== null) {
-          // Only count actual tiles
           colorCounts.set(tile, (colorCounts.get(tile) || 0) + 1);
         }
       }
     }
 
-    for (const count of colorCounts.values()) {
+    for (const [color, count] of colorCounts.entries()) {
+      console.log(`${this.name} - Color ${color}: ${count}/5 tiles placed`);
       if (count === 5) {
         details.completedColors++;
         details.colorBonus += 10;
         bonus += 10;
+        console.log(`${this.name} - Color ${color} completed! Adding 10 points (total color bonus: ${details.colorBonus})`);
       }
     }
+
+    console.log(`\nFinal bonus summary for ${this.name}:`);
+    console.log(`${this.name} - Row bonus: ${details.rowBonus} points (${details.completedRows} completed rows)`);
+    console.log(`${this.name} - Column bonus: ${details.columnBonus} points (${details.completedColumns} completed columns)`);
+    console.log(`${this.name} - Color bonus: ${details.colorBonus} points (${details.completedColors} completed colors)`);
+    console.log(`${this.name} - Total bonus: ${bonus} points`);
+    console.log(`${this.name} - Previous score: ${details.previousScore}`);
+    console.log(`${this.name} - New total score: ${details.previousScore + bonus}`);
 
     return { bonus, details };
   }

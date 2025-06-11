@@ -49,6 +49,9 @@ if(PkgConfig_FOUND)
     pkg_check_modules(NLOHMANN_JSON QUIET nlohmann_json)
 endif()
 
+# Find spdlog
+find_package(spdlog REQUIRED)
+
 # Fallback to find nlohmann-json in Homebrew
 if(NOT NLOHMANN_JSON_FOUND)
     find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp
@@ -113,6 +116,13 @@ if(NLOHMANN_JSON_INCLUDE_DIR)
     include_directories(SYSTEM ${NLOHMANN_JSON_INCLUDE_DIR})
 else()
     include_directories(SYSTEM ${NLOHMANN_JSON_INCLUDE_DIRS})
+endif()
+
+# Add spdlog include directory
+if(SPDLOG_INCLUDE_DIR)
+    include_directories(SYSTEM ${SPDLOG_INCLUDE_DIR})
+else()
+    include_directories(SYSTEM ${SPDLOG_INCLUDE_DIRS})
 endif()
 
 # Add cxxopts include directory
@@ -403,6 +413,7 @@ if(EXISTS "${ALPHA_ZERO_TORCH_DIR}/alpha_zero.cc")
         ${LOCAL_OPENSPIEL_LIB}
         alpha_zero_torch
         ${TORCH_LIBRARIES}
+        spdlog::spdlog
     )
     
     message(STATUS "🌐 C++ API Server build target: azul_api_server")

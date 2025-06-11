@@ -1,5 +1,5 @@
 import { BaseGameState } from "./GameState";
-import { Move, SearchResult } from "./types";
+import { Move, SearchResult, Tile } from "./types";
 
 interface ApiAIResponse {
   move: Move;
@@ -148,6 +148,7 @@ export class ApiAI {
     try {
       const requestBody = {
         gameState: this.convertGameStateForAPI(gameState),
+        playerId: this.playerIndex,
       };
 
       console.log(
@@ -164,14 +165,16 @@ export class ApiAI {
 
       if (!response.ok) {
         throw new Error(
-          `API request failed: ${response.status} ${response.statusText}`,
+          `C++ AI request failed: ${response.status} ${response.statusText}. Please ensure the C++ AI server is running.`,
         );
       }
 
       const data: ApiAIResponse = await response.json();
 
       if (!data.success || data.error) {
-        throw new Error(data.error || "C++ AI failed to generate move");
+        throw new Error(
+          `C++ AI failed to generate move: ${data.error || "Unknown error"}. Please check the C++ AI server logs.`,
+        );
       }
 
       // Update stats
@@ -197,7 +200,7 @@ export class ApiAI {
         `AI Player ${this.playerIndex + 1} decision (${data.stats.agent_type}):`,
       );
       console.log(
-        `  Selected move: Factory ${data.move.factoryIndex}, Tile ${data.move.tile}, Line ${data.move.lineIndex + 1}`,
+        `  Selected move: Factory ${data.move.factoryIndex}, Tile ${data.move.tile}, Line ${data.move.lineIndex}`,
       );
       console.log(`  Search time: ${data.stats.searchTime.toFixed(3)}s`);
       console.log(`  Nodes evaluated: ${data.stats.nodesEvaluated}`);
@@ -210,21 +213,7 @@ export class ApiAI {
       };
     } catch (error) {
       console.error("C++ AI error:", error);
-      // Fallback to simple move selection and update stats
-      const result = this.getSimpleMove(gameState);
-
-      // Update stats for fallback move
-      const previousTotalMoves = this.lastStats.totalMoves || 0;
-      this.lastStats = {
-        ...this.lastStats,
-        nodesEvaluated: result.nodesEvaluated,
-        searchTime: 0.01, // Assume 10ms for simple heuristic
-        lastMoveTime: new Date(),
-        totalMoves: previousTotalMoves + 1,
-        averageSearchTime: this.lastStats.averageSearchTime || 0, // Keep existing average
-      };
-
-      return result;
+      throw error; // Re-throw the error instead of falling back
     }
   }
 
@@ -232,68 +221,54 @@ export class ApiAI {
     // Convert the webapp game state to a format the C++ API can understand
     return {
       currentPlayer: gameState.currentPlayer,
-      round: gameState.round,
-      gameOver: gameState.gameOver,
-      playerBoards: gameState.playerBoards.map((board, index) => ({
-        playerId: index,
-        score: board.score,
-        wall: board.wall,
-        lines: board.lines,
-        floor: board.floor,
-      })),
-      factories: gameState.factories,
-      center: gameState.center,
-      firstPlayerIndex: gameState.firstPlayerIndex,
-      availableMoves: gameState.availableMoves,
-    };
-  }
+      roundNumber: gameState.round,
+      gameEnded: gameState.gameOver,
+      players: gameState.playerBoards.map((board: any, index: number) => {
+        // Log wall data for debugging
+        console.log(`Player ${index} wall:`, board.wall);
 
-  getSimpleMove(gameState: BaseGameState): SearchResult {
-    // Fallback to simple move selection when C++ AI fails
-    if (gameState.availableMoves.length === 0) {
-      throw new Error("No available moves for fallback");
-    }
-
-    // Simple heuristic: prefer moves that complete pattern lines
-    let bestMove = gameState.availableMoves[0];
-    let bestScore = -1;
-
-    for (const move of gameState.availableMoves) {
-      let score = 0;
-
-      // Prefer moves to pattern lines that are close to completion
-      if (
-        move.lineIndex >= 0 &&
-        move.lineIndex < gameState.playerBoards[this.playerIndex].lines.length
-      ) {
-        const line =
-          gameState.playerBoards[this.playerIndex].lines[move.lineIndex];
-        const lineCapacity = move.lineIndex + 1;
-        const currentCount = line.filter((tile) => tile !== null).length;
-        const tilesNeeded = lineCapacity - currentCount;
-
-        // Higher score for lines that will be completed or nearly completed
-        if (tilesNeeded <= 2) {
-          score += (3 - tilesNeeded) * 10;
+        return {
+          playerId: index,
+          score: board.score,
+          wall: board.wall.map((row: any[]) => {
+            return row.map((cell: any) => {
+              // A cell is true if it has a tile (not null)
+              return cell !== null;
+            });
+          }),
+          patternLines: board.lines.map((line: any) => {
+            // Count non-null tiles in the line
+            const count = line.filter((tile: any) => tile !== null).length;
+            // Get the color of the first non-null tile, or null if empty
+            const color = line.find((tile: any) => tile !== null);
+            return {
+              count,
+              color: color || null
+            };
+          }),
+          floorLine: board.floor.map((tile: string) => {
+            // Convert firstPlayer token to "F" for C++ server
+            if (tile === "firstPlayer") return "F";
+            return tile;
+          }),
+        };
+      }),
+      factories: gameState.factories.map((factory: any) => {
+        // Convert array of tiles to color counts
+        const counts: { [key: string]: number } = {};
+        factory.forEach((tile: string) => {
+          counts[tile] = (counts[tile] || 0) + 1;
+        });
+        return counts;
+      }),
+      centerPile: gameState.center.reduce((acc: { [key: string]: number }, tile: string) => {
+        if (tile !== "firstPlayer") {
+          acc[tile] = (acc[tile] || 0) + 1;
         }
-      }
-
-      // Slightly prefer taking from factories over center
-      if (move.factoryIndex >= 0) {
-        score += 1;
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
-    }
-
-    return {
-      move: bestMove,
-      value: bestScore,
-      depth: 1,
-      nodesEvaluated: gameState.availableMoves.length,
+        return acc;
+      }, {}),
+      firstPlayerNextRound: gameState.firstPlayerIndex,
+      firstPlayerTileAvailable: gameState.center.includes("firstPlayer" as Tile),
     };
   }
 

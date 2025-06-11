@@ -164,6 +164,10 @@ auto main(int argc, char *argv[]) -> int {
         cxxopts::value<std::string>()->default_value("tournament"))(
         "g,games", "Number of games per matchup in tournament mode",
         cxxopts::value<int>()->default_value("10"))(
+        "s,sims", "Number of simulations for AlphaZero MCTS agent",
+        cxxopts::value<int>()->default_value("1000"))(
+        "d,depth", "Search depth for Minimax agent",
+        cxxopts::value<int>()->default_value("3"))(
         "v,verbose", "Enable verbose output",
         cxxopts::value<bool>()->default_value("true"))(
         "o,output", "Output file for game replay (JSON format)",
@@ -194,28 +198,47 @@ auto main(int argc, char *argv[]) -> int {
     std::cout << "✅ Azul game loaded successfully" << '\n';
 
     // Create agents
-    auto mcts_agent = azul::create_alphazero_mcts_evaluation_agent(
-        "models/libtorch_alphazero_azul/checkpoint--1", 1000, 1.4, 42,
-        "AlphaZero_MCTS_1000");
-    auto minimax_agent = azul::create_minimax_evaluation_agent(3, "Minimax_D3");
-    auto random_agent = azul::create_random_evaluation_agent(42, "Random");
+    auto az_agent = azul::create_alphazero_mcts_evaluation_agent(
+        "models/libtorch_alphazero_azul/checkpoint--1",
+        result["sims"].as<int>(), 1.4, 42,
+        "AlphaZero_MCTS_" + std::to_string(result["sims"].as<int>()));
+    auto minimax_agent = azul::create_minimax_evaluation_agent(
+        result["depth"].as<int>(),
+        "Minimax_D" + std::to_string(result["depth"].as<int>()));
 
     if (mode == "detailed") {
-      detailed_game_evaluation(game, mcts_agent, minimax_agent,
-                               "AlphaZero MCTS (1000 sims)", "Minimax (D3)",
-                               result["output"].as<std::string>());
+      detailed_game_evaluation(
+          game, az_agent, minimax_agent,
+          "AlphaZero MCTS (" + std::to_string(result["sims"].as<int>()) +
+              " sims)",
+          "Minimax (D" + std::to_string(result["depth"].as<int>()) + ")",
+          result["output"].as<std::string>());
     } else {
-      // Run tournament using the existing Tournament class
+      // Use AgentEvaluator for direct comparison
       azul::EvaluationConfig config;
       config.verbose = result["verbose"].as<bool>();
       config.num_games = result["games"].as<int>();
 
-      azul::Tournament tournament(config);
-      tournament.add_agent(std::move(mcts_agent));
-      tournament.add_agent(std::move(minimax_agent));
-      tournament.add_agent(std::move(random_agent));
+      azul::AgentEvaluator evaluator(config);
+      auto result = evaluator.evaluate_agent(*az_agent, *minimax_agent);
 
-      auto tournament_result = tournament.run_tournament();
+      // Print evaluation results
+      std::cout << "\n=== EVALUATION RESULTS ===\n";
+      std::cout << "Agent 1: " << result.test_agent_name << "\n";
+      std::cout << "Agent 2: " << result.baseline_agent_name << "\n";
+      std::cout << "Games played: " << result.games_played << "\n";
+      std::cout << result.test_agent_name << " wins: " << result.test_agent_wins
+                << "\n";
+      std::cout << "Win rate: " << (result.test_agent_win_rate * 100.0)
+                << "%\n";
+      std::cout << "Statistical significance: "
+                << (result.is_statistically_significant ? "Yes" : "No") << "\n";
+      if (result.confidence_interval.first != 0 ||
+          result.confidence_interval.second != 0) {
+        std::cout << "95% Confidence interval: ["
+                  << result.confidence_interval.first * 100 << "%, "
+                  << result.confidence_interval.second * 100 << "%]\n";
+      }
     }
 
   } catch (const cxxopts::exceptions::exception &e) {

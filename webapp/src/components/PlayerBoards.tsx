@@ -92,7 +92,7 @@ export function PlayerBoards({
                       )
                         ? "pattern-line--valid-drop"
                         : ""
-                    }`}
+                      }`}
                     onClick={() =>
                       handlePatternLineClick(playerIndex, lineIndex)
                     }
@@ -104,8 +104,8 @@ export function PlayerBoards({
                             key={slotIndex}
                             className={`pattern-line__slot ${
                               slotIndex < line.tiles.length
-                                ? "pattern-line__slot--filled"
-                                : ""
+                              ? "pattern-line__slot--filled"
+                              : ""
                             } ${
                               canPlaceOnLine(
                                 player,
@@ -115,7 +115,7 @@ export function PlayerBoards({
                               )
                                 ? "pattern-line__slot--valid-drop"
                                 : ""
-                            }`}
+                              }`}
                           >
                             {slotIndex < line.tiles.length && (
                               <Tile color={line.tiles[slotIndex].color} />
@@ -140,9 +140,9 @@ export function PlayerBoards({
                         key={`${rowIndex}-${colIndex}`}
                         className={`wall-slot ${
                           slot.isFilled
-                            ? "wall-slot--filled"
-                            : "wall-slot--empty"
-                        } ${slot.isScoring ? "wall-slot--scoring" : ""}`}
+                          ? "wall-slot--filled"
+                          : "wall-slot--empty"
+                          } ${slot.isScoring ? "wall-slot--scoring" : ""}`}
                       >
                         <Tile
                           color={expectedColor}

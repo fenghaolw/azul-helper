@@ -236,8 +236,8 @@ export abstract class BaseGameState {
       const uniqueTiles = [...new Set(factory)];
 
       for (const tile of uniqueTiles) {
-        // Try each pattern line
-        for (let lineIndex = 0; lineIndex <= 4; lineIndex++) {
+        // Try each pattern line (0-based indexing)
+        for (let lineIndex = 0; lineIndex < 5; lineIndex++) {
           if (currentBoard.canPlaceTile(tile, lineIndex)) {
             this.availableMoves.push({
               factoryIndex,
@@ -263,8 +263,8 @@ export abstract class BaseGameState {
       ];
 
       for (const tile of uniqueTiles) {
-        // Try each pattern line
-        for (let lineIndex = 0; lineIndex <= 4; lineIndex++) {
+        // Try each pattern line (0-based indexing)
+        for (let lineIndex = 0; lineIndex < 5; lineIndex++) {
           if (currentBoard.canPlaceTile(tile, lineIndex)) {
             this.availableMoves.push({
               factoryIndex: -1,
@@ -343,7 +343,7 @@ export abstract class BaseGameState {
     } else {
       const placed = tilesToPlace.length - excess.length;
       console.log(
-        `  Placing ${placed} tiles on pattern line ${move.lineIndex + 1}`,
+        `  Placing ${placed} tiles on pattern line ${move.lineIndex}`,
       );
       if (excess.length > 0) {
         console.log(`  ${excess.length} excess tiles go to floor`);
