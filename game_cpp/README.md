@@ -362,6 +362,8 @@ OMP_NUM_THREADS=1 ./libtorch_alphazero_training --profile
 pprof --text ./libtorch_alphazero_trainer ./azul_training.prof 2> pprof_errors.txt > pprof_out.txt
 ```
 
+NOTE: We rediect stderr since on Apple Sillicon there are spammy warnings due to certain system libraries are no longer available. But it does not affect the main profiling results.
+
 ### Set `OMP_NUM_THREADS=1` before running the training
 
 Why? More threads actually hurt the performance. See "nested parallelism" or "over-subscription." Here is the sequence of events:
@@ -372,6 +374,30 @@ Why? More threads actually hurt the performance. See "nested parallelism" or "ov
 The Conflict: We now have 10 "outer" threads each trying to spawn a new team of "inner" threads. These thread teams are all competing for the same limited pool of CPU cores. The overhead of creating, managing, and synchronizing these nested threads becomes astronomically high, and they spend all their time waiting on locks and barriers instead of computing.
 
 By setting `OMP_NUM_THREADS=1`, we are telling the OpenMP runtime inside PyTorch: "When you execute an operation like a convolution, just run it on the single, current thread. Do not spawn a new team of threads." This eliminates the entire nested parallelism problem. Each of your 10 actor threads will now execute its model inference sequentially on its own core.
+
+### Set `--evaluators=0` in the flags or `config.json`
+
+The term "evaluator" is used in two different ways here. There are three main components of the OpenSpiel AlphaZero pipeline:
+- Component 1: The Actors (The Trajectory Producers): Their job is to play games against themselves using the current best neural network. This is the core self-play loop. 
+  - An actor thread starts a new game.
+  - For each move, it runs an MCTS search (MCTSBot).
+  - To evaluate leaf nodes during the search, the MCTS bot uses the `VPNetEvaluator`. This `VPNetEvaluator` is the wrapper around the neural network. It's the one that takes a game state and returns a policy and value from the NN.
+  - After the game is finished, the trajectory (the series of (state, policy, value) tuples) is sent to the central Replay Buffer.
+- Component 2: The Learner (The Trajectory Consumer for Training): This is the training part of the pipeline. The learner thread continuously samples mini-batches of trajectories from the Replay Buffer.
+It uses these batches to run the training step on the neural network (model->Train()), calculating the loss and updating the weights via the optimizer. Periodically, it saves a new checkpoint of the updated model, which the actors will then load.
+- Component 3: The Evaluator Threads (The Benchmarkers) Parameters: `"evaluators": 2, "evaluation_window": 100`
+  - Their job is NOT to generate training data. Their sole purpose is to benchmark the current best network against a fixed opponent to see if it's getting stronger. In these matches, one player is the current best model (using MCTSBot with the VPNetEvaluator). The other player is a baseline bot: an MCTS bot that uses the `RandomRolloutEvaluator`. The results are printed to the log but are never added to the replay buffer. Every evaluation_window number of games, these evaluator will swap out the current "best" network. 
+
+However, `RandomRolloutEvaluator` could be really slow. Profiling shows that it consumes **5.5% of the total training costs**. It seems unnecessary especially I am manually running another benchmark comparison locally.
+
+### Results as of June 10
+With all of these, we can get consistently 600-700 games per hour using 10 actors. 
+
+Gemini analyzed the pprof output and told me
+> * The Main Bottleneck is Correct: The very top line, consuming 64.2% of the entire program's runtime, is the core NN computation kernel (0x...c3f8). This is exactly what we want. It confirms that the vast majority of your CPU's time is spent on the most valuable task: running the neural network. The unfolded2d_copy operation (10.3%) is part of this and is an unavoidable aspect of CPU-based convolutions.
+> * Threading Overhead is Minimal: The remaining kmp or thread-related functions from the past are either gone or so far down the list they are irrelevant.
+> * Random Rollouts are Gone: The RandomRolloutEvaluator is no longer present in the profile. Setting "evaluators": 0 successfully removed the entire benchmarking workload, freeing up those cycles for training.
+> * Game Logic is the Next Frontier (But a Minor One): Your biggest remaining non-NN bottleneck is open_spiel::azul::AzulState::LegalActions (3.9%). This is the next place you could optimize if you wanted to squeeze out more performance. However, at this point, the return on investment for optimizing it further is much lower.
 
 ## 📝 License
 
