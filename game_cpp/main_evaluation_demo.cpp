@@ -195,14 +195,14 @@ auto main(int argc, char *argv[]) -> int {
 
     // Create agents
     auto mcts_agent = azul::create_alphazero_mcts_evaluation_agent(
-        "models/libtorch_alphazero_azul/checkpoint--1", 400, 1.4, 42,
-        "AlphaZero_MCTS_400");
+        "models/libtorch_alphazero_azul/checkpoint--1", 1000, 1.4, 42,
+        "AlphaZero_MCTS_1000");
     auto minimax_agent = azul::create_minimax_evaluation_agent(3, "Minimax_D3");
     auto random_agent = azul::create_random_evaluation_agent(42, "Random");
 
     if (mode == "detailed") {
       detailed_game_evaluation(game, mcts_agent, minimax_agent,
-                               "AlphaZero MCTS (400 sims)", "Minimax (D3)",
+                               "AlphaZero MCTS (1000 sims)", "Minimax (D3)",
                                result["output"].as<std::string>());
     } else {
       // Run tournament using the existing Tournament class
