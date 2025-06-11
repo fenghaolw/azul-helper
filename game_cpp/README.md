@@ -390,6 +390,20 @@ It uses these batches to run the training step on the neural network (model->Tra
 
 However, `RandomRolloutEvaluator` could be really slow. Profiling shows that it consumes **5.5% of the total training costs**. It seems unnecessary especially I am manually running another benchmark comparison locally.
 
+### Use `--device: cpu` instead of GPU (`mps` or `cuda`)
+
+Counterintuitively, the workload is actually latency-bound, which plays to the CPU's strengths. The MPS backend is designed for high throughput, but the current configuration isn't providing a large enough workload to overcome the overheads, resulting in a net slowdown.
+
+From the profiling results when using GPU, there are two massive, glaring signs of inefficiency, both directly related to the nature of CPU vs. GPU computation.
+1. The Data Transfer Tax (The copy operations): The single biggest category of "work" that isn't direct computation is data copying.
+  - `at::native::mps::mps_copy_` **(10.2%)**: This is the function responsible for copying tensor data to and from the MPS device.
+  - `at::mps::MPSStream::copy_and_sync` **(3.5%)**: This is another copy function used for synchronization.
+  This copying is pure overhead. It's time that the CPU version doesn't spend at all, because the data is already where it needs to be.
+2. The Kernel Launch Overhead (The fill operation)
+  - `at::native::fill_scalar_mps` **(36.1%)**: This function's job is to fill a tensor with a single value (like creating a tensor of all zeros or all ones). On a CPU, this is an almost instantaneous memory-write operation. The fact that this trivial operation is consuming over a third of runtime is a classic symptom of kernel launch overhead. To perform any operation on the GPU, the CPU has to package the command (e.g., "fill this buffer with the value 0"), send the command to the GPU driver. The driver then schedules the command on the GPU hardware. The GPU executes the command. The CPU waits for a signal that it's done.
+
+Right now, each actor performs an MCTS search and then has to stop and wait for a single neural network evaluation. It needs that result back as quickly as possible to continue. For this specific workload and architecture, CPU implementation is superior. If I want to use the GPU, the only way to make it faster would be to change the workload to be throughput-bound, i.e., dramatically increase the `inference_batch_size` to something like 256. This would allow the `VPNetEvaluator` to collect a large batch of requests from the actors and send them to the MPS device all at once. However, this comes at the cost of increased latency for the actors, which may or may not be better for the overall training speed.
+
 ### Results as of June 10
 With all of these, we can get consistently 600-700 games per hour using 10 actors. 
 
