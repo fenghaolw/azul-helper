@@ -34,27 +34,8 @@ export default function MoveSuggestion() {
 
       {analysisResult.value?.move && !analysisResult.value.error && (
         <>
-          <div className="text-sm text-gray-600 mb-3 font-medium">
-            Expected score: {getStats()?.score}
-          </div>
-
           <div className="flex gap-2 mb-3">
             <TileIcon tile={analysisResult.value.move.tile} size={TILE_ICON_SIZE * 1.5} />
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-2">
-            <div className="text-center">
-              <div className="font-medium text-gray-900">{getStats()?.nodes}</div>
-              <div>Nodes</div>
-            </div>
-            <div className="text-center">
-              <div className="font-medium text-gray-900">{getStats()?.depth}</div>
-              <div>Depth</div>
-            </div>
-            <div className="text-center">
-              <div className="font-medium text-gray-900">{getStats()?.time}ms</div>
-              <div>Time</div>
-            </div>
           </div>
         </>
       )}

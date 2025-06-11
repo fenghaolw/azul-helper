@@ -2,15 +2,6 @@
 
 import { GameStateData, PlayerBoard } from './types';
 
-interface DifficultySetting {
-  time: number;
-  label: string;
-}
-
-interface DifficultySettings {
-  [key: number]: DifficultySetting;
-}
-
 interface Move {
   factoryIndex: number;
   tile: string;
@@ -30,14 +21,6 @@ interface AnalysisResponse {
   error?: string;
 }
 
-// Difficulty settings
-const difficultySettings: DifficultySettings = {
-  1: { time: 500, label: 'Easy' },
-  2: { time: 1000, label: 'Medium' },
-  3: { time: 2000, label: 'Hard' },
-  4: { time: 5000, label: 'Expert' },
-};
-
 // UI Elements
 const suggestionEl = document.getElementById('suggestion') as HTMLDivElement;
 const detailsEl = document.getElementById('details') as HTMLDivElement;
@@ -45,8 +28,6 @@ const tilePreviewEl = document.getElementById('tile-preview') as HTMLDivElement;
 const nodesEl = document.getElementById('nodes') as HTMLSpanElement;
 const depthEl = document.getElementById('depth') as HTMLSpanElement;
 const timeEl = document.getElementById('time') as HTMLSpanElement;
-const difficultySlider = document.getElementById('difficulty') as HTMLInputElement;
-const difficultyLabel = document.getElementById('difficulty-label') as HTMLSpanElement;
 const analyzeButton = document.getElementById('analyze') as HTMLButtonElement;
 const errorEl = document.getElementById('error') as HTMLDivElement;
 const gameStateEl = document.getElementById('game-state') as HTMLDivElement;
@@ -231,24 +212,13 @@ function renderPlayerBoards(gameState: GameStateData | null) {
   playerBoardsEl.innerHTML = html;
 }
 
-// Update difficulty label (no auto re-analysis)
-difficultySlider.addEventListener('input', () => {
-  const level = parseInt(difficultySlider.value);
-  difficultyLabel.textContent = difficultySettings[level].label;
-  // Note: User needs to click analyze button to see effect of new difficulty
-});
-
 // Analyze button click handler
 analyzeButton.addEventListener('click', () => {
   runAIAnalysis();
 });
 
-// Set default difficulty and auto-extract game state when side panel loads
+// Auto-extract game state when side panel loads
 document.addEventListener('DOMContentLoaded', () => {
-  const highestDifficulty = 4; // Or Math.max(...Object.keys(difficultySettings).map(Number));
-  difficultySlider.value = highestDifficulty.toString();
-  difficultyLabel.textContent = difficultySettings[highestDifficulty].label;
-
   // Auto-extract game state on load
   setTimeout(() => {
     extractAndDisplayGameState();
@@ -316,16 +286,11 @@ async function runAIAnalysis() {
     tilePreviewEl.innerHTML = '';
     errorEl.textContent = '';
 
-    // Get difficulty setting
-    const level = parseInt(difficultySlider.value);
-    const timeLimit = difficultySettings[level].time;
-
     // Send game state to background script for AI analysis
     chrome.runtime.sendMessage(
       {
         action: 'analyzePosition',
         gameState: currentGameState,
-        timeLimit,
       },
       handleAnalysisResponse
     );

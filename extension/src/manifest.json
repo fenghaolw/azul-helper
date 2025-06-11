@@ -3,8 +3,15 @@
   "name": "Azul Helper",
   "version": "1.0",
   "description": "Suggests optimal moves for Azul board game on Board Game Arena",
-  "permissions": ["activeTab", "scripting", "sidePanel"],
-  "host_permissions": ["*://*.boardgamearena.com/*"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "*://*.boardgamearena.com/*",
+    "http://localhost:5001/*"
+  ],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
@@ -17,8 +24,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.boardgamearena.com/*"],
-      "js": ["content.js"]
+      "matches": [
+        "*://*.boardgamearena.com/*"
+      ],
+      "js": [
+        "content.js"
+      ]
     }
   ],
   "background": {
@@ -26,8 +37,13 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["ai/*", "icons/*"],
-      "matches": ["*://*.boardgamearena.com/*"]
+      "resources": [
+        "ai/*",
+        "icons/*"
+      ],
+      "matches": [
+        "*://*.boardgamearena.com/*"
+      ]
     }
   ]
 }

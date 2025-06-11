@@ -5,10 +5,9 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "dev": "oxc build --watch",
-    "build": "tsc && oxc build",
-    "analyze": "oxc build --analyze",
-    "build:watch": "oxc build --watch",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -18,18 +17,20 @@
     "ci": "npm run check && npm run build"
   },
   "dependencies": {
-    "@preact/signals": "^2.0.5",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.3",
-    "preact": "^10.26.7",
-    "tailwindcss": "^4.1.9",
-    "typescript": "^5.0.0"
+    "@preact/signals": "latest",
+    "autoprefixer": "latest",
+    "postcss": "latest",
+    "preact": "latest",
+    "tailwindcss": "^3.4.0",
+    "typescript": "latest"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.260",
-    "fs-extra": "^11.3.0",
-    "oxc": "latest",
+    "@types/chrome": "latest",
+    "@preact/preset-vite": "latest",
+    "fs-extra": "latest",
+    "vite": "latest",
+    "vite-plugin-static-copy": "latest",
     "oxlint": "latest",
-    "prettier": "^3.5.3"
+    "prettier": "latest"
   }
 }

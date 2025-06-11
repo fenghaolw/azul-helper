@@ -4,7 +4,6 @@ import AnalyzeButton from './AnalyzeButton';
 import MoveSuggestion from './MoveSuggestion';
 import GameState from './GameState';
 import PlayerBoards from './PlayerBoards';
-import Settings from './Settings';
 import ErrorDisplay from './ErrorDisplay';
 import { GameStateData, AnalysisResponse } from '../types';
 
@@ -71,13 +70,10 @@ export default function App() {
       isAnalyzing.value = true;
       error.value = '';
 
-      const timeLimit = getDifficultyTimeLimit(difficulty.value);
-
       chrome.runtime.sendMessage(
         {
           action: 'analyzePosition',
-          gameState: gameState.value,
-          timeLimit,
+          gameState: gameState.value
         },
         (response: AnalysisResponse) => {
           isAnalyzing.value = false;
@@ -92,16 +88,6 @@ export default function App() {
       isAnalyzing.value = false;
       error.value = err instanceof Error ? err.message : 'An unknown error occurred';
     }
-  };
-
-  const getDifficultyTimeLimit = (level: number): number => {
-    const settings: { [key: number]: number } = {
-      1: 500, // Easy
-      2: 1000, // Medium
-      3: 2000, // Hard
-      4: 5000, // Expert
-    };
-    return settings[level] || 1000;
   };
 
   return (
@@ -124,15 +110,11 @@ export default function App() {
         {/* Column 2 */}
         <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5">
           <PlayerBoards />
-          <div className="xl:hidden">
-            <Settings />
-          </div>
         </div>
 
         {/* Column 3 - Only visible on extra wide panels */}
         <div className="hidden xl:flex flex-col gap-3 sm:gap-4 lg:gap-5">
           <GameState />
-          <Settings />
         </div>
       </div>
 
