@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "agent_evaluator.h"
@@ -89,6 +90,175 @@ nlohmann::json state_to_json(const open_spiel::State *state) {
   return state_json;
 }
 
+// Helper function to display game state in compact format
+std::string compact_state_display(const open_spiel::State *state) {
+  const auto *azul_state =
+      dynamic_cast<const open_spiel::azul::AzulState *>(state);
+  if (!azul_state) {
+    return "Invalid state";
+  }
+
+  std::ostringstream oss;
+
+  // Header with round and current player
+  oss << "Round " << azul_state->round_number_ << " | Player "
+      << azul_state->CurrentPlayer() << "'s turn";
+  if (azul_state->HasFirstPlayerTile()) {
+    oss << " | First player tile available";
+  }
+  oss << "\n";
+
+  // Factories in a single line
+  oss << "Factories: ";
+  const auto &factories = azul_state->Factories();
+  for (size_t i = 0; i < factories.size(); ++i) {
+    if (i > 0)
+      oss << " | ";
+    oss << "F" << i << ":";
+    bool has_tiles = false;
+    for (int color = 0; color < open_spiel::azul::kNumTileColors; ++color) {
+      if (factories[i].tiles[color] > 0) {
+        if (has_tiles)
+          oss << ",";
+        oss << open_spiel::azul::TileColorToString(
+                   static_cast<open_spiel::azul::TileColor>(color))[0]
+            << factories[i].tiles[color];
+        has_tiles = true;
+      }
+    }
+    if (!has_tiles)
+      oss << "Empty";
+  }
+  oss << "\n";
+
+  // Center pile
+  oss << "Center: ";
+  const auto &center = azul_state->CenterPile();
+  bool has_center_tiles = false;
+  for (int color = 0; color < open_spiel::azul::kNumTileColors; ++color) {
+    if (center.tiles[color] > 0) {
+      if (has_center_tiles)
+        oss << ",";
+      oss << open_spiel::azul::TileColorToString(
+                 static_cast<open_spiel::azul::TileColor>(color))[0]
+          << center.tiles[color];
+      has_center_tiles = true;
+    }
+  }
+  if (!has_center_tiles)
+    oss << "Empty";
+  oss << "\n";
+
+  // Helper function to generate board display for a player
+  auto generate_player_board = [](const open_spiel::azul::PlayerBoard &board,
+                                  int player_num) -> std::vector<std::string> {
+    std::vector<std::string> lines;
+
+    // Header line
+    lines.push_back("Player " + std::to_string(player_num) +
+                    " (Score: " + std::to_string(board.score) + "):");
+
+    // Pattern lines and wall
+    for (int row = 0; row < open_spiel::azul::kWallSize; ++row) {
+      std::string line;
+
+      // Pattern line (right-aligned based on row number)
+      // Row 0 can hold 1 tile, row 1 can hold 2 tiles, etc.
+      std::string pattern_part;
+
+      if (board.pattern_lines[row].count > 0) {
+        char color_char = open_spiel::azul::TileColorToString(
+            board.pattern_lines[row].color)[0];
+        pattern_part = std::string(board.pattern_lines[row].count, color_char);
+      }
+
+      // Create the pattern section (8 characters total, right-aligned)
+      std::string pattern_section(8, ' ');
+      if (!pattern_part.empty()) {
+        int start_pos = 8 - pattern_part.length();
+        if (start_pos < 0)
+          start_pos = 0;
+        for (size_t i = 0; i < pattern_part.length() && (start_pos + i) < 8;
+             ++i) {
+          pattern_section[start_pos + i] = pattern_part[i];
+        }
+      }
+
+      line += pattern_section;
+
+      // Separator
+      line += " | ";
+
+      // Wall row
+      for (int col = 0; col < open_spiel::azul::kWallSize; ++col) {
+        if (board.wall[row][col]) {
+          // Get the color that should be at this position
+          open_spiel::azul::TileColor wall_color =
+              static_cast<open_spiel::azul::TileColor>(
+                  (col + row) % open_spiel::azul::kNumTileColors);
+          line += open_spiel::azul::TileColorToString(wall_color)[0];
+        } else {
+          line += '.';
+        }
+      }
+
+      lines.push_back(line);
+    }
+
+    // Floor line
+    std::string floor_line = "Floor: ";
+    if (!board.floor_line.empty()) {
+      for (const auto &tile : board.floor_line) {
+        floor_line += open_spiel::azul::TileColorToString(tile)[0];
+      }
+    }
+    lines.push_back(floor_line);
+
+    return lines;
+  };
+
+  // Player boards side by side
+  oss << "\nPlayer Boards:\n";
+  if (azul_state->num_players_ >= 2) {
+    auto player0_lines =
+        generate_player_board(azul_state->GetPlayerBoard(0), 0);
+    auto player1_lines =
+        generate_player_board(azul_state->GetPlayerBoard(1), 1);
+
+    // Find max width for player 0's lines for proper spacing
+    size_t max_width = 0;
+    for (const auto &line : player0_lines) {
+      max_width = std::max(max_width, line.length());
+    }
+
+    // Display lines side by side
+    size_t max_lines = std::max(player0_lines.size(), player1_lines.size());
+    for (size_t i = 0; i < max_lines; ++i) {
+      std::string left_line =
+          (i < player0_lines.size()) ? player0_lines[i] : "";
+      std::string right_line =
+          (i < player1_lines.size()) ? player1_lines[i] : "";
+
+      // Pad left line to consistent width (ensure minimum spacing)
+      const size_t min_spacing = 4;
+      if (left_line.length() < max_width) {
+        left_line += std::string(max_width - left_line.length(), ' ');
+      }
+
+      oss << left_line << std::string(min_spacing, ' ') << right_line << "\n";
+    }
+  } else {
+    // Fallback for single player (shouldn't happen in Azul but just in case)
+    auto player0_lines =
+        generate_player_board(azul_state->GetPlayerBoard(0), 0);
+    for (const auto &line : player0_lines) {
+      oss << line << "\n";
+    }
+  }
+
+  return oss.str();
+}
+
 void detailed_game_evaluation(
     const std::shared_ptr<const open_spiel::Game> &game,
     std::unique_ptr<azul::EvaluationAgent> &agent1,
@@ -96,7 +266,8 @@ void detailed_game_evaluation(
     const std::string &agent1_name, const std::string &agent2_name,
     const std::string &output_file = "") {
   auto state = game->NewInitialState();
-  std::cout << "\nInitial game state:\n" << state->ToString() << '\n';
+  std::cout << "\n=== INITIAL GAME STATE ===\n"
+            << compact_state_display(state.get()) << '\n';
 
   // Create JSON structure for game replay
   nlohmann::json game_replay;
@@ -113,8 +284,8 @@ void detailed_game_evaluation(
     auto action = agent.get_action(*state, current_player);
     std::string action_str = state->ActionToString(current_player, action);
 
-    std::cout << "\nPlayer " << current_player << " (" << agent_name
-              << ") takes action: " << action_str << '\n';
+    std::cout << "\n--- Player " << current_player << " (" << agent_name
+              << ") takes action: " << action_str << " ---\n";
 
     // Record move in JSON
     nlohmann::json move;
@@ -125,7 +296,7 @@ void detailed_game_evaluation(
     move["state_after"] = state_to_json(state.get());
     game_replay["moves"].push_back(move);
 
-    std::cout << "\nGame state after move:\n" << state->ToString() << '\n';
+    std::cout << compact_state_display(state.get()) << '\n';
   }
 
   // Record final state and scores
