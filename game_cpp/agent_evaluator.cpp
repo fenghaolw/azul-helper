@@ -5,15 +5,16 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <stdexcept>
 
 namespace azul {
 
-AgentEvaluator::AgentEvaluator(const EvaluationConfig& config)
+AgentEvaluator::AgentEvaluator(const EvaluationConfig &config)
     : config_(config) {}
 
-auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
-                                    EvaluationAgent& baseline_agent)
+auto AgentEvaluator::evaluate_agent(EvaluationAgent &test_agent,
+                                    EvaluationAgent &baseline_agent)
     -> EvaluationResult {
   // Create result object
   EvaluationResult result(test_agent.get_name(), baseline_agent.get_name(),
@@ -33,7 +34,7 @@ auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
   }
 
   // Run all games
-  for (const auto& plan : game_plans) {
+  for (const auto &plan : game_plans) {
     int game_id = std::get<0>(plan);
     int test_player = std::get<1>(plan);
     int baseline_player = std::get<2>(plan);
@@ -62,7 +63,7 @@ auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
         result.errors++;
       }
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       if (config_.verbose) {
         std::cout << "Game " << game_id << " failed: " << e.what() << '\n';
       }
@@ -113,8 +114,8 @@ auto AgentEvaluator::evaluate_agent(EvaluationAgent& test_agent,
   return result;
 }
 
-auto AgentEvaluator::quick_evaluation(EvaluationAgent& test_agent,
-                                      EvaluationAgent& baseline_agent,
+auto AgentEvaluator::quick_evaluation(EvaluationAgent &test_agent,
+                                      EvaluationAgent &baseline_agent,
                                       int num_games) -> EvaluationResult {
   EvaluationConfig quick_config = config_;
   quick_config.num_games = num_games;
@@ -124,8 +125,8 @@ auto AgentEvaluator::quick_evaluation(EvaluationAgent& test_agent,
   return quick_evaluator.evaluate_agent(test_agent, baseline_agent);
 }
 
-auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
-                                     EvaluationAgent& baseline_agent,
+auto AgentEvaluator::run_single_game(EvaluationAgent &test_agent,
+                                     EvaluationAgent &baseline_agent,
                                      int game_id, int test_agent_player,
                                      int baseline_agent_player, int seed) const
     -> GameResult {
@@ -164,12 +165,12 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
 
   try {
     while (!game_state->IsTerminal() &&
-           total_moves < 200) {  // Add move limit to prevent infinite loops
+           total_moves < 200) { // Add move limit to prevent infinite loops
       int current_player = game_state->CurrentPlayer();
 
       // Check if game became terminal or is in chance node
       if (game_state->IsTerminal()) {
-        break;  // Game ended, exit loop
+        break; // Game ended, exit loop
       }
 
       // Handle chance events (OpenSpiel uses -1 for chance player)
@@ -193,7 +194,7 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
             std::to_string(static_cast<int>(game_state->IsTerminal())) + ")");
       }
 
-      ActionType action = -1;  // Default initialization for OpenSpiel action
+      ActionType action = -1; // Default initialization for OpenSpiel action
 
       auto move_start = std::chrono::high_resolution_clock::now();
 
@@ -210,7 +211,7 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
               ", test=" + std::to_string(test_agent_player) +
               ", baseline=" + std::to_string(baseline_agent_player));
         }
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         // If agent fails, try to get a legal action as fallback
         auto legal_actions = game_state->LegalActions();
         if (!legal_actions.empty()) {
@@ -241,7 +242,7 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
       // Validate action before applying
       auto legal_actions = game_state->LegalActions();
       bool action_valid = false;
-      for (const auto& legal_action : legal_actions) {
+      for (const auto &legal_action : legal_actions) {
         if (action == legal_action) {
           action_valid = true;
           break;
@@ -250,7 +251,7 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
 
       if (!action_valid) {
         if (!legal_actions.empty()) {
-          action = legal_actions[0];  // Use first legal action as fallback
+          action = legal_actions[0]; // Use first legal action as fallback
           if (config_.verbose) {
             std::cout << "Invalid action in game " << game_id
                       << ", using fallback" << '\n';
@@ -270,12 +271,12 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
       // Detect round changes (basic heuristic - in a real implementation you'd
       // check game state)
       if (moves_since_round_start >=
-          config_.num_players * 3) {  // Rough estimate
+          config_.num_players * 3) { // Rough estimate
         num_rounds++;
         moves_since_round_start = 0;
       }
     }
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     error_log = e.what();
     if (config_.verbose) {
       std::cout << "Game " << game_id << " error: " << error_log << '\n';
@@ -287,13 +288,13 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
       end_time - start_time);
 
   // Determine winner and final scores
-  int winner = -1;  // Default to draw
+  int winner = -1; // Default to draw
   std::vector<int> final_scores;
 
   if (game_state->IsTerminal()) {
     // Get actual game scores, not utility values
-    const auto* azul_state =
-        dynamic_cast<const open_spiel::azul::AzulState*>(game_state.get());
+    const auto *azul_state =
+        dynamic_cast<const open_spiel::azul::AzulState *>(game_state.get());
     final_scores.resize(config_.num_players);
 
     // Get actual Azul scores for each player
@@ -317,12 +318,12 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
     if (tied_players.size() > 1) {
       // Tiebreaker: most completed rows
       int max_completed_rows = -1;
-      winner = -1;  // Reset winner for tiebreaker
+      winner = -1; // Reset winner for tiebreaker
 
       for (int player : tied_players) {
         int completed_rows = 0;
-        const auto& player_boards = azul_state->PlayerBoards();
-        const auto& wall = player_boards[player].wall;
+        const auto &player_boards = azul_state->PlayerBoards();
+        const auto &wall = player_boards[player].wall;
 
         for (int row = 0; row < open_spiel::azul::kWallSize; ++row) {
           bool row_complete = true;
@@ -395,6 +396,11 @@ auto AgentEvaluator::run_single_game(EvaluationAgent& test_agent,
 std::vector<std::tuple<int, int, int, int>> AgentEvaluator::plan_games() const {
   std::vector<std::tuple<int, int, int, int>> plans;
 
+  // Initialize random number generator for seed generation
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<int> dist(1, 2147483647);
+
   if (config_.swap_player_positions) {
     // Split games between normal and swapped positions
     int normal_games = config_.num_games / 2;
@@ -402,7 +408,8 @@ std::vector<std::tuple<int, int, int, int>> AgentEvaluator::plan_games() const {
 
     // Normal position games (test agent as player 0)
     for (int i = 0; i < normal_games; ++i) {
-      int seed = config_.use_fixed_seeds ? (config_.random_seed + i) : -1;
+      int seed =
+          config_.use_fixed_seeds ? (config_.random_seed + i) : dist(gen);
       plans.emplace_back(i, 0, 1, seed);
     }
 
@@ -410,13 +417,14 @@ std::vector<std::tuple<int, int, int, int>> AgentEvaluator::plan_games() const {
     for (int i = 0; i < swapped_games; ++i) {
       int seed = config_.use_fixed_seeds
                      ? (config_.random_seed + normal_games + i)
-                     : -1;
+                     : dist(gen);
       plans.emplace_back(normal_games + i, 1, 0, seed);
     }
   } else {
     // All games with test agent as player 0
     for (int i = 0; i < config_.num_games; ++i) {
-      int seed = config_.use_fixed_seeds ? (config_.random_seed + i) : -1;
+      int seed =
+          config_.use_fixed_seeds ? (config_.random_seed + i) : dist(gen);
       plans.emplace_back(i, 0, 1, seed);
     }
   }
@@ -432,7 +440,7 @@ auto AgentEvaluator::calculate_statistical_significance(int test_wins,
   }
 
   // Simple binomial test against 50% win rate
-  double p = 0.5;  // null hypothesis: equal performance
+  double p = 0.5; // null hypothesis: equal performance
   double observed_rate = static_cast<double>(test_wins) / total_games;
 
   // Use normal approximation for large samples
@@ -464,7 +472,7 @@ auto AgentEvaluator::calculate_confidence_interval(int wins,
 
   double p = static_cast<double>(wins) / total_games;
   double alpha = 1.0 - config_.confidence_interval;
-  double z = 1.96;  // 95% confidence interval
+  double z = 1.96; // 95% confidence interval
 
   double margin = z * std::sqrt(p * (1 - p) / total_games);
 
@@ -475,7 +483,7 @@ auto AgentEvaluator::calculate_confidence_interval(int wins,
 }
 
 // Tournament implementation
-Tournament::Tournament(const EvaluationConfig& config)
+Tournament::Tournament(const EvaluationConfig &config)
     : config_(config), evaluator_(config) {}
 
 auto Tournament::add_agent(std::unique_ptr<EvaluationAgent> agent) -> void {
@@ -491,7 +499,7 @@ auto Tournament::run_tournament() -> TournamentResult {
   tournament_result.num_agents = static_cast<int>(agents_.size());
 
   // Initialize agent stats
-  for (const auto& agent : agents_) {
+  for (const auto &agent : agents_) {
     AgentStats stats;
     stats.agent_name = agent->get_name();
     tournament_result.agent_stats.push_back(stats);
@@ -561,7 +569,7 @@ auto Tournament::run_tournament() -> TournamentResult {
         }
         std::sort(
             temp_standings.begin(), temp_standings.end(),
-            [](const auto& a, const auto& b) { return a.second > b.second; });
+            [](const auto &a, const auto &b) { return a.second > b.second; });
 
         for (size_t k = 0; k < temp_standings.size(); ++k) {
           std::cout << "  " << (k + 1) << ". " << temp_standings[k].first
@@ -573,7 +581,7 @@ auto Tournament::run_tournament() -> TournamentResult {
   }
 
   // Calculate final statistics
-  for (auto& stats : tournament_result.agent_stats) {
+  for (auto &stats : tournament_result.agent_stats) {
     if (stats.games_played > 0) {
       stats.win_rate = static_cast<double>(stats.wins) / stats.games_played;
       stats.avg_score = stats.total_score / stats.games_played;
@@ -585,7 +593,7 @@ auto Tournament::run_tournament() -> TournamentResult {
   // Sort agents by win rate (descending)
   std::sort(tournament_result.agent_stats.begin(),
             tournament_result.agent_stats.end(),
-            [](const AgentStats& a, const AgentStats& b) {
+            [](const AgentStats &a, const AgentStats &b) {
               return a.win_rate > b.win_rate;
             });
 
@@ -593,7 +601,7 @@ auto Tournament::run_tournament() -> TournamentResult {
     std::cout << "Tournament complete!" << '\n';
     std::cout << "Final rankings:" << '\n';
     for (size_t i = 0; i < tournament_result.agent_stats.size(); ++i) {
-      const auto& stats = tournament_result.agent_stats[i];
+      const auto &stats = tournament_result.agent_stats[i];
       std::cout << (i + 1) << ". " << stats.agent_name
                 << " - Win rate: " << (stats.win_rate * 100) << "%"
                 << ", Avg score: " << stats.avg_score << '\n';
@@ -604,28 +612,28 @@ auto Tournament::run_tournament() -> TournamentResult {
 }
 
 // Factory functions
-auto create_random_evaluation_agent(int seed, const std::string& name)
+auto create_random_evaluation_agent(int seed, const std::string &name)
     -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<RandomAgentWrapper>(seed, name);
 }
 
-auto create_minimax_evaluation_agent(int depth, const std::string& name)
+auto create_minimax_evaluation_agent(int depth, const std::string &name)
     -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<MinimaxAgentWrapper>(depth, name);
 }
 
 auto create_mcts_evaluation_agent(int num_simulations, double uct_c, int seed,
-                                  const std::string& name)
+                                  const std::string &name)
     -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<MCTSAgentWrapper>(num_simulations, uct_c, seed, name);
 }
 
-auto create_alphazero_mcts_evaluation_agent(const std::string& checkpoint_path,
+auto create_alphazero_mcts_evaluation_agent(const std::string &checkpoint_path,
                                             int num_simulations, double uct_c,
-                                            int seed, const std::string& name)
+                                            int seed, const std::string &name)
     -> std::unique_ptr<EvaluationAgent> {
   return std::make_unique<AlphaZeroMCTSAgentWrapper>(
       checkpoint_path, num_simulations, uct_c, seed, name);
 }
 
-}  // namespace azul
+} // namespace azul

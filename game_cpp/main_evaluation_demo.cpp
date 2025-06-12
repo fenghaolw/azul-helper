@@ -1,6 +1,8 @@
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <sstream>
 #include <string>
 
@@ -15,6 +17,15 @@ namespace {
 void force_azul_registration() {
   // Reference symbols from azul namespace to force linking
   (void)open_spiel::azul::TileColorToString(open_spiel::azul::TileColor::kBlue);
+}
+
+// Helper function to generate random seeds
+int generate_random_seed() {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<int> dist(
+      1, 2147483647); // avoid negative seeds
+  return dist(gen);
 }
 
 // Helper function to convert game state to JSON format
@@ -192,11 +203,10 @@ std::string compact_state_display(const open_spiel::State *state) {
       // Wall row
       for (int col = 0; col < open_spiel::azul::kWallSize; ++col) {
         if (board.wall[row][col]) {
-          // Get the color that should be at this position
-          open_spiel::azul::TileColor wall_color =
-              static_cast<open_spiel::azul::TileColor>(
-                  (col + row) % open_spiel::azul::kNumTileColors);
-          line += open_spiel::azul::TileColorToString(wall_color)[0];
+          // Get the color that should be at this position using the actual wall
+          // pattern
+          line += open_spiel::azul::TileColorToString(
+              open_spiel::azul::kWallPattern[row][col])[0];
         } else {
           line += '.';
         }
@@ -263,7 +273,6 @@ void detailed_game_evaluation(
     const std::shared_ptr<const open_spiel::Game> &game,
     std::unique_ptr<azul::EvaluationAgent> &agent1,
     std::unique_ptr<azul::EvaluationAgent> &agent2,
-    const std::string &agent1_name, const std::string &agent2_name,
     const std::string &output_file = "") {
   auto state = game->NewInitialState();
   std::cout << "\n=== INITIAL GAME STATE ===\n"
@@ -271,15 +280,16 @@ void detailed_game_evaluation(
 
   // Create JSON structure for game replay
   nlohmann::json game_replay;
-  game_replay["agent1_name"] = agent1_name;
-  game_replay["agent2_name"] = agent2_name;
+  game_replay["agent1_name"] = agent1->get_name();
+  game_replay["agent2_name"] = agent2->get_name();
   game_replay["moves"] = nlohmann::json::array();
   game_replay["initial_state"] = state_to_json(state.get());
 
   while (!state->IsTerminal()) {
     int current_player = state->CurrentPlayer();
     auto &agent = (current_player == 0) ? *agent1 : *agent2;
-    std::string agent_name = (current_player == 0) ? agent1_name : agent2_name;
+    std::string agent_name =
+        (current_player == 0) ? agent1->get_name() : agent2->get_name();
 
     auto action = agent.get_action(*state, current_player);
     std::string action_str = state->ActionToString(current_player, action);
@@ -309,7 +319,8 @@ void detailed_game_evaluation(
   std::cout << "\n=== GAME OVER ===\n";
   std::cout << "Final scores:\n";
   for (int player = 0; player < game->NumPlayers(); ++player) {
-    std::string agent_name = (player == 0) ? agent1_name : agent2_name;
+    std::string agent_name =
+        (player == 0) ? agent1->get_name() : agent2->get_name();
     std::cout << "Player " << player << " (" << agent_name
               << "): " << state->PlayerReturn(player) << '\n';
   }
@@ -342,8 +353,11 @@ auto main(int argc, char *argv[]) -> int {
         "v,verbose", "Enable verbose output",
         cxxopts::value<bool>()->default_value("true"))(
         "o,output", "Output file for game replay (JSON format)",
-        cxxopts::value<std::string>()->default_value(""))("h,help",
-                                                          "Print usage");
+        cxxopts::value<std::string>()->default_value(""))(
+        "r,random-seeds", "Use random seeds for each game (default: true)",
+        cxxopts::value<bool>()->default_value("true"))(
+        "seed", "Fixed seed to use when random-seeds is false",
+        cxxopts::value<int>()->default_value("42"))("h,help", "Print usage");
 
     auto result = options.parse(argc, argv);
 
@@ -368,7 +382,12 @@ auto main(int argc, char *argv[]) -> int {
     }
     std::cout << "✅ Azul game loaded successfully" << '\n';
 
-    // Create agents
+    bool use_random_seeds = result["random-seeds"].as<bool>();
+    int fixed_seed = result["seed"].as<int>();
+
+    // For AlphaZero, seed is only used for fallback random rollouts or
+    // tie breaking. The main MCTS search is based on the neural network
+    // weights, not the seed. We use a fixed seed here since it does not matter.
     auto az_agent = azul::create_alphazero_mcts_evaluation_agent(
         "models/libtorch_alphazero_azul/checkpoint--1",
         result["sims"].as<int>(), 1.4, 42,
@@ -377,38 +396,43 @@ auto main(int argc, char *argv[]) -> int {
         result["depth"].as<int>(),
         "Minimax_D" + std::to_string(result["depth"].as<int>()));
 
+    if (use_random_seeds) {
+      std::cout << "✅ Using random seeds for each game\n";
+    } else {
+      std::cout << "✅ Using fixed seed " << fixed_seed << " for all games\n";
+    }
+
     if (mode == "detailed") {
-      detailed_game_evaluation(
-          game, az_agent, minimax_agent,
-          "AlphaZero MCTS (" + std::to_string(result["sims"].as<int>()) +
-              " sims)",
-          "Minimax (D" + std::to_string(result["depth"].as<int>()) + ")",
-          result["output"].as<std::string>());
+      detailed_game_evaluation(game, az_agent, minimax_agent,
+                               result["output"].as<std::string>());
     } else {
       // Use AgentEvaluator for direct comparison
       azul::EvaluationConfig config;
       config.verbose = result["verbose"].as<bool>();
       config.num_games = result["games"].as<int>();
+      config.use_fixed_seeds = !use_random_seeds;
+      config.random_seed = fixed_seed;
 
       azul::AgentEvaluator evaluator(config);
-      auto result = evaluator.evaluate_agent(*az_agent, *minimax_agent);
+      auto eval_result = evaluator.evaluate_agent(*az_agent, *minimax_agent);
 
       // Print evaluation results
       std::cout << "\n=== EVALUATION RESULTS ===\n";
-      std::cout << "Agent 1: " << result.test_agent_name << "\n";
-      std::cout << "Agent 2: " << result.baseline_agent_name << "\n";
-      std::cout << "Games played: " << result.games_played << "\n";
-      std::cout << result.test_agent_name << " wins: " << result.test_agent_wins
-                << "\n";
-      std::cout << "Win rate: " << (result.test_agent_win_rate * 100.0)
+      std::cout << "Agent 1: " << eval_result.test_agent_name << "\n";
+      std::cout << "Agent 2: " << eval_result.baseline_agent_name << "\n";
+      std::cout << "Games played: " << eval_result.games_played << "\n";
+      std::cout << eval_result.test_agent_name
+                << " wins: " << eval_result.test_agent_wins << "\n";
+      std::cout << "Win rate: " << (eval_result.test_agent_win_rate * 100.0)
                 << "%\n";
       std::cout << "Statistical significance: "
-                << (result.is_statistically_significant ? "Yes" : "No") << "\n";
-      if (result.confidence_interval.first != 0 ||
-          result.confidence_interval.second != 0) {
+                << (eval_result.is_statistically_significant ? "Yes" : "No")
+                << "\n";
+      if (eval_result.confidence_interval.first != 0 ||
+          eval_result.confidence_interval.second != 0) {
         std::cout << "95% Confidence interval: ["
-                  << result.confidence_interval.first * 100 << "%, "
-                  << result.confidence_interval.second * 100 << "%]\n";
+                  << eval_result.confidence_interval.first * 100 << "%, "
+                  << eval_result.confidence_interval.second * 100 << "%]\n";
       }
     }
 
